@@ -44,7 +44,7 @@ A100_PROFILE = {
     "fp16":           True,
     "max_grad_norm":   1.0,
     "eval_strategy": "epoch",
-    "save_limit":        3,
+    "save_limit":        1,   # keep only best checkpoint — saves disk space
 }
 
 # RTX 3090/4090, A10, V100 (<40 GB VRAM)
@@ -234,6 +234,7 @@ def run_training(
         metric_for_best_model="eval_loss",
         greater_is_better=False,
         save_total_limit=profile["save_limit"],
+        save_only_model=True,   # skip optimizer/scheduler state — saves ~1.5 GB per checkpoint
 
         # Precision
         fp16=profile["fp16"] and not use_cpu,
