@@ -1,7 +1,8 @@
-# Training-only dependencies — no spaCy/Presidio needed for fine-tuning
+# Training-only dependencies
+# torch is NOT listed here — on RunPod it is pre-installed with CUDA support.
+# Installing torch via pip would overwrite it with a CPU-only version.
 pyyaml>=6.0
 faker>=24.0
 gliner>=0.2
-torch>=2.0
 transformers>=4.40
 accelerate>=0.26.0

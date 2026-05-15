@@ -9,13 +9,13 @@
 #   ./start.sh --device cpu                           # force CPU (dev/testing)
 #
 # What it does:
-#   1. Creates / reuses a Python virtual environment
+#   1. Creates / reuses a Python virtual environment (inherits system CUDA torch)
 #   2. Installs lean training dependencies
 #   3. Generates synthetic PII training data from entities_config.yaml
 #      → any new entity added to the yaml is covered automatically (no code change)
 #   4. Fine-tunes GLiNER on GPU (auto-selects A100 profile when VRAM >= 40 GB)
 #   5. Saves the trained model to models/pii_gliner/
-#   6. Updates .env with the model path — restart the server to pick it up
+#   6. Updates .env with the model path
 #
 # RunPod recommended instance: A100 SXM 80 GB or H100 80 GB
 # =============================================================================
@@ -53,26 +53,33 @@ echo ""
 echo "============================================================"
 echo "  GLiNER PII Training Pipeline"
 echo "============================================================"
-echo "  Root         : $ROOT"
+echo "  Root          : $ROOT"
 echo "  Samples/entity: $SAMPLES"
-echo "  Output model : $OUT_DIR"
+echo "  Output model  : $OUT_DIR"
 echo ""
 
 # ── Detect Python ─────────────────────────────────────────────────────────────
-# On RunPod, system Python is often already good; prefer venv for isolation.
 if [ -d "$VENV" ]; then
   PYTHON="$VENV/bin/python"
   PIP="$VENV/bin/pip"
+  echo "[1/5] Reusing existing virtual environment"
 else
-  # Prefer python3.10/3.11 if available (Python 3.9 works but 3.10+ is faster)
+  # Find best available Python
+  SYS_PYTHON=""
   for py in python3.11 python3.10 python3.9 python3; do
     if command -v "$py" &>/dev/null; then
       SYS_PYTHON="$py"
       break
     fi
   done
+  if [ -z "$SYS_PYTHON" ]; then
+    echo "ERROR: No python3 found on PATH" >&2; exit 1
+  fi
+
   echo "[1/5] Creating virtual environment with $SYS_PYTHON …"
-  "$SYS_PYTHON" -m venv "$VENV"
+  # --system-site-packages inherits the RunPod pre-installed CUDA-enabled torch.
+  # Without this, pip downloads a CPU-only torch and CUDA is invisible to training.
+  "$SYS_PYTHON" -m venv --system-site-packages "$VENV"
   PYTHON="$VENV/bin/python"
   PIP="$VENV/bin/pip"
 fi
@@ -80,17 +87,32 @@ fi
 # ── Install dependencies ──────────────────────────────────────────────────────
 echo "[2/5] Installing training dependencies…"
 "$PIP" install -q --upgrade pip
-"$PIP" install -q -r "$ROOT/train/requirements-train.txt"
 
-# Verify torch + CUDA visibility
+# Install everything except torch/torchvision — those come from the system venv
+# (already CUDA-enabled on RunPod). Installing torch again would overwrite with CPU.
+"$PIP" install -q \
+  "pyyaml>=6.0" \
+  "faker>=24.0" \
+  "gliner>=0.2" \
+  "transformers>=4.40" \
+  "accelerate>=0.26.0"
+
+# Verify CUDA is visible
+echo ""
 "$PYTHON" -c "
 import torch, gliner
 cuda = torch.cuda.is_available()
-device_name = torch.cuda.get_device_name(0) if cuda else 'CPU'
+device_name = torch.cuda.get_device_name(0) if cuda else 'CPU (no CUDA)'
 vram = torch.cuda.get_device_properties(0).total_memory / 1e9 if cuda else 0
-print(f'  gliner {gliner.__version__}  torch {torch.__version__}')
+print(f'  gliner {gliner.__version__}  |  torch {torch.__version__}')
 print(f'  Device : {device_name}' + (f'  ({vram:.0f} GB VRAM)' if cuda else ''))
+if not cuda:
+    print('  WARNING: CUDA not found — training will use CPU (slow)')
 "
+
+# ── Ensure output directories exist ───────────────────────────────────────────
+mkdir -p "$ROOT/train/data"
+mkdir -p "$OUT_DIR"
 
 # ── Generate training data ────────────────────────────────────────────────────
 if [ "$SKIP_GENERATE" -eq 0 ]; then
@@ -135,14 +157,12 @@ echo "[5/5] Updating .env…"
 ENV_FILE="$ROOT/.env"
 touch "$ENV_FILE"
 
-# Update or append FINE_TUNED_MODEL_PATH
 if grep -q "^FINE_TUNED_MODEL_PATH=" "$ENV_FILE" 2>/dev/null; then
   sed -i "s|^FINE_TUNED_MODEL_PATH=.*|FINE_TUNED_MODEL_PATH=$OUT_DIR|" "$ENV_FILE"
 else
   echo "FINE_TUNED_MODEL_PATH=$OUT_DIR" >> "$ENV_FILE"
 fi
 
-# Set detection threshold
 if grep -q "^GLINER_THRESHOLD=" "$ENV_FILE" 2>/dev/null; then
   sed -i "s|^GLINER_THRESHOLD=.*|GLINER_THRESHOLD=0.55|" "$ENV_FILE"
 else
@@ -160,7 +180,7 @@ echo ""
 echo "  To download model from RunPod:"
 echo "    runpodctl send $OUT_DIR"
 echo ""
-echo "  To serve locally:"
+echo "  To serve locally after download:"
 echo "    ./run.sh"
 echo ""
 echo "  To test:"
