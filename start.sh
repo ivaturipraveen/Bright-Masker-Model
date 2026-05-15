@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# =============================================================================
+# PII Model — Single entry point for GPU training (RunPod / any Linux GPU box)
+#
+# Usage:
+#   chmod +x start.sh && ./start.sh                   # auto-detect GPU, 1000 samples/entity
+#   ./start.sh --samples 2000                         # more training data
+#   ./start.sh --epochs 15                            # override epoch count
+#   ./start.sh --device cpu                           # force CPU (dev/testing)
+#
+# What it does:
+#   1. Creates / reuses a Python virtual environment
+#   2. Installs lean training dependencies
+#   3. Generates synthetic PII training data from entities_config.yaml
+#      → any new entity added to the yaml is covered automatically (no code change)
+#   4. Fine-tunes GLiNER on GPU (auto-selects A100 profile when VRAM >= 40 GB)
+#   5. Saves the trained model to models/pii_gliner/
+#   6. Updates .env with the model path — restart the server to pick it up
+#
+# RunPod recommended instance: A100 SXM 80 GB or H100 80 GB
+# =============================================================================
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+VENV="$ROOT/.venv"
+
+# ── Defaults ──────────────────────────────────────────────────────────────────
+SAMPLES=1000
+DEVICE_ARG=""
+EPOCHS_ARG=""
+BASE_MODEL="urchade/gliner_large-v2.1"
+OUT_DIR="$ROOT/models/pii_gliner"
+DATA_FILE="$ROOT/train/data/pii_train.json"
+SKIP_GENERATE=0
+
+# ── Parse args ────────────────────────────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --samples)       SAMPLES="$2";      shift 2 ;;
+    --device)        DEVICE_ARG="$2";   shift 2 ;;
+    --epochs)        EPOCHS_ARG="$2";   shift 2 ;;
+    --out)           OUT_DIR="$2";      shift 2 ;;
+    --base-model)    BASE_MODEL="$2";   shift 2 ;;
+    --skip-generate) SKIP_GENERATE=1;   shift   ;;
+    --help|-h)
+      sed -n '2,30p' "$0" | grep '^#' | sed 's/^# \?//'
+      exit 0 ;;
+    *) echo "Unknown arg: $1" >&2; exit 1 ;;
+  esac
+done
+
+echo ""
+echo "============================================================"
+echo "  GLiNER PII Training Pipeline"
+echo "============================================================"
+echo "  Root         : $ROOT"
+echo "  Samples/entity: $SAMPLES"
+echo "  Output model : $OUT_DIR"
+echo ""
+
+# ── Detect Python ─────────────────────────────────────────────────────────────
+# On RunPod, system Python is often already good; prefer venv for isolation.
+if [ -d "$VENV" ]; then
+  PYTHON="$VENV/bin/python"
+  PIP="$VENV/bin/pip"
+else
+  # Prefer python3.10/3.11 if available (Python 3.9 works but 3.10+ is faster)
+  for py in python3.11 python3.10 python3.9 python3; do
+    if command -v "$py" &>/dev/null; then
+      SYS_PYTHON="$py"
+      break
+    fi
+  done
+  echo "[1/5] Creating virtual environment with $SYS_PYTHON …"
+  "$SYS_PYTHON" -m venv "$VENV"
+  PYTHON="$VENV/bin/python"
+  PIP="$VENV/bin/pip"
+fi
+
+# ── Install dependencies ──────────────────────────────────────────────────────
+echo "[2/5] Installing training dependencies…"
+"$PIP" install -q --upgrade pip
+"$PIP" install -q -r "$ROOT/train/requirements-train.txt"
+
+# Verify torch + CUDA visibility
+"$PYTHON" -c "
+import torch, gliner
+cuda = torch.cuda.is_available()
+device_name = torch.cuda.get_device_name(0) if cuda else 'CPU'
+vram = torch.cuda.get_device_properties(0).total_memory / 1e9 if cuda else 0
+print(f'  gliner {gliner.__version__}  torch {torch.__version__}')
+print(f'  Device : {device_name}' + (f'  ({vram:.0f} GB VRAM)' if cuda else ''))
+"
+
+# ── Generate training data ────────────────────────────────────────────────────
+if [ "$SKIP_GENERATE" -eq 0 ]; then
+  echo ""
+  echo "[3/5] Generating training data from entities_config.yaml…"
+  echo "  Samples per entity: $SAMPLES"
+  echo "  (New entities in entities_config.yaml are covered automatically)"
+  "$PYTHON" "$ROOT/train/generate_data.py" \
+    --samples "$SAMPLES" \
+    --yaml    "$ROOT/entities_config.yaml" \
+    --out     "$DATA_FILE"
+else
+  echo "[3/5] Skipping data generation (--skip-generate)"
+fi
+
+if [ ! -f "$DATA_FILE" ]; then
+  echo "ERROR: Training data not found at $DATA_FILE" >&2
+  exit 1
+fi
+
+EXAMPLE_COUNT=$("$PYTHON" -c "import json; d=json.load(open('$DATA_FILE')); print(len(d))")
+echo "  Training examples: $EXAMPLE_COUNT"
+
+# ── Fine-tune GLiNER ──────────────────────────────────────────────────────────
+echo ""
+echo "[4/5] Fine-tuning GLiNER…"
+
+FINETUNE_ARGS=(
+  "--data"       "$DATA_FILE"
+  "--out"        "$OUT_DIR"
+  "--base-model" "$BASE_MODEL"
+)
+[ -n "$DEVICE_ARG" ] && FINETUNE_ARGS+=("--device" "$DEVICE_ARG")
+[ -n "$EPOCHS_ARG" ] && FINETUNE_ARGS+=("--epochs" "$EPOCHS_ARG")
+
+"$PYTHON" "$ROOT/train/finetune.py" "${FINETUNE_ARGS[@]}"
+
+# ── Update .env ───────────────────────────────────────────────────────────────
+echo ""
+echo "[5/5] Updating .env…"
+
+ENV_FILE="$ROOT/.env"
+touch "$ENV_FILE"
+
+# Update or append FINE_TUNED_MODEL_PATH
+if grep -q "^FINE_TUNED_MODEL_PATH=" "$ENV_FILE" 2>/dev/null; then
+  sed -i "s|^FINE_TUNED_MODEL_PATH=.*|FINE_TUNED_MODEL_PATH=$OUT_DIR|" "$ENV_FILE"
+else
+  echo "FINE_TUNED_MODEL_PATH=$OUT_DIR" >> "$ENV_FILE"
+fi
+
+# Set detection threshold
+if grep -q "^GLINER_THRESHOLD=" "$ENV_FILE" 2>/dev/null; then
+  sed -i "s|^GLINER_THRESHOLD=.*|GLINER_THRESHOLD=0.55|" "$ENV_FILE"
+else
+  echo "GLINER_THRESHOLD=0.55" >> "$ENV_FILE"
+fi
+
+echo ""
+echo "============================================================"
+echo "  Training complete"
+echo "============================================================"
+echo ""
+echo "  Model saved : $OUT_DIR"
+echo "  .env updated: FINE_TUNED_MODEL_PATH=$OUT_DIR"
+echo ""
+echo "  To download model from RunPod:"
+echo "    runpodctl send $OUT_DIR"
+echo ""
+echo "  To serve locally:"
+echo "    ./run.sh"
+echo ""
+echo "  To test:"
+echo "    python main.py mask-text --text 'Patient John Smith DOB 07/15/1985 SSN 078-05-1120'"
+echo ""
