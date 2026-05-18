@@ -313,7 +313,58 @@ def _username() -> str:
 # Entity template definitions — 20-25 templates per entity
 # ---------------------------------------------------------------------------
 
+def _physician_name() -> str:
+    titles = ["Dr.", "Doctor"]
+    title = random.choice(titles)
+    return f"{title} {fake.first_name()} {fake.last_name()}"
+
+def _card_holder() -> str:
+    return f"{fake.first_name().upper()} {fake.last_name().upper()}"
+
+
 ENTITY_DEFS: dict[str, dict] = {
+
+    "physician_name": {
+        "generator": _physician_name,
+        "templates": [
+            "Referring physician: {value}",
+            "Primary care provider: {value}",
+            "Physician: {value}",
+            "Ordered by {value}",
+            "Prescribing physician: {value}",
+            "Attending physician: {value}",
+            "The patient was seen by {value}.",
+            "Surgeon: {value}",
+            "Treating physician: {value}",
+            "Specialty consult with {value}.",
+            "Provider: {value}",
+            "Signed by {value}, MD",
+            "The report was authored by {value}.",
+            "Follow-up scheduled with {value}.",
+            "Lab ordered by {value}.",
+            "Prescription issued by {value}.",
+            "Consult note from {value}.",
+            "Authorized by {value}",
+            "Licensed provider: {value}",
+            "Clinician: {value}",
+        ],
+    },
+
+    "card_holder_name": {
+        "generator": _card_holder,
+        "templates": [
+            "Cardholder: {value}",
+            "Card holder name: {value}",
+            "Name on card: {value}",
+            "Account holder: {value}",
+            "The card is issued to {value}.",
+            "Printed name: {value}",
+            "Card name: {value}",
+            "Registered to: {value}",
+            "Card owner: {value}",
+            "Embossed name: {value}",
+        ],
+    },
 
     "person_name": {
         "generator": _first_last,

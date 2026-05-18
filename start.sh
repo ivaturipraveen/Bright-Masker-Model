@@ -3,10 +3,11 @@
 # PII Model — Single entry point for GPU training (RunPod / any Linux GPU box)
 #
 # Usage:
-#   chmod +x start.sh && ./start.sh                   # auto-detect GPU, 1000 samples/entity
-#   ./start.sh --samples 2000                         # more training data
+#   chmod +x start.sh && ./start.sh                   # auto-detect GPU, 2000 samples/entity
+#   ./start.sh --samples 3000                         # even more training data
 #   ./start.sh --epochs 15                            # override epoch count
 #   ./start.sh --device cpu                           # force CPU (dev/testing)
+#   ./start.sh --skip-generate                        # retrain on existing data only
 #
 # What it does:
 #   1. Creates / reuses a Python virtual environment (inherits system CUDA torch)
@@ -18,6 +19,7 @@
 #   6. Updates .env with the model path
 #
 # RunPod recommended instance: A100 SXM 80 GB or H100 80 GB
+# Estimated time: ~90 min on A100 at 2000 samples/entity (105 entities)
 # =============================================================================
 set -euo pipefail
 
@@ -25,7 +27,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 VENV="$ROOT/.venv"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-SAMPLES=1000
+SAMPLES=2000
 DEVICE_ARG=""
 EPOCHS_ARG=""
 BASE_MODEL="urchade/gliner_large-v2.1"

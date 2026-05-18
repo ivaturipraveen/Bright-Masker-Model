@@ -66,6 +66,37 @@ global:
     - dea_number
     - swift_bic_code
 
+# ── Registry metadata (UI / API — does not affect detection) ─────────────────
+registry:
+  policy_priority: [hipaa, pci_dss, law_enforcement, transportation, general]
+  categories:
+    - id: hipaa
+      label: HIPAA Safe Harbor
+      description: "18 PHI identifiers (45 CFR §164.514)"
+      icon: "🛡"
+    - id: pci_dss
+      label: PCI-DSS v4.0
+      description: "Cardholder data & sensitive authentication data"
+      icon: "💳"
+    - id: general
+      label: General PII
+      description: "Credentials, attributes, education & employment records"
+      icon: "🔐"
+    - id: law_enforcement
+      label: Law Enforcement / CJIS
+      description: "Criminal justice & law enforcement records"
+      icon: "⚖"
+    - id: transportation
+      label: Transportation
+      description: "Vehicle, driver, and transit identifiers"
+      icon: "🚗"
+  detection_methods:
+    - id: pattern
+      label: Pattern
+    - id: ner
+      label: GLiNER
+    - id: presidio
+      label: Presidio
 
 entities:
 
@@ -80,13 +111,27 @@ entities:
     description: "Human personal names only: first name, last name, full name, nickname, or alias of a real person. Do NOT flag dates, section headers, department names, medical terms, organization names, city names, or state names."
     policy: [hipaa]
     enabled: true
-    priority: 2
+    priority: 1
+    confidence_threshold: 0.45
+    gliner_label: "person full name"
     presidio_type: PERSON
-    patterns:
-      - '(?:Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.|Mx\.|Attorney|Atty\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+'
     masking:
       strategy: redact
       format: "[PERSON {n}]"
+
+  - id: physician_name
+    display_name: Physician / Doctor Name
+    description: "Name of a doctor or physician identified by the 'Dr.' or 'Doctor' title. Example: 'Dr. Robert Hayes', 'Dr. Miguel Santos'. Always use DOCTOR tag instead of PERSON for medical professionals with explicit title."
+    policy: [hipaa]
+    enabled: true
+    priority: 1
+    confidence_threshold: 0.45
+    gliner_label: "physician or doctor name"
+    patterns:
+      - '((?:Dr\.|Doctor)\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,2})'
+    masking:
+      strategy: redact
+      format: "[DOCTOR {n}]"
 
 # ── #2  Geographic data smaller than state ────────────────────────────────────
 
@@ -96,8 +141,9 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 2
+    gliner_label: "street address with house number"
     patterns:
-      - '(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Terrace|Terr?|Highway|Hwy|Parkway|Pkwy)\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
+      - '(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Terrace|Highway|Hwy|Parkway|Pkwy)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
     masking:
       strategy: redact
       format: "[ADDRESS {n}]"
@@ -108,7 +154,11 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 3
+    confidence_threshold: 0.40
     gliner_label: "city or town in a personal address"
+    patterns:
+      - ',\s*([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2}),\s*[A-Z]{2}\s+\d{5}'
+      - '(?:in|of|at|near|from)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}),\s*[A-Z]{2}(?:\s+\d{5})?'
     masking:
       strategy: redact
       format: "[LOCATION {n}]"
@@ -119,6 +169,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 3
+    gliner_label: "US state abbreviation in address"
     patterns:
       - '(?:,\s*)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)(?=\s+\d{5})'
     masking:
@@ -131,6 +182,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 3
+    gliner_label: "ZIP code or postal code"
     patterns:
       - '(?:,?\s*[A-Z]{2}\s+)(\d{5}(?:-\d{4})?)\b'
       - '(?:zip|postal)\s+(?:code|#)?\s*:?\s*(\d{5}(?:-\d{4})?)'
@@ -160,6 +212,8 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 2
+    counter_group: date
+    gliner_label: "date of birth"
     patterns:
       - '(?:DOB|Date\s+of\s+Birth)\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
       - '(?:DOB|Date\s+of\s+Birth)\s*[:#]?\s*(\d{4}-\d{2}-\d{2})'
@@ -168,7 +222,7 @@ entities:
       - '(?:born|dob|date\s+of\s+birth)\s*[:#]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})'
     masking:
       strategy: redact
-      format: "[DOB {n}]"
+      format: "[DATE {n}]"
 
   - id: clinical_date
     display_name: Clinical / Procedure / Event Date
@@ -176,13 +230,13 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 2
+    counter_group: date
+    gliner_label: "clinical procedure or visit date"
     patterns:
       - '(?:PROCEDURE|RECEIVED|REPORT|ADMISSION|DISCHARGE|SERVICE|VISIT|RECORD(?:ED)?|SUBMITTED?|CREATED?|OPENED?|LOSS|INCIDENT|TRANSACTION|ENROLLMENT|TERMINATION|EFFECTIVE|EXPIRY|EXPIRATION|FILING|HEARING|ARREST|CONVICTION|BOOKING)\s+DATE\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
       - 'DATE\s+OF\s+(?:LOSS|INCIDENT|SERVICE|ADMISSION|DISCHARGE|BIRTH|DEATH|INJURY|ACCIDENT|FILING|ARREST)\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
-      - '^(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\s+[A-Za-z]'
       - '(?:Done|Pending|Completed|Ordered|Processed|Submitted|Filed|Booked|Enrolled|Joined|Registered|Reported|Opened|Arrested|Convicted|Sentenced|Created|Issued|Activated|Closed|Resolved|Reviewed|Approved|Denied|Referred)\s*[:\s]+(?:on\s+)?(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
       - '[—–]\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
-      - '(?:on\s+)(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -195,6 +249,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "phone number"
     presidio_type: PHONE_NUMBER
     patterns:
       - '(\(\d{3}\)\s*\d{3}[-.\s]\d{4})'
@@ -211,6 +266,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "fax number"
     patterns:
       - '(?:FAX|Fax)\s*(?:Number|No|#)?\s*[:#]?\s*(\+?[\d\s\-\(\)\.]{9,18})'
       - '(?:FAX|Fax)\s*[:#]\s*(\+?[\d\s\-\(\)\.]{9,18})'
@@ -225,6 +281,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "email address"
     presidio_type: EMAIL_ADDRESS
     masking:
       strategy: redact
@@ -238,6 +295,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "social security number"
     presidio_type: US_SSN
     patterns:
       - '(\d{3}-\d{2}-\d{4})'
@@ -253,6 +311,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "medical record number MRN"
     patterns:
       - '(?:MRN|Medical\s+Record\s+(?:Number|No))\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - 'Patient\s+ID\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
@@ -268,6 +327,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "health plan member ID or beneficiary number"
     patterns:
       # Insurer-prefixed IDs — most reliable, no keyword required
       - '(?:HPN|UHC|HP|BCBS|CIGNA|AETNA|HUMANA|ANTHEM|KAISER|UNITED|MOLINA|CVS|OPTUM)-[A-Za-z0-9\-]{4,20}'
@@ -288,6 +348,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 2
+    gliner_label: "insurance policy number"
     patterns:
       - '(?:Policy\s+(?:Number|No|#)\s*[:#]?\s*)([A-Za-z0-9\-]{4,20})'
       - '\bPOL-[A-Za-z0-9\-]{4,20}\b'
@@ -301,6 +362,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "billing number"
     patterns:
       - 'BILLING\s*NO\.?\s*[:#]?\s*(\d{4,12})'
       - 'Billing\s+(?:Number|No)\s*[:#]?\s*(\d{4,12})'
@@ -317,6 +379,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "medical license number"
     patterns:
       - '(?:Medical|Clinical|State|Professional)\s+License\s*(?:Number|No|#)?\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - 'License\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
@@ -331,6 +394,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "DEA registration number"
     patterns:
       - '\bDEA\s*(?:Number|No|#|Registration)?\s*[:#]?\s*([A-Za-z]{2}\d{7})\b'
     masking:
@@ -343,6 +407,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "NPI provider number"
     patterns:
       - '\bNPI\s*[:#]?\s*(\d{10})\b'
       - 'National\s+Provider\s+Identifier\s*[:#]?\s*(\d{10})'
@@ -356,6 +421,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "passport number"
     presidio_type: US_PASSPORT
     patterns:
       - 'Passport\s+(?:Number|No|#)\s*[:#]?\s*([A-Za-z][A-Za-z0-9]{5,10})'
@@ -365,15 +431,16 @@ entities:
       format: "[PASSPORT {n}]"
 
   - id: drivers_license
-    display_name: Driver''s License Number
-    description: "Driver license number. Format varies by state. Example: D123-456-7890"
+    display_name: Driver's License Number
+    description: "Driver license number. Format varies by state. Example: D123-456-7890, DL-000003. Capture the full token including any DL- prefix."
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "driver's license number"
     presidio_type: US_DRIVER_LICENSE
     patterns:
-      - 'Driver''s?\s+License\s*[:#]?\s*([A-Za-z0-9\-]{6,18})'
-      - '\bDL\s*[:#]?\s*([A-Za-z0-9\-]{6,18})'
+      - "(Driver's?\\s+License\\s*[:#]?\\s*[A-Za-z0-9\\-]{6,18})"
+      - '(\bDL[-\s]*[A-Za-z0-9][A-Za-z0-9\-]{4,17})\b'
     masking:
       strategy: redact
       format: "[DRIVERS LICENSE {n}]"
@@ -415,6 +482,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 2
+    gliner_label: "MAC address or device identifier"
     patterns:
       - '([0-9A-Fa-f]{2}(?:[:\-][0-9A-Fa-f]{2}){5})'
       - '\bIMEI\s*[:#]?\s*(\d{15})\b'
@@ -431,6 +499,7 @@ entities:
     enabled: true
     priority: 3
     confidence_threshold: 0.80
+    gliner_label: "URL with personal information"
     patterns:
       - '(https?://\S+)'
     masking:
@@ -445,6 +514,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    gliner_label: "IP address"
     presidio_type: IP_ADDRESS
     masking:
       strategy: redact
@@ -516,6 +586,7 @@ entities:
     enabled: true
     priority: 4
     confidence_threshold: 0.90
+    gliner_label: "company or organization name"
     presidio_type: ORG
     patterns:
       - '^([A-Z][A-Z ,&.]{5,},?\s*INC\.?)$'
@@ -554,6 +625,7 @@ entities:
     policy: [pci_dss]
     enabled: true
     priority: 1
+    gliner_label: "credit or debit card number"
     presidio_type: CREDIT_CARD
     patterns:
       - '\b(\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4})\b'
@@ -563,13 +635,15 @@ entities:
 
   - id: card_holder_name
     display_name: Card Holder Name
-    description: "Name physically printed on a credit or debit card. Only flag when immediately adjacent to a card number or CVV. Do NOT flag physicians, patients, employees, or any other person names."
+    description: "Name physically printed on a credit or debit card — detected via GLiNER when contextually adjacent to card data."
     policy: [pci_dss]
-    enabled: false
+    enabled: true
     priority: 2
+    confidence_threshold: 0.50
+    gliner_label: "cardholder name on payment card"
     masking:
       strategy: redact
-      format: "[PERSON {n}]"
+      format: "[CARD HOLDER {n}]"
 
   - id: card_expiration_date
     display_name: Card Expiry MM/YY (two-digit year, no day)
@@ -577,6 +651,7 @@ entities:
     policy: [pci_dss]
     enabled: true
     priority: 1
+    gliner_label: "card expiration date"
     patterns:
       - '(?:Expiry|Exp(?:iration)?)\s*(?:Date\s*)?[:#]?\s*(\d{2}/\d{2})\b'
     masking:
@@ -590,6 +665,7 @@ entities:
     enabled: true
     priority: 1
     confidence_threshold: 0.70
+    gliner_label: "CVV or card security code"
     patterns:
       - 'CVV2?\s*[:#]?\s*(\d{3,4})'
       - 'CVC\s*[:#]?\s*(\d{3,4})'
@@ -608,6 +684,7 @@ entities:
     policy: [pci_dss]
     enabled: true
     priority: 1
+    gliner_label: "card magnetic stripe track data"
     patterns:
       - '(%B\d{13,19}\^[^\^]{1,26}\^\d{4}[^\?]*\?)'
       - '(;\d{13,19}=\d{4}[^?]*\?)'
@@ -622,6 +699,7 @@ entities:
     enabled: true
     priority: 1
     confidence_threshold: 0.70
+    gliner_label: "card PIN or PIN block"
     patterns:
       - '\bPIN\s+Block\s*[:#]?\s*([A-Fa-f0-9]{16,})\b'
       - '\bPIN\s*[:#]\s*(\d{4,6})\b'
@@ -635,6 +713,7 @@ entities:
     policy: [pci_dss]
     enabled: true
     priority: 1
+    gliner_label: "card transaction cryptogram ARQC"
     patterns:
       - '(?:ARQC|TC\b|AAC|Cryptogram|Dynamic\s+Auth(?:entication)?(?:\s+Value)?)\s*[:#]?\s*([A-Fa-f0-9]{8,16})\b'
     masking:
@@ -646,6 +725,7 @@ entities:
     description: "Issuer Identification Number — first 6-8 digits of a PAN. PCI-DSS protected when stored separately. Detect near keywords: IIN, BIN, Issuer Number."
     policy: [pci_dss]
     enabled: true
+    gliner_label: "card BIN or IIN issuer number"
     priority: 2
     patterns:
       - '(?:IIN|BIN|Issuer\s+(?:Identification\s+)?Number)\s*[:#]?\s*(\d{6,8})\b'
@@ -661,6 +741,7 @@ entities:
     policy: [pci_dss, hipaa]
     enabled: true
     priority: 1
+    gliner_label: "bank account number"
     presidio_type: US_BANK_NUMBER
     masking:
       strategy: redact
@@ -672,6 +753,7 @@ entities:
     policy: [pci_dss, hipaa]
     enabled: true
     priority: 1
+    gliner_label: "bank routing number"
     patterns:
       - 'Routing\s+(?:Number|No)\s*[:#]?\s*(\d{9})'
       - 'ABA\s+(?:Number|No)\s*[:#]?\s*(\d{9})'
@@ -685,7 +767,10 @@ entities:
     policy: [pci_dss, hipaa]
     enabled: true
     priority: 1
+    gliner_label: "IBAN international bank account number"
     presidio_type: IBAN_CODE
+    patterns:
+      - '\b([A-Z]{2}\d{2}[A-Z0-9]{11,30})\b'
     masking:
       strategy: redact
       format: "[IBAN {n}]"
@@ -696,6 +781,7 @@ entities:
     policy: [pci_dss]
     enabled: true
     priority: 1
+    gliner_label: "SWIFT BIC code"
     patterns:
       - '\b(?:SWIFT|BIC)\b\s*(?:Code)?\s*[:#]?\s*([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b'
     masking:
@@ -706,24 +792,26 @@ entities:
 
   - id: merchant_id
     display_name: Merchant ID (MID)
-    description: "Merchant identifier assigned by the payment processor. Detect near keyword: Merchant ID, MID. Example: MID-88234001"
+    description: "Merchant identifier assigned by the payment processor. Detect near keyword: Merchant ID, MID. Example: MID-88234001. Capture the full token including MID- prefix."
     policy: [pci_dss]
     enabled: true
     priority: 2
+    gliner_label: "merchant ID MID"
     patterns:
-      - '(?:Merchant\s+ID|MID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})\b'
+      - '((?:Merchant\s+ID|MID)\s*[-:#]?\s*[A-Za-z0-9][A-Za-z0-9\-]{2,19})\b'
     masking:
       strategy: redact
       format: "[MERCHANT ID {n}]"
 
   - id: terminal_id
     display_name: Terminal ID (TID)
-    description: "POS terminal identifier assigned by the acquirer. Detect near keyword: Terminal ID, TID. Example: TID-44120099"
+    description: "POS terminal identifier assigned by the acquirer. Detect near keyword: Terminal ID, TID. Example: TID-44120099. Capture the full token including TID- prefix."
     policy: [pci_dss]
     enabled: true
     priority: 2
+    gliner_label: "terminal ID TID"
     patterns:
-      - '(?:Terminal\s+ID|TID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})\b'
+      - '((?:Terminal\s+ID|TID)\s*[-:#]?\s*[A-Za-z0-9][A-Za-z0-9\-]{2,19})\b'
     masking:
       strategy: redact
       format: "[TERMINAL ID {n}]"
@@ -734,6 +822,7 @@ entities:
     policy: [pci_dss]
     enabled: true
     priority: 2
+    gliner_label: "transaction ID"
     patterns:
       - '(?:Transaction\s+(?:ID|No)|TXN)\s*[:#]?\s*([A-Za-z0-9\-]{4,30})\b'
     masking:
@@ -753,8 +842,8 @@ entities:
     priority: 1
     gliner_label: "password or secret passphrase"
     patterns:
-      - '(?:password|passwd|pwd|pass)\s*[:#=]\s*(\S{4,128})'
-      - '(?:passphrase|secret[\s_]key)\s*[:#=]\s*(\S{4,128})'
+      - '(?:password|passwd|pwd|pass)\s*[:#=]\s*([^\s,;.]{4,128})'
+      - '(?:passphrase|secret[\s_]key)\s*[:#=]\s*([^\s,;.]{4,128})'
     masking:
       strategy: redact
       format: "[PASSWORD {n}]"
@@ -791,6 +880,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 1
+    gliner_label: "session token or API key"
     patterns:
       - '(eyJ[A-Za-z0-9_\-]+(?:\.[A-Za-z0-9_\-]+){2})'
       - '(sk-[A-Za-z0-9_\-]{10,})'
@@ -883,6 +973,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 1
+    gliner_label: "state government ID number"
     patterns:
       - 'State\s+ID\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - 'State\s+Identification\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
@@ -901,6 +992,7 @@ entities:
     policy: [law_enforcement]
     enabled: true
     priority: 1
+    gliner_label: "FBI identification number"
     patterns:
       - 'FBI\s+(?:Number|No|#|ID)\s*[:#]?\s*([A-Za-z0-9]{4,12})'
     masking:
@@ -927,6 +1019,7 @@ entities:
     policy: [law_enforcement]
     enabled: true
     priority: 1
+    gliner_label: "arrest record or booking record"
     patterns:
       - 'Arrest\s+Record\s*[:#]\s*(.+)'
       - '(?:Booked|Arrested)\s+(?:on\s+)?(\d{4}-\d{2}-\d{2}[^\n]*)'
@@ -940,6 +1033,7 @@ entities:
     policy: [law_enforcement]
     enabled: true
     priority: 2
+    gliner_label: "court case number"
     patterns:
       - 'Case\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
       - 'Docket\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
@@ -980,6 +1074,7 @@ entities:
     policy: [law_enforcement]
     enabled: true
     priority: 1
+    gliner_label: "incarceration or inmate record"
     patterns:
       - 'Inmate\s+ID\s*[:#]?\s*(\d{4,10})'
       - 'Booking\s+(?:Number|No)\s*[:#]?\s*(\d{4,10})'
@@ -1220,6 +1315,7 @@ entities:
     policy: [transportation]
     enabled: true
     priority: 1
+    gliner_label: "BART transit employee ID"
     patterns:
       - '(?:BART\s+)?Employee\s+ID\s*[:#]?\s*(\d{4,8})'
       - 'Emp(?:loyee)?\s*(?:ID|No)\s*[:#]?\s*(\d{4,8})'
@@ -1233,23 +1329,25 @@ entities:
 
   - id: financial_amount
     display_name: Transaction / Financial Amount
-    description: "Dollar or currency amount in a financial transaction, payment, or account context. Example: '$12,450', '$18,700.00', '$219.96'."
+    description: "Dollar or currency amount in a financial transaction, payment, or account context. Example: '$12,450', '$18,700.00', '$219.96', '1002.00 USD'."
     policy: [general]
     enabled: true
-    priority: 3
+    priority: 2
+    gliner_label: "financial dollar amount"
     patterns:
-      - '(\$\s*[\d,]+(?:\.\d{1,2})?)'
-      - '(\d{1,3}(?:,\d{3})+(?:\.\d{2})?)\s*(?:USD|dollars?)\b'
+      - '(\$\s*[\d,]+(?:\.\d{1,2})?)\b'
+      - '((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)\s+(?:USD|EUR|GBP|CAD|AUD)\b'
     masking:
       strategy: redact
       format: "[AMOUNT {n}]"
 
   - id: card_type
-    display_name: Payment Card Brand (Visa / Mastercard / Amex / Discover only)
+    display_name: Payment Card Brand (Visa / Mastercard / Amex / Discover)
     description: "Payment card network brand ONLY: Visa, Mastercard, American Express, Discover, JCB, UnionPay. Do NOT flag automobile brands, clothing brands, or any non-payment-card brands."
     policy: [pci_dss]
     enabled: true
     priority: 3
+    gliner_label: "payment card brand Visa Mastercard Amex"
     patterns:
       - '\b(Visa|Mastercard|Master\s*Card|American\s+Express|AmEx|AMEX|Discover|JCB|UnionPay)\b'
     masking:
@@ -1262,6 +1360,7 @@ entities:
     policy: [pci_dss]
     enabled: true
     priority: 2
+    gliner_label: "last 4 digits of card number"
     patterns:
       - '(?:card|account)\s+ending\s+in\s+(\d{4})'
       - 'ending\s+in\s+(\d{4})'
@@ -1276,6 +1375,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 1
+    gliner_label: "employee ID number"
     patterns:
       - '\bEMP-[A-Za-z0-9\-]{3,12}\b'
       - '(?:Employee|Staff)\s+(?:ID|Number|No)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{3,15})'
@@ -1289,6 +1389,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 3
+    confidence_threshold: 0.45
     gliner_label: "prescription medication name with dosage"
     masking:
       strategy: redact
@@ -1300,6 +1401,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 2
+    gliner_label: "vehicle registration number"
     patterns:
       - '\b([A-Z]{2}-\d{2,3}-[A-Z]{2}-\d{3,4})\b'
       - '(?:License\s+Plate|Plate\s+No|Vehicle\s+Plate|Tag\s+No)\s*[:#]?\s*([A-Za-z0-9\-]{4,10})'
@@ -1313,6 +1415,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 1
+    gliner_label: "student ID number"
     patterns:
       - '\bSTU-[A-Za-z0-9\-]{3,12}\b'
       - 'Student\s+(?:ID|Number|No)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{3,15})'
@@ -1322,13 +1425,16 @@ entities:
 
   - id: tax_id_number
     display_name: Tax Identification Number / TIN / EIN
-    description: "Tax identification, employer identification, or individual taxpayer ID. Example: 'TAX-882119', 'TIN-123456789', 'EIN 12-3456789'."
+    description: "Tax identification, employer identification, or individual taxpayer ID. Example: 'TAX-882119', 'EIN 12-3456789', 'TIN-123456789'. Capture the full token including label prefix."
     policy: [general]
     enabled: true
     priority: 1
+    gliner_label: "tax ID EIN TIN"
     patterns:
-      - '\b(?:TAX(?:\s+ID)?|TIN|EIN)\b\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
-      - 'Tax\s+(?:Identification|ID)\s+(?:Number|No)\s*[:#=]?\s*([A-Za-z0-9\-]{4,15})'
+      - '(\bEIN\s*[-:#=]?\s*\d{2}[-\s]\d{7})\b'
+      - '(\bTIN[-:#=\s]\s*[A-Za-z0-9][A-Za-z0-9\-]{3,14})\b'
+      - '(\bTAX[-\s]ID[-:#=\s]\s*[A-Za-z0-9][A-Za-z0-9\-]{3,14})\b'
+      - '(Tax\s+(?:Identification|ID)\s+(?:Number|No)\s*[-:#=]\s*[A-Za-z0-9][A-Za-z0-9\-]{3,14})'
       - '\b(\d{2}-\d{7})\b'
     masking:
       strategy: redact
@@ -1340,6 +1446,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 2
+    gliner_label: "airline flight number"
     patterns:
       - '(?:flight|flt\.?)\s+([A-Z]{2}[-\s]?\d{2,4})'
     masking:
@@ -1352,6 +1459,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 2
+    gliner_label: "booking or reservation reference"
     patterns:
       - '(?:BK|Booking\s+(?:Reference|Ref|ID|Number)|Reservation\s+(?:ID|Number)|PNR)\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
     masking:
@@ -1364,6 +1472,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 1
+    gliner_label: "insurance claim number"
     patterns:
       - '(?:CLM|Claim\s+(?:Number|No|ID))\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
     masking:
@@ -1376,6 +1485,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 1
+    gliner_label: "application ID or government reference number"
     patterns:
       - '(?:\bGOV\b|\bAPP\b)[-:#]\s*([A-Za-z0-9\-]{4,15})'
       - '(?:Application\s+(?:Number|No|ID)|Reference\s+(?:Number|No|ID))\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
@@ -1391,6 +1501,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 2
+    gliner_label: "hospital or medical center name"
     patterns:
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)))\b'
     masking:
@@ -1403,6 +1514,7 @@ entities:
     policy: [pci_dss]
     enabled: true
     priority: 3
+    gliner_label: "bank or financial institution name"
     patterns:
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,4}(?:Bank|Credit[ \t]+Union|Financial|Savings|Trust|Bancorp))\b'
       - '\b(Chase|Wells\s+Fargo|Citibank|Bank\s+of\s+America|HSBC|Barclays|TD\s+Bank|Capital\s+One|PNC|US\s+Bank|SunTrust|BB&T|Fidelity|Schwab|Vanguard)\b'
@@ -1416,6 +1528,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 3
+    gliner_label: "insurance company name"
     patterns:
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,4}(?:Insurance|Ins\.|Assurance|Mutual|Underwriters?))\b'
       - '\b(Aetna|UnitedHealth(?:care)?|Cigna|Humana|Anthem|Blue\s+Cross|Blue\s+Shield|Kaiser|Molina|Centene|MetLife|Prudential|Allstate|State\s+Farm|GEICO|Progressive|Travelers)\b'
@@ -1429,6 +1542,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 3
+    gliner_label: "university or college name"
     patterns:
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,5}(?:University|College|Institute[ \t]+of[ \t]+Technology|School[ \t]+of|Academy))\b'
     masking:
@@ -1441,6 +1555,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 3
+    gliner_label: "law firm name"
     patterns:
       - '\b((?-i:[A-Z])[A-Za-z]*(?:[ \t]+(?:&[ \t]+)?(?-i:[A-Z])[A-Za-z]*){0,4}[ \t]+(?:LLP|LLC|Law[ \t]+(?:Firm|Group|Office|Practice)|Attorneys?[ \t]+at[ \t]+Law|&[ \t]+Associates))\b'
     masking:
@@ -1453,6 +1568,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 3
+    gliner_label: "court name"
     patterns:
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,4}(?:Superior[ \t]+Court|District[ \t]+Court|Circuit[ \t]+Court|Court[ \t]+of[ \t]+Appeals?|Supreme[ \t]+Court|Family[ \t]+Court|Municipal[ \t]+Court|Probate[ \t]+Court))\b'
     masking:
@@ -1465,6 +1581,7 @@ entities:
     policy: [general]
     enabled: true
     priority: 3
+    gliner_label: "hotel or accommodation name"
     patterns:
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,4}(?:Hotel|Resort|Inn|Suites?|Lodge|Motel|Hostel|Bed[ \t]+and[ \t]+Breakfast))\b'
       - '\b(Marriott|Hilton|Hyatt|Sheraton|Westin|IHG|Holiday\s+Inn|Best\s+Western|Radisson|Ritz[-\s]Carlton|Four\s+Seasons|Starwood)\b'
