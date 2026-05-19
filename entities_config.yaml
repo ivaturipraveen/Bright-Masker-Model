@@ -239,6 +239,7 @@ entities:
       - '[—–]\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
       - '(?:on\s+)(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
       - '(?:recorded|noted|documented|entered|logged)\s+as\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
+      - '(?:scheduled|planned|set|confirmed)\s+for\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
     masking:
       strategy: redact
       format: "[DATE {n}]"

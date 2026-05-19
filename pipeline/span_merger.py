@@ -54,6 +54,11 @@ class SpanMerger:
     def _validate_and_clean(self, spans: list[DetectedSpan]) -> list[DetectedSpan]:
         result: list[DetectedSpan] = []
         for span in spans:
+            # Physician name from GLiNER must contain Dr./Doctor prefix — rejects hospital names
+            if span.entity_id == "physician_name" and span.source == "ner":
+                if not any(p in span.text for p in ("Dr.", "Doctor", "Dr ")):
+                    log.debug("span_rejected_physician_no_prefix", text=span.text)
+                    continue
             # Known lab/medical terms misclassified as person names by Presidio/spaCy
             if span.entity_id == "person_name" and span.text.lower() in _PERSON_NAME_BLOCKLIST:
                 log.debug("span_rejected_lab_term_as_person", text=span.text)
