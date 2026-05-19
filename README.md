@@ -1,188 +1,224 @@
-# PII Detection Model
+# Bright Masker — PII Detection
 
 GLiNER-based PII detection. Fine-tuned on 105 entity types across HIPAA, PCI-DSS, General, Law Enforcement, and Transportation. No LLM, no external API calls — fully local.
 
-**Inference latency:** 20–50 ms on GPU · 200–400 ms on CPU (NER layer only)
+**Inference latency:** ~50ms on RTX 4090 (GPU) · ~700ms on Apple MPS · ~2–4s on CPU
 
 ---
 
 ## How It Works
 
 ```
-Request → Pattern Layer (Presidio) ─┐
-                                     ├─ Merge → Masking → Response
-Request → NER Layer (GLiNER)       ─┘
+Request → Pattern Layer (Presidio + Regex) ─┐
+                                              ├─ Merge → Masking → Response
+Request → NER Layer (GLiNER Fine-tuned)    ─┘
 ```
 
-Runs two layers in parallel, merges spans, then applies masking rules from `entities_config.yaml`.
+Both layers run in parallel. Results are merged and masked using rules from `entities_config.yaml`.
+
+**GPU inference strategy:** On CUDA, all 105 labels run in a single forward pass (fp16 + TF32 + cuDNN benchmark). On CPU/MPS, 6 semantic groups run in parallel via thread pool.
 
 ---
 
-## Quick Test (model already trained)
+## Entity Types — 105 Total
 
-The fine-tuned model is at `models/pii_gliner/` — just run:
+| Group | Count | Examples |
+|-------|-------|---------|
+| People & Contact | 21 | person_name, physician_name, phone, email, DOB, IP, device ID |
+| Address | 5 | street_address, city, state, zipcode, geolocation |
+| Government IDs & Medical | 24 | SSN, passport, driver's license, MRN, NPI, DEA, medication |
+| Financial | 19 | credit card, bank account, routing, IBAN, card PIN, transaction ID |
+| Legal & Criminal | 21 | case number, claim, arrest record, warrant, sex offender report |
+| Education & Travel | 15 | student ID, university, flight number, booking reference, hotel |
+
+All 105 entities defined in `entities_config.yaml` — the single source of truth.
+
+---
+
+## Running Locally
 
 ```bash
+# 1. Copy and fill in .env
+cp .env.example .env
+# Edit .env — add AWS keys, ENCRYPTION_KEY
+
+# 2. Start server (weights auto-downloaded from S3 if not present)
 ./run.sh
-# then:
-python main.py mask-text --text "Patient John Smith, DOB 07/15/1985, SSN 078-05-1120"
-# → Patient [PERSON 1], DOB [DOB 1], SSN [SSN 1]
+```
+
+Open `http://localhost:8000`
+
+### .env — Required Keys Only
+
+```env
+AWS_ACCESS_KEY_ID=your-key
+AWS_SECRET_ACCESS_KEY=your-secret
+AWS_DEFAULT_REGION=us-east-1
+S3_BUCKET=brightmasker
+S3_MODEL_PREFIX=models/pii_gliner
+
+FINE_TUNED_MODEL_PATH=models/pii_gliner
+GLINER_THRESHOLD=0.35
+
+ENCRYPTION_KEY=change-this-to-a-random-secret-key
+HOST=0.0.0.0
+PORT=8000
+LOG_LEVEL=INFO
+
+# Leave empty to disable the remote comparison panel
+RUNPOD_BASE_URL=
+```
+
+---
+
+## Deploying on RunPod
+
+### Recommended GPU
+
+| GPU | VRAM | Inference | Cost/hr |
+|-----|------|-----------|---------|
+| **RTX 4090** | 24 GB | ~50ms | ~$0.70 ✅ |
+| RTX A4000 | 16 GB | ~70ms | ~$0.35 |
+| A100 40GB | 40 GB | ~30ms | ~$1.99 |
+
+Model is 1.7 GB (850 MB in fp16) — any GPU with ≥ 8 GB VRAM works.
+
+### RunPod Setup
+
+1. Create pod with **RunPod PyTorch 2.x** template, RTX 4090, Network Volume attached
+2. Set environment variables in the RunPod panel (same keys as `.env` above)
+3. Set **Container Start Command**:
+
+```bash
+bash -c "if [ -d /workspace/pii-model ]; then cd /workspace/pii-model && git pull; else git clone https://github.com/ivaturipraveen/Bright-Masker-Model.git /workspace/pii-model && cd /workspace/pii-model; fi && bash /workspace/pii-model/run.sh"
+```
+
+`run.sh` will automatically:
+- Install dependencies
+- Download weights from `s3://brightmasker/models/pii_gliner/` if not present
+- Set NVIDIA persistence mode + max GPU clocks
+- Start the server on port 8000
+
+---
+
+## Model Weights (S3)
+
+Weights are stored in S3 and auto-downloaded at startup. No manual transfer needed.
+
+```
+s3://brightmasker/models/pii_gliner/pytorch_model.bin     (~1.7 GB)
+s3://brightmasker/models/pii_gliner/gliner_config.json
+s3://brightmasker/models/pii_gliner/tokenizer.json
+s3://brightmasker/models/pii_gliner/tokenizer_config.json
+```
+
+To push updated weights to S3 after retraining:
+
+```python
+import boto3
+from pathlib import Path
+
+s3 = boto3.client('s3')
+for f in ['pytorch_model.bin', 'gliner_config.json', 'tokenizer.json', 'tokenizer_config.json']:
+    s3.upload_file(f'models/pii_gliner/{f}', 'brightmasker', f'models/pii_gliner/{f}')
+```
+
+---
+
+## Training on RunPod (A100)
+
+### Recommended GPU for Training
+
+| GPU | VRAM | Training Time |
+|-----|------|--------------|
+| A100 SXM 80 GB | 80 GB | ~90 min |
+| H100 80 GB | 80 GB | ~60 min |
+
+### Steps
+
+```bash
+# On RunPod A100
+cd /workspace
+git clone https://github.com/ivaturipraveen/Bright-Masker-Model.git pii-model
+cd pii-model
+./start.sh --samples 2000
+```
+
+Training runs: venv → deps → generate data → fine-tune → save to `models/pii_gliner/`
+
+### start.sh Options
+
+```bash
+./start.sh                     # 2000 samples/entity, auto GPU (~90 min A100)
+./start.sh --samples 3000      # more data, higher quality
+./start.sh --epochs 15         # override epoch count
+./start.sh --skip-generate     # retrain on existing data only
+```
+
+### After Training — Upload to S3
+
+```bash
+# On RunPod — copy best checkpoint (lowest eval_loss) to model dir
+cp -r models/pii_gliner/checkpoint-XXXXX/* models/pii_gliner/
+rm -rf models/pii_gliner/checkpoint-*
+
+# Push to S3
+pip install boto3
+python3 -c "
+import boto3
+s3 = boto3.client('s3', aws_access_key_id='KEY', aws_secret_access_key='SECRET', region_name='us-east-1')
+for f in ['pytorch_model.bin','gliner_config.json','tokenizer.json','tokenizer_config.json']:
+    print(f'Uploading {f}...')
+    s3.upload_file(f'models/pii_gliner/{f}', 'brightmasker', f'models/pii_gliner/{f}')
+print('Done')
+"
 ```
 
 ---
 
 ## Adding a New Entity
 
-1. Add an entry to `entities_config.yaml`:
-   ```yaml
-   - id: my_new_entity
-     display_name: My New Entity
-     gliner_label: My New Entity
-     enabled: true
-     policy: [general]
-     priority: 5
-     masking:
-       strategy: redact
-       format: "[MY_NEW_ENTITY_{n}]"
-   ```
+1. Add to `entities_config.yaml`:
+```yaml
+- id: my_new_entity
+  display_name: My New Entity
+  gliner_label: "my new entity natural description"
+  enabled: true
+  policy: [general]
+  priority: 5
+  masking:
+    strategy: redact
+    format: "[MY ENTITY {n}]"
+```
 
-2. Run `./start.sh` on RunPod — it auto-generates 1,000 training examples for the new entity and retrains. **No code changes required.** The new entity is automatically covered by generic fallback templates if no hand-crafted templates exist for it.
+2. Retrain on RunPod:
+```bash
+./start.sh --samples 2000
+```
 
-3. Transfer the updated model (only 4 files, ~1.7 GB) from RunPod and restart the server.
+3. Upload new weights to S3 and restart inference pod.
 
 ---
 
-## Training on RunPod (from scratch or retrain)
-
-### Recommended GPU
-| GPU | VRAM | Est. Training Time |
-|-----|------|--------------------|
-| A100 SXM 80 GB | 80 GB | ~45 min |
-| H100 80 GB | 80 GB | ~30 min |
-| RTX 4090 | 24 GB | ~90 min |
-
-**RunPod template:** `RunPod PyTorch 2.x` with Network Volume (50 GB minimum)
-
-### Steps
+## API
 
 ```bash
-# 1. Clone the repo on RunPod
-git clone https://github.com/<your-username>/<repo>.git /workspace/pii-model
-cd /workspace/pii-model
-
-# 2. Run the full pipeline — one command does everything
-./start.sh
-
-# 3. Wait for training to complete (see logs for progress)
-#    Output: models/pii_gliner/  (saved after each epoch)
-```
-
-`./start.sh` handles: venv creation → dependency install → data generation → fine-tuning → `.env` update.
-
-### start.sh options
-```bash
-./start.sh                          # 2000 samples/entity, auto GPU  (~90 min on A100)
-./start.sh --samples 3000           # higher quality, more data      (~135 min on A100)
-./start.sh --epochs 15              # override epoch count
-./start.sh --skip-generate          # retrain using existing data (skip generation)
-./start.sh --device cpu             # force CPU (testing only)
-```
-
----
-
-## Getting the Trained Model from RunPod
-
-After training completes, the model is at `/workspace/pii-model/models/pii_gliner/` on RunPod.
-
-### Output files (what you need to download)
-
-| File | Size | Purpose |
-|------|------|---------|
-| `pytorch_model.bin` | ~1.7 GB | Fine-tuned weights — **this is the trained model** |
-| `gliner_config.json` | ~2 KB | Model architecture config |
-| `tokenizer.json` | ~8 MB | Tokenizer vocabulary |
-| `tokenizer_config.json` | ~1 KB | Tokenizer settings |
-
-> **Note:** The full checkpoint directory on RunPod can be 5+ GB because it includes optimizer states (Adam momentum buffers). You only need the 4 files above for inference — they're ~1.7 GB total.
-
-### Transfer with runpodctl
-
-```bash
-# On RunPod — send only the 4 inference files (~1.7 GB)
-cd /workspace/pii-model/models/pii_gliner
-runpodctl send pytorch_model.bin gliner_config.json tokenizer.json tokenizer_config.json
-
-# On your Mac — install runpodctl if needed
-brew install runpod/runpodctl/runpodctl
-
-# Receive the files (use the code shown by runpodctl send)
-mkdir -p models/pii_gliner
-cd models/pii_gliner
-runpodctl receive <code-from-send>
-```
-
-### Place files
-Drop all 4 files into `models/pii_gliner/` in your local project root. Then set in `.env`:
-```
-FINE_TUNED_MODEL_PATH=models/pii_gliner
-GLINER_THRESHOLD=0.55
-```
-
----
-
-## Running the Inference Server
-
-### Local (Mac / Linux)
-```bash
-./run.sh
-```
-
-Open `http://localhost:8000` in your browser.
-
-### Configuration (`.env`)
-
-Copy `.env.example` to `.env` and set values for your environment. Key variables:
-
-| Variable | Purpose |
-|----------|---------|
-| `FINE_TUNED_MODEL_PATH` | Path to fine-tuned GLiNER weights (empty = base model) |
-| `RUNPOD_BASE_URL` | Remote RunPod inference URL for side-by-side comparison |
-| `RUNPOD_PROXY_PATH` | Local proxy path (default `/proxy/runpod`) |
-| `LOCAL_MODEL_*` / `REMOTE_MODEL_*` | UI labels for the comparison page |
-| `PORT` / `HOST` | Server bind address (used by `./run.sh`) |
-
-Leave `RUNPOD_BASE_URL` empty to run local-only masking (no remote comparison panel).
-
-### Docker
-```bash
-# Build
-docker build -t pii-model .
-
-# Run with base GLiNER (no fine-tuning)
-docker run -p 8000:8000 pii-model
-
-# Run with fine-tuned model (mount your model directory)
-docker run -p 8000:8000 \
-  -v $(pwd)/models/pii_gliner:/app/models/pii_gliner \
-  -e FINE_TUNED_MODEL_PATH=/app/models/pii_gliner \
-  -e GLINER_THRESHOLD=0.55 \
-  -e RUNPOD_BASE_URL=https://your-pod-id-8000.proxy.runpod.net \
-  pii-model
-```
-
----
-
-## Testing
-
-```bash
-# CLI
-python main.py mask-text --text "Patient John Smith, DOB 07/15/1985, SSN 078-05-1120"
-# → Patient [PERSON 1], DOB [DOB 1], SSN [SSN 1]
-
-# API (server must be running)
+# Mask text
 curl -X POST http://localhost:8000/mask \
   -H "Content-Type: application/json" \
-  -d '{"text": "Call John at 555-867-5309 or john@acme.com"}'
+  -d '{"text": "Patient John Smith, DOB 07/15/1985, SSN 078-05-1120"}'
+
+# Health check
+curl http://localhost:8000/health
+```
+
+Response:
+```json
+{
+  "masked_text": "Patient [PERSON 1], DOB [DATE 1], SSN [SSN 1]",
+  "spans": [...],
+  "stats": { "total_ms": 52, "ner_ms": 48, "pattern_ms": 4, "spans_total": 3 }
+}
 ```
 
 ---
@@ -190,79 +226,35 @@ curl -X POST http://localhost:8000/mask \
 ## Project Structure
 
 ```
-entities_config.yaml        ← add/edit entity types here (single source of truth)
-start.sh                    ← GPU training entry point (RunPod)
-run.sh                      ← inference server (local)
-Dockerfile                  ← inference container
-requirements.txt            ← inference dependencies
-README.md
-
-train/
-  generate_data.py          ← synthetic data generator (auto-covers new entities)
-  finetune.py               ← GLiNER fine-tuning (A100/GPU/MPS/CPU auto-detected)
-  requirements-train.txt    ← lean training deps (no torch — inherited from RunPod system)
+entities_config.yaml     ← 105 entity definitions (single source of truth)
+run.sh                   ← inference server (local + RunPod)
+start.sh                 ← GPU training entry point (RunPod A100)
+requirements.txt
+.env.example             ← copy to .env, fill 7 keys
 
 pipeline/
-  ner_layer.py              ← GLiNER inference
-  pattern_layer.py          ← Presidio regex patterns
-  orchestrator.py           ← runs both layers in parallel
-  masking_engine.py         ← applies masking from entities_config.yaml
-  preprocessor.py
-  span_merger.py
+  ner_layer.py           ← GLiNER inference (CUDA: flat fp16 | CPU/MPS: parallel groups)
+  pattern_layer.py       ← Presidio + regex (runs parallel to NER)
+  orchestrator.py        ← asyncio.gather(pattern, ner) → merge → mask
+  masking_engine.py      ← applies masking strategy from entities_config.yaml
+  span_merger.py         ← deduplication, confidence-based conflict resolution
+
+train/
+  generate_data.py       ← synthetic training data generator (auto-covers new entities)
+  finetune.py            ← GLiNER fine-tuning (A100/GPU/MPS/CPU auto-detected)
 
 models/
-  schemas.py
-  pii_gliner/               ← fine-tuned model output (git-ignored, downloaded from RunPod)
-    pytorch_model.bin       ← weights (~1.7 GB)
+  pii_gliner/            ← weights (gitignored, downloaded from S3 at startup)
+    pytorch_model.bin    ← 1.7 GB fine-tuned weights
     gliner_config.json
     tokenizer.json
     tokenizer_config.json
 
 strategies/
-  masking_strategies.py     ← redact / substitute / hash / partial_redact / encrypt
-
-static/                     ← web UI assets
-utils/                      ← logging, text utilities
-app.py                      ← FastAPI application
-main.py                     ← CLI entry point
-config.py                   ← configuration loader
+  masking_strategies.py  ← redact / substitute / hash / partial_redact / encrypt
+static/                  ← web UI
+app.py                   ← FastAPI application
+config.py                ← configuration (only secrets read from env)
 ```
 
-**Git-ignored (never committed):**
-- `train/data/` — generated training data, recreated by `./start.sh`
-- `models/pii_gliner/` — trained model weights, downloaded from RunPod after training
-- `.venv/`, `.env`, `__pycache__/`
-
----
-
-## GPU Hardware Profiles (auto-selected by start.sh / finetune.py)
-
-| GPU VRAM | Profile | Batch | Epochs | fp16 |
-|----------|---------|-------|--------|------|
-| ≥ 40 GB (A100 / H100) | A100 | 32 | 10 | yes |
-| < 40 GB (RTX 4090 etc.) | GPU | 16 | 10 | yes |
-| Apple MPS (≥ 14 GB free) | MPS | 4 × 4 | 10 | no |
-| CPU | CPU | 4 × 4 | 5 | no |
-
----
-
-## Training Data — How It's Generated
-
-- **105 entities** — all sourced from `entities_config.yaml`
-- **2,000 examples per entity** (default) — change with `--samples N`
-- **12 templates per entity** on average — diverse sentence patterns, not memorized
-- **Hard negatives** — ~268 sentences with no PII (teaches the model what NOT to flag)
-- **Multi-entity documents** — 10,000 realistic documents mixing 8–9 entity types each
-- **New entities** — auto-covered by generic fallback templates; no code change needed
-- **Single unified format** — all examples: `{"tokenized_text": [...], "ner": [[start, end, "label"], ...]}`
-
-Total training set at 2,000 samples: ~240,000+ examples.
-
-### Adding a new entity — what happens to existing data?
-
-Running `./start.sh` regenerates the **entire** dataset from scratch (all 105 entities). This ensures:
-- Consistent format across all entities
-- No stale examples from previous runs
-- The new entity gets 1,000 samples alongside all existing ones
-
-Use `--skip-generate` to retrain on existing data without regenerating.
+**Gitignored:** `.env` · `models/pii_gliner/` · `train/data/` · `.venv/`
