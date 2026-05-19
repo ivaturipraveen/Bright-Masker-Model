@@ -20,10 +20,17 @@ if [ ! -d "$VENV" ]; then
   python3 -m venv "$VENV"
 fi
 
-# ── 2. Dependencies ───────────────────────────────────────────────────────────
-echo "Installing dependencies..."
-"$VENV/bin/pip" install -q --upgrade pip
-"$VENV/bin/pip" install -q -r requirements.txt
+# ── 2. Dependencies (cached — only reinstall if requirements.txt changed) ─────
+REQ_HASH_FILE="$VENV/.requirements_hash"
+REQ_HASH=$(md5sum requirements.txt 2>/dev/null || md5 -q requirements.txt 2>/dev/null || echo "none")
+if [ ! -f "$REQ_HASH_FILE" ] || [ "$(cat "$REQ_HASH_FILE")" != "$REQ_HASH" ]; then
+  echo "Installing dependencies..."
+  "$VENV/bin/pip" install -q --upgrade pip
+  "$VENV/bin/pip" install -q -r requirements.txt
+  echo "$REQ_HASH" > "$REQ_HASH_FILE"
+else
+  echo "Dependencies up to date — skipping install."
+fi
 
 # ── 3. spaCy model ────────────────────────────────────────────────────────────
 SPACY_MODEL="${SPACY_MODEL_NAME:-en_core_web_sm}"
@@ -81,15 +88,10 @@ if command -v nvidia-smi &>/dev/null; then
   echo ""
   echo "  Applying NVIDIA optimizations..."
 
-  # Persistence mode — keeps GPU driver loaded; cuts cold-start latency on first request
-  nvidia-smi -pm 1 2>/dev/null || true
-
-  # Max clocks — locks GPU to highest stable frequency for consistent latency
-  nvidia-smi --auto-boost-default=0 2>/dev/null || true
-  nvidia-smi -ac "$(nvidia-smi --query-gpu=clocks.max.memory,clocks.max.sm --format=csv,noheader,nounits | head -1 | tr ',' ' ' | awk '{print $1","$2}')" 2>/dev/null || true
-
-  # Show GPU info
-  nvidia-smi --query-gpu=name,memory.total,driver_version,clocks.sm \
+  nvidia-smi -pm 1 > /dev/null 2>&1 || true
+  nvidia-smi --auto-boost-default=0 > /dev/null 2>&1 || true
+  nvidia-smi -ac "$(nvidia-smi --query-gpu=clocks.max.memory,clocks.max.sm --format=csv,noheader,nounits 2>/dev/null | head -1 | tr ',' ' ' | awk '{print $1","$2}')" > /dev/null 2>&1 || true
+  nvidia-smi --query-gpu=name,memory.total,driver_version \
     --format=csv,noheader | awk '{print "  GPU: " $0}'
 fi
 
