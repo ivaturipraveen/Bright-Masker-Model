@@ -164,6 +164,7 @@ class SpanMerger:
         entity_configs: dict[str, EntityConfig],
     ) -> list[DetectedSpan]:
         """Merge all spans from all sources without threshold split."""
+        spans = self._validate_and_clean(spans)
         deduped = self._remove_exact_duplicates(spans)
         log.debug("merger_all_dedup",
                  before=len(spans),
