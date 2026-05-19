@@ -364,7 +364,7 @@ entities:
 
   - id: billing_number
     display_name: Billing Number
-    description: "Patient or account billing number. Flag the numeric VALUE that follows keywords: Billing Number, Billing No, Bill No, BILLING NO. Example: in 'BILLING NO:8646139' flag '8646139'."
+    description: "Patient or account billing number. Flag the VALUE that follows keywords: Billing Number, Billing No, Bill No, BILLING NO, billing account. Example: in 'BILLING NO:8646139' flag '8646139', in 'billing account BL-9910274' flag 'BL-9910274'."
     policy: [hipaa]
     enabled: true
     priority: 1
@@ -373,6 +373,7 @@ entities:
       - 'BILLING\s*NO\.?\s*[:#]?\s*(\d{4,12})'
       - 'Billing\s+(?:Number|No)\s*[:#]?\s*(\d{4,12})'
       - 'Bill\s+No\s*[:#]?\s*(\d{4,12})'
+      - 'billing\s+account\s*[:#]?\s*([A-Z]{1,4}-[\d]{4,12})\b'
     masking:
       strategy: redact
       format: "[BILLING NO {n}]"
@@ -876,7 +877,7 @@ entities:
     priority: 1
     gliner_label: "confidential or top secret information"
     patterns:
-      - '\b(CONFIDENTIAL|TOP\s+SECRET|RESTRICTED|SENSITIVE\s+PII)\b'
+      - '(?-i:\b(CONFIDENTIAL|TOP\s+SECRET|RESTRICTED|SENSITIVE\s+PII)\b)'
     masking:
       strategy: redact
       format: "[CONFIDENTIAL {n}]"
@@ -1510,7 +1511,7 @@ entities:
     priority: 1
     gliner_label: "hospital or medical center name"
     patterns:
-      - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)))\b'
+      - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){2,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)))\b'
     masking:
       strategy: redact
       format: "[HOSPITAL {n}]"

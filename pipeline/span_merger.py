@@ -13,6 +13,13 @@ _SOURCE_ORDER = {"pattern": 0, "ner": 1, "llm": 2}
 _DATE_RE = re.compile(r'^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$')
 _TRAILING_LOWERCASE_RE = re.compile(r'(\s+[a-z]\w*)+$')
 
+# Known medical/lab terms that Presidio/spaCy NER incorrectly tags as PERSON
+_PERSON_NAME_BLOCKLIST = frozenset({
+    "lipid profile", "complete blood count", "comprehensive metabolic panel",
+    "cbc", "cmp", "urinalysis", "hba1c", "blood pressure", "heart rate",
+    "blood glucose", "oxygen saturation", "metabolic panel",
+})
+
 
 class SpanMerger:
     def merge(
@@ -47,6 +54,10 @@ class SpanMerger:
     def _validate_and_clean(self, spans: list[DetectedSpan]) -> list[DetectedSpan]:
         result: list[DetectedSpan] = []
         for span in spans:
+            # Known lab/medical terms misclassified as person names by Presidio/spaCy
+            if span.entity_id == "person_name" and span.text.lower() in _PERSON_NAME_BLOCKLIST:
+                log.debug("span_rejected_lab_term_as_person", text=span.text)
+                continue
             # Email must contain @ — rejects person names misclassified as email
             if span.entity_id == "email_address" and "@" not in span.text:
                 log.debug("span_rejected_no_at", text=span.text, entity_id=span.entity_id)
