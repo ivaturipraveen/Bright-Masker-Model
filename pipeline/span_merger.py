@@ -76,12 +76,31 @@ class SpanMerger:
 
         return result
 
+    # Entity IDs that only ever match numeric/structured codes — never plain text names.
+    _NUMERIC_ENTITY_IDS = frozenset({
+        "bank_account_number", "bank_routing_number", "credit_card_number",
+        "iban", "swift_bic_code", "ssn", "tax_id_number", "passport_number",
+        "state_id_number", "ip_address", "device_identifier",
+        "card_cryptogram", "card_iin_bin", "card_pin", "billing_number",
+        "terminal_id", "transaction_id", "merchant_id",
+    })
+
     def _pick_winner(
         self,
         a: DetectedSpan,
         b: DetectedSpan,
         entity_configs: dict[str, EntityConfig],
     ) -> DetectedSpan:
+        # If one span is all letters/spaces (a name) but tagged as a numeric-only entity,
+        # that is a false positive — prefer the other span.
+        def is_alpha_only(text: str) -> bool:
+            return all(c.isalpha() or c in " .-'" for c in text)
+
+        if a.entity_id in self._NUMERIC_ENTITY_IDS and is_alpha_only(a.text):
+            return b
+        if b.entity_id in self._NUMERIC_ENTITY_IDS and is_alpha_only(b.text):
+            return a
+
         if a.confidence != b.confidence:
             return a if a.confidence > b.confidence else b
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Bright Masker</title>
+  <title>Loading…</title>
   <link rel="icon" href="/branding/logo.webp?v=4" type="image/webp" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,6 +27,7 @@
       --success-bg: #ecfdf5;
       --success-border: #a7f3d0;
       --danger: #dc2626;
+      --warn: #d97706;
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 16px;
@@ -34,27 +35,42 @@
       --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
       --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+
+      /* model colors */
+      --gliner-accent: #4f46e5;
+      --gliner-soft:   rgba(79,70,229,0.08);
+      --gliner-border: rgba(79,70,229,0.25);
+      --llm-accent:    #7c3aed;
+      --llm-soft:      rgba(124,58,237,0.08);
+      --llm-border:    rgba(124,58,237,0.25);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { -webkit-font-smoothing: antialiased; }
+    html { -webkit-font-smoothing: antialiased; height: 100%; }
 
     body {
       font-family: var(--font-sans);
       background: var(--bg-base);
       background-image:
         radial-gradient(ellipse 120% 80% at 50% -20%, rgba(79, 70, 229, 0.09), transparent),
-        radial-gradient(ellipse 80% 50% at 100% 0%, rgba(14, 165, 233, 0.06), transparent);
+        radial-gradient(ellipse 80% 50% at 100% 0%, rgba(124, 58, 237, 0.06), transparent);
       color: var(--text-secondary);
-      min-height: 100vh;
-      padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1rem, 3vw, 1.5rem) 3rem;
+      height: 100%;
+      display: flex; flex-direction: column;
+      overflow: hidden;
       line-height: 1.5;
     }
 
-    .container { max-width: 1040px; margin: 0 auto; }
+    .container {
+      max-width: 1280px; margin: 0 auto; width: 100%;
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column;
+      padding: clamp(1rem, 3vw, 1.75rem) clamp(1rem, 3vw, 1.5rem) 0;
+      overflow: hidden;
+    }
 
     /* ── Header ── */
-    .header { margin-bottom: 1.5rem; }
+    .header { margin-bottom: 1rem; flex-shrink: 0; }
     .header-row {
       display: flex; align-items: flex-start; justify-content: space-between;
       gap: 1.25rem; flex-wrap: wrap;
@@ -68,91 +84,29 @@
       font-weight: 700; color: var(--text);
       letter-spacing: -0.03em; line-height: 1.15; margin: 0;
     }
-    .header-sub { font-size: 0.875rem; color: var(--text-muted); max-width: 36rem; line-height: 1.55; }
+    .header-sub { font-size: 0.875rem; color: var(--text-muted); max-width: 44rem; line-height: 1.55; }
 
+    .model-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.15rem; }
     .model-badge {
       display: inline-flex; align-items: center; gap: 0.5rem;
-      background: var(--bg-elevated);
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
-      border-radius: 999px;
-      padding: 0.45rem 1rem 0.45rem 0.65rem;
-      font-size: 0.8125rem; font-weight: 600;
-      white-space: nowrap; margin-top: 0.15rem;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      color: var(--text-secondary); border-radius: 999px;
+      padding: 0.4rem 0.9rem 0.4rem 0.6rem;
+      font-size: 0.775rem; font-weight: 600; white-space: nowrap;
       box-shadow: var(--shadow-sm);
     }
     .model-badge .dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #22c55e;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
-      flex-shrink: 0;
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
     }
-
-    /* ── Pipeline stepper ── */
-    .flow-panel {
-      background: var(--bg-elevated);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 0.85rem 1rem 1rem;
-      margin-bottom: 1.35rem;
-      box-shadow: var(--shadow-sm);
-    }
-    .flow-panel-title {
-      font-size: 0.625rem; font-weight: 700; color: var(--text-faint);
-      text-transform: uppercase; letter-spacing: 0.11em;
-      margin-bottom: 0.85rem; text-align: center;
-    }
-    .stepper-scroll {
-      width: 100%; overflow-x: auto; display: flex; justify-content: center;
-      scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
-    }
-    .stepper {
-      display: flex; align-items: center; justify-content: center;
-      gap: 0; flex-wrap: nowrap; margin-inline: auto;
-      padding: 0.15rem 0.5rem 0.25rem;
-    }
-    .stepper-scroll::-webkit-scrollbar { height: 5px; }
-    .stepper-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
-    .stepper-node {
-      flex: 0 0 auto; display: flex; flex-direction: column;
-      align-items: center; gap: 0.4rem; max-width: 6.5rem; text-align: center;
-    }
-    .stepper-dot {
-      width: 12px; height: 12px; border-radius: 50%;
-      background: var(--accent);
-      border: 2px solid var(--bg-elevated);
-      box-shadow: 0 0 0 1px var(--border-strong); flex-shrink: 0;
-    }
-    .stepper-dot--muted { background: #94a3b8; }
-    .stepper-label { font-size: 0.78rem; font-weight: 700; color: var(--text); line-height: 1.25; }
-    .stepper-sublabel { font-size: 0.65rem; font-weight: 500; color: var(--text-muted); line-height: 1.35; max-width: 7rem; }
-    .stepper-connector {
-      flex: 0 0 auto; width: clamp(14px, 3vw, 36px); min-width: 14px;
-      height: 3px; background: #cbd5e1; border-radius: 99px; flex-shrink: 0;
-    }
-    .stepper-node--parallel {
-      max-width: 8rem; padding: 0.5rem 0.65rem 0.45rem; margin: -0.35rem 0;
-      border-radius: var(--radius-md); background: var(--bg-subtle);
-      border: 1px solid var(--border);
-    }
-    .stepper-node--parallel .stepper-dot { display: none; }
-    .stepper-parallel-rows { display: flex; flex-direction: column; align-items: stretch; gap: 0.35rem; width: 100%; }
-    .stepper-parallel-row { display: flex; align-items: center; gap: 0.35rem; justify-content: flex-start; }
-    .stepper-parallel-row .mini-dot {
-      width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
-    }
-    .stepper-parallel-row:nth-child(2) .mini-dot { background: #7c3aed; }
-    .stepper-parallel-row .stepper-label { font-size: 0.72rem; text-align: left; }
-    .stepper-parallel-tag {
-      font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase; color: var(--text-muted);
-      margin-top: 0.2rem; text-align: center; width: 100%;
-    }
+    .dot-gliner { background: var(--gliner-accent); box-shadow: 0 0 0 3px var(--gliner-soft); }
+    .dot-llm    { background: var(--llm-accent);    box-shadow: 0 0 0 3px var(--llm-soft); }
+    .dot-ok     { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+    .dot-err    { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.2); }
 
     /* ── Card ── */
     .card {
       background: var(--bg-elevated); border: 1px solid var(--border);
-      border-radius: var(--radius-lg); padding: 1.5rem 1.5rem 1.6rem;
+      border-radius: var(--radius-lg); padding: 1.4rem 1.4rem 1.5rem;
       margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);
     }
     .card-title {
@@ -162,7 +116,7 @@
 
     /* ── Input ── */
     textarea {
-      width: 100%; min-height: 140px;
+      width: 100%; min-height: 130px;
       background: var(--bg-subtle); border: 1px solid var(--border);
       border-radius: var(--radius-md); color: var(--text);
       font-size: 0.9375rem; padding: 1rem 1.1rem;
@@ -178,7 +132,7 @@
 
     .actions {
       display: flex; flex-wrap: wrap; gap: 0.75rem;
-      margin-top: 1.1rem; align-items: center;
+      margin-top: 1rem; align-items: center;
     }
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
@@ -203,10 +157,9 @@
     .btn-ghost:hover:not(:disabled) { background: var(--border); color: var(--text); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .kbd-hint { font-size: 0.6875rem; font-weight: 500; color: var(--text-faint); margin-left: auto; }
-    @media (max-width: 520px) { .kbd-hint { width: 100%; margin-left: 0; margin-top: 0.25rem; } }
+    @media (max-width: 520px) { .kbd-hint { width: 100%; margin-left: 0; } }
     .error-msg { color: var(--danger); font-size: 0.8125rem; display: none; font-weight: 500; }
 
-    /* ── Spinner ── */
     .spinner {
       width: 15px; height: 15px;
       border: 2px solid rgba(255,255,255,0.35);
@@ -215,66 +168,631 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Stats bar ── */
-    .stats-bar {
-      display: flex; flex-wrap: wrap; gap: 0.5rem;
-      padding: 0; margin-bottom: 1.35rem;
-      background: transparent; border: none;
+    /* ── Comparison grid ── */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 800px) {
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+    .compare-grid--single { grid-template-columns: 1fr; }
+
+    .result-panel {
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--border);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .result-panel--gliner { border-color: var(--gliner-border); }
+    .result-panel--llm    { border-color: var(--llm-border); }
+
+    .panel-header {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.85rem 1.1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-header--gliner { background: linear-gradient(135deg, rgba(79,70,229,0.06) 0%, transparent 60%); }
+    .panel-header--llm    { background: linear-gradient(135deg, rgba(124,58,237,0.06) 0%, transparent 60%); }
+
+    .panel-icon {
+      width: 32px; height: 32px; border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .panel-icon--gliner { background: var(--gliner-soft); }
+    .panel-icon--llm    { background: var(--llm-soft); }
+
+    .panel-meta { flex: 1; min-width: 0; }
+    .panel-name {
+      font-size: 0.875rem; font-weight: 700; color: var(--text);
+      line-height: 1.2;
+    }
+    .panel-desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem; }
+
+    .panel-status {
+      font-size: 0.7rem; font-weight: 600; color: var(--text-faint);
+      white-space: nowrap;
+    }
+    .panel-status.loading { color: var(--accent); }
+    .panel-status.done-gliner { color: var(--gliner-accent); }
+    .panel-status.done-llm    { color: var(--llm-accent); }
+    .panel-status.error { color: var(--danger); }
+
+    .panel-body { padding: 1rem 1.1rem 1.1rem; flex: 1; }
+
+    /* stats strip */
+    .stats-strip {
+      display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem;
     }
     .stat-chip {
-      display: inline-flex; align-items: baseline; gap: 0.35rem;
-      padding: 0.45rem 0.75rem;
+      display: inline-flex; align-items: baseline; gap: 0.3rem;
+      padding: 0.35rem 0.6rem;
       background: var(--bg-subtle); border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      font-size: 0.75rem; color: var(--text-muted);
+      font-size: 0.7rem; color: var(--text-muted);
     }
-    .stat-chip strong { color: var(--text); font-weight: 600; font-size: 0.8125rem; }
-    .stat-chip .stat-label { color: var(--text-faint); font-weight: 500; font-size: 0.6875rem; }
+    .stat-chip strong { color: var(--text); font-weight: 600; font-size: 0.75rem; }
+    .stat-chip .stat-label { color: var(--text-faint); font-weight: 500; font-size: 0.65rem; }
 
-    /* ── Masked output ── */
+    /* masked text box */
+    .card-title-sm {
+      font-size: 0.6rem; font-weight: 700; color: var(--text-faint);
+      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;
+    }
     .masked-output {
       background: var(--success-bg); border: 1px solid var(--success-border);
-      border-radius: var(--radius-md); padding: 1rem 1.1rem;
-      font-size: 0.875rem; line-height: 1.75; white-space: pre-wrap;
-      word-break: break-word; min-height: 64px; color: #065f46;
-      font-family: var(--font-mono); font-weight: 450;
+      border-radius: var(--radius-md); padding: 0.85rem 1rem;
+      font-size: 0.8125rem; line-height: 1.75; white-space: pre-wrap;
+      word-break: break-word; min-height: 56px; color: #065f46;
+      font-family: var(--font-mono);
+    }
+    .masked-placeholder {
+      color: var(--text-faint); font-size: 0.8125rem; font-style: italic;
+      padding: 1.5rem 0; text-align: center;
     }
 
-    /* ── Table ── */
+    /* entity table */
+    .table-section { margin-top: 1rem; }
     .table-wrap {
       overflow-x: auto; border: 1px solid var(--border);
-      border-radius: var(--radius-md); background: var(--bg-subtle);
+      border-radius: var(--radius-md);
     }
-    table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; background: var(--bg-elevated); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.775rem; background: var(--bg-elevated); }
     thead { background: var(--bg-subtle); }
     th {
-      text-align: left; padding: 0.65rem 0.85rem; color: var(--text-muted);
+      text-align: left; padding: 0.55rem 0.75rem; color: var(--text-muted);
       font-weight: 600; border-bottom: 1px solid var(--border);
-      font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+      font-size: 0.575rem; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
     }
-    td { padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover td { background: #fafbfc; }
-    .original-val { color: var(--danger); font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 450; }
-    .masked-val   { color: var(--success); font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 450; }
+    .original-val { color: var(--danger); font-family: var(--font-mono); font-size: 0.775rem; }
+    .masked-val   { color: var(--success); font-family: var(--font-mono); font-size: 0.775rem; }
     .badge {
-      display: inline-block; padding: 0.2rem 0.55rem;
-      border-radius: 999px; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.02em;
+      display: inline-block; padding: 0.15rem 0.45rem;
+      border-radius: 999px; font-size: 0.575rem; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap;
     }
     .badge-pattern { background: #dbeafe; color: #1e40af; }
     .badge-ner     { background: #ede9fe; color: #5b21b6; }
-    .conf-bar-wrap { display: flex; align-items: center; gap: 0.55rem; }
-    .conf-bar { height: 5px; border-radius: 99px; background: var(--border); width: 52px; overflow: hidden; }
+    .badge-llm     { background: #fef3c7; color: #92400e; }
+    .conf-bar-wrap { display: flex; align-items: center; gap: 0.45rem; }
+    .conf-bar { height: 4px; border-radius: 99px; background: var(--border); width: 44px; overflow: hidden; flex-shrink: 0; }
     .conf-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), #818cf8); }
-    .conf-pct  { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; min-width: 2.25rem; }
+    .conf-pct  { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; min-width: 2rem; }
     .empty-state {
       color: var(--text-faint); text-align: center;
-      padding: 2.5rem 1.5rem; font-size: 0.875rem; font-weight: 500;
+      padding: 1.5rem 1rem; font-size: 0.8125rem; font-weight: 500;
     }
+    .error-panel {
+      background: #fff5f5; border: 1px solid #fed7d7;
+      border-radius: var(--radius-md); padding: 1rem;
+      color: var(--danger); font-size: 0.8125rem;
+    }
+    .loading-panel {
+      display: flex; align-items: center; gap: 0.6rem;
+      color: var(--text-muted); font-size: 0.8125rem; padding: 1.5rem 0;
+    }
+    .spin-sm {
+      width: 14px; height: 14px;
+      border: 2px solid var(--border-strong);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.65s linear infinite; flex-shrink: 0;
+    }
+
+    /* ── Diff summary ── */
+    .diff-card {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.1rem 1.3rem;
+      margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);
+      display: none;
+    }
+    .diff-title {
+      font-size: 0.6875rem; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem;
+    }
+    .diff-rows { display: flex; flex-direction: column; gap: 0.5rem; }
+    .diff-row {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-subtle); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 0.8rem;
+    }
+    .diff-row .entity-name { font-weight: 600; color: var(--text); min-width: 10rem; flex-shrink: 0; }
+    .diff-row .diff-detail { color: var(--text-muted); }
+    .diff-tag {
+      font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.4rem;
+      border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+    }
+    .diff-tag--both    { background: #dcfce7; color: #166534; }
+    .diff-tag--gliner  { background: #ede9fe; color: #5b21b6; }
+    .diff-tag--llm     { background: #fef3c7; color: #92400e; }
+    .diff-tag--agree   { background: #dcfce7; color: #166534; }
+    .diff-tag--disagree{ background: #fee2e2; color: #991b1b; }
+
+    /* ── Tab navigation ── */
+    /* Tabs */
+    #tabCompare {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding-bottom: 1.5rem;
+    }
+
+    .tab-nav {
+      display: flex; gap: 0.25rem; margin-bottom: 1rem;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 0.3rem; width: fit-content;
+      box-shadow: var(--shadow-sm); flex-shrink: 0;
+    }
+    .tab-btn {
+      padding: 0.45rem 1.1rem; border: none; border-radius: 8px;
+      font-size: 0.8125rem; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+      color: var(--text-muted); background: transparent;
+    }
+    .tab-btn.active { background: var(--accent); color: #fff; }
+    .tab-btn:not(.active):hover { background: var(--bg-subtle); color: var(--text); }
+
+    /* ══ Entity Registry ══════════════════════════════════════════════════ */
+    #tabEntities { display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; flex: 1; }
+
+    /* Stat row — cards + action ─────────────────────────────────────────── */
+    .registry-topbar {
+      display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0;
+    }
+    .registry-stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.55rem;
+      flex: 1; min-width: 0;
+    }
+    @media (max-width: 700px) { .registry-stats { grid-template-columns: repeat(3, 1fr); } }
+    .stat-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+      box-shadow: var(--shadow-sm);
+      display: flex; flex-direction: column; gap: 0.25rem;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .stat-card:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+    .stat-card-value {
+      font-size: 1.875rem; font-weight: 700; color: var(--text);
+      letter-spacing: -0.045em; line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-card-label {
+      font-size: 0.6875rem; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .stat-card:nth-child(1) { border-left: 3px solid var(--accent); }
+    .stat-card:nth-child(2) { border-left: 3px solid #22c55e; }
+    .stat-card:nth-child(3) { border-left: 3px solid #3b82f6; }
+    .stat-card:nth-child(4) { border-left: 3px solid #f59e0b; }
+    .stat-card:nth-child(5) { border-left: 3px solid #10b981; }
+
+    .registry-add-btn { flex-shrink: 0; }
+    .btn-add-entity {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+      height: 2rem; padding: 0 0.75rem;
+      border: none; border-radius: var(--radius-sm);
+      background: var(--accent); color: #fff;
+      font-size: 0.75rem; font-weight: 600; font-family: inherit; line-height: 1;
+      cursor: pointer; white-space: nowrap;
+      box-shadow: 0 1px 2px rgba(79, 70, 229, 0.3);
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .btn-add-entity .btn-add-icon {
+      font-size: 0.9375rem; font-weight: 500; line-height: 1;
+    }
+    .btn-add-entity:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+    .btn-add-entity:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* Main card ─────────────────────────────────────────────────────────── */
+    .registry-card {
+      padding: 0; overflow: hidden;
+      display: flex; flex-direction: column;
+      flex: 1; min-height: 0;
+      box-shadow: var(--shadow-md);
+    }
+    .registry-card-head {
+      padding: 0.75rem 1.25rem 0.65rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #fafbfc 0%, var(--bg-elevated) 100%);
+      flex-shrink: 0;
+    }
+    .registry-body {
+      padding: 0 1.25rem 0.75rem;
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .registry-scroll-panel {
+      flex: 1; min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-bottom: 0.5rem;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+
+    /* Toolbar ─────────────────────────────────────────────────────────── */
+    .registry-toolbar {
+      display: flex; gap: 0.6rem; align-items: center;
+      flex-wrap: wrap; margin-bottom: 0.6rem;
+    }
+    .registry-search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 380px; }
+    .registry-search {
+      width: 100%; padding: 0.5rem 0.9rem 0.5rem 2rem;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 0.875rem; background: var(--bg-subtle); color: var(--text);
+      outline: none; font-family: inherit;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .registry-search-icon {
+      position: absolute; left: 0.65rem; top: 50%; transform: translateY(-50%);
+      color: var(--text-faint); font-size: 0.85rem; pointer-events: none;
+    }
+    .registry-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--bg-elevated); }
+    .registry-select {
+      padding: 0.5rem 1.8rem 0.5rem 0.7rem;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 0.8rem; font-weight: 500; background: var(--bg-subtle);
+      color: var(--text-secondary); outline: none; font-family: inherit; cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2364748b' d='M2 3.5L5 6.5L8 3.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 0.55rem center;
+    }
+    .registry-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+    .view-toggle {
+      display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      overflow: hidden; background: var(--bg-subtle);
+    }
+    .view-toggle-btn {
+      padding: 0.45rem 0.75rem; border: none; background: transparent;
+      font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+      cursor: pointer; font-family: inherit; transition: background 0.15s, color 0.15s;
+    }
+    .view-toggle-btn.active { background: var(--accent); color: #fff; }
+    .view-toggle-btn:not(.active):hover { color: var(--text); background: var(--bg-elevated); }
+
+    /* Filter bar — single row ──────────────────────────────────────────── */
+    .filter-bar {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+      padding: 0.5rem 0.65rem;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .filter-label {
+      font-size: 0.595rem; font-weight: 700; color: var(--text-faint);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+    .filter-sep {
+      width: 1px; height: 1.1rem; background: var(--border); flex-shrink: 0; align-self: center;
+      margin: 0 0.15rem;
+    }
+    .filter-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+    /* Policy filter chips — colour-coded ──────────────────────────────── */
+    .filter-chip {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.25rem 0.55rem;
+      border: 1px solid var(--border); border-radius: 5px;
+      font-size: 0.75rem; font-weight: 500; color: var(--text-muted);
+      background: var(--bg-elevated); cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      font-family: inherit;
+    }
+    .filter-chip:hover { border-color: var(--border-strong); color: var(--text); }
+    .filter-chip.active { font-weight: 600; }
+    .filter-chip .chip-count {
+      font-size: 0.65rem; font-weight: 600;
+      padding: 0.05rem 0.3rem; border-radius: 3px;
+      background: rgba(15,23,42,0.06); color: var(--text-faint);
+    }
+    .filter-chip.active .chip-count { background: rgba(255,255,255,0.35); color: inherit; }
+
+    /* per-policy active tints */
+    [data-policy="hipaa"].active           { background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; }
+    [data-policy="pci_dss"].active         { background:#fffbeb; border-color:#fcd34d; color:#92400e; }
+    [data-policy="general"].active         { background:#f8fafc; border-color:#94a3b8; color:#334155; }
+    [data-policy="law_enforcement"].active { background:#f5f3ff; border-color:#c4b5fd; color:#5b21b6; }
+    [data-policy="transportation"].active  { background:#f0fdfa; border-color:#5eead4; color:#0f766e; }
+
+    [data-detection="pattern"].active  { background:#f0fdf4; border-color:#86efac; color:#15803d; }
+    [data-detection="ner"].active      { background:#eef2ff; border-color:#a5b4fc; color:#4338ca; }
+    [data-detection="presidio"].active { background:#fdf4ff; border-color:#e9d5ff; color:#7e22ce; }
+
+    [data-status="all"].active      { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    [data-status="active"].active   { background:#f0fdf4; border-color:#86efac; color:#15803d; }
+    [data-status="disabled"].active { background:#f8fafc; border-color:#cbd5e1; color:#475569; }
+
+    /* Results bar ─────────────────────────────────────────────────────── */
+    .registry-results-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem; flex-wrap: wrap;
+      padding: 0.5rem 0; margin-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem; color: var(--text-muted);
+    }
+    .registry-results-bar strong { color: var(--text); font-weight: 600; }
+    .clear-filters-btn {
+      border: none; background: none; color: var(--accent);
+      font-size: 0.75rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; padding: 0;
+    }
+    .clear-filters-btn:hover { text-decoration: underline; }
+    .clear-filters-btn[hidden] { display: none; }
+
+    /* Grouped view ──────────────────────────────────────────────────────── */
+    .entity-groups { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .entity-group {
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+      overflow: hidden; background: var(--bg-elevated);
+    }
+    .entity-group[data-category="hipaa"]           { border-left: 3px solid #3b82f6; }
+    .entity-group[data-category="pci_dss"]         { border-left: 3px solid #f59e0b; }
+    .entity-group[data-category="general"]         { border-left: 3px solid #64748b; }
+    .entity-group[data-category="law_enforcement"] { border-left: 3px solid #8b5cf6; }
+    .entity-group[data-category="transportation"]  { border-left: 3px solid #14b8a6; }
+
+    .entity-group-header {
+      display: flex; align-items: center; gap: 0.6rem;
+      width: 100%; padding: 0.65rem 1rem 0.65rem 0.85rem;
+      border: none; background: transparent;
+      cursor: pointer; text-align: left; font-family: inherit;
+      transition: background 0.15s;
+    }
+    .entity-group-header:hover { background: var(--bg-subtle); }
+    .entity-group-icon { font-size: 0.95rem; flex-shrink: 0; line-height: 1; }
+    .entity-group-meta { flex: 1; min-width: 0; }
+    .entity-group-title { font-size: 0.8375rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .entity-group-desc { font-size: 0.6875rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .entity-group-count {
+      font-size: 0.7rem; font-weight: 600; color: var(--text-muted);
+      padding: 0.15rem 0.45rem; border-radius: 4px;
+      background: var(--bg-subtle); border: 1px solid var(--border);
+      font-variant-numeric: tabular-nums;
+    }
+    .entity-group-chevron {
+      color: var(--text-faint); font-size: 0.65rem;
+      transition: transform 0.2s; flex-shrink: 0;
+    }
+    .entity-group.collapsed .entity-group-chevron { transform: rotate(-90deg); }
+    .entity-group.collapsed .entity-group-body { display: none; }
+    .entity-group-body { border-top: 1px solid var(--border); }
+
+    /* Entity rows inside groups ─────────────────────────────────────────── */
+    .entity-row {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) 7rem 5rem;
+      gap: 0.5rem 1rem;
+      padding: 0.55rem 1rem 0.55rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .entity-row:last-child { border-bottom: none; }
+    .entity-row:hover { background: var(--bg-subtle); }
+    .entity-row-main { min-width: 0; }
+    .entity-row-name {
+      font-size: 0.8375rem; font-weight: 600; color: var(--text);
+      display: flex; align-items: center; gap: 0.4rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .entity-row-id {
+      font-family: var(--font-mono); font-size: 0.67rem; color: var(--text-faint);
+      margin-top: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ── Status indicators ───────────────────────────────────────────────── */
+    .e-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; display: inline-block;
+    }
+    .e-dot--on  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.2); }
+    .e-dot--off { background: #cbd5e1; }
+    .e-dot--ina { background: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.2); }
+
+    /* ── Tags (table + grouped) ─────────────────────────────────────────── */
+    .tags { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; align-items: center; }
+
+    .pt {
+      display: inline-block; padding: 0.15rem 0.45rem;
+      border-radius: 4px; font-size: 0.6875rem; font-weight: 600;
+      line-height: 1.3; white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .pt-hipaa { background: #f8fafc; color: #334155; border-color: #e2e8f0; }
+    .pt-pci   { background: #fffbeb; color: #78350f; border-color: #fde68a; }
+    .pt-gen   { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+    .pt-law   { background: #faf5ff; color: #6b21a8; border-color: #e9d5ff; }
+    .pt-tran  { background: #f0fdfa; color: #115e59; border-color: #99f6e4; }
+
+    .dt {
+      display: inline-block; padding: 0.12rem 0.4rem;
+      border-radius: 4px; font-size: 0.625rem; font-weight: 600;
+      line-height: 1.35; white-space: nowrap; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .dt-pattern  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .dt-ner      { background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; }
+    .dt-presidio { background: #fdf2f8; color: #9d174d; border: 1px solid #fbcfe8; }
+
+    .sb {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.75rem; font-weight: 500;
+      padding: 0.2rem 0.55rem 0.2rem 0.45rem;
+      border-radius: 999px; border: 1px solid var(--border);
+      background: var(--bg-subtle);
+    }
+    .sb--on  { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
+    .sb--off { color: #64748b; background: #f8fafc; border-color: #e2e8f0; }
+    .sb--ina { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+    .sb .sb-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .sb--on  .sb-dot { background: #22c55e; }
+    .sb--off .sb-dot { background: #94a3b8; }
+    .sb--ina .sb-dot { background: #f59e0b; }
+
+    /* Table view ──────────────────────────────────────────────────────── */
+    .registry-table-view .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--bg-elevated);
+    }
+    .registry-table-view table {
+      width: 100%;
+      font-size: 0.8125rem;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .registry-table-view col.col-entity  { width: 26%; }
+    .registry-table-view col.col-detect  { width: 14%; }
+    .registry-table-view col.col-policy  { width: 14%; }
+    .registry-table-view col.col-pri     { width: 5%; }
+    .registry-table-view col.col-thresh  { width: 9%; }
+    .registry-table-view col.col-format  { width: 22%; }
+    .registry-table-view col.col-status  { width: 10%; }
+
+    .registry-table-view thead { position: sticky; top: 0; z-index: 3; }
+    .registry-table-view th {
+      background: #f1f5f9;
+      border-bottom: 1px solid var(--border-strong);
+      padding: 0.6rem 0.85rem;
+      font-size: 0.625rem; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
+      text-align: left;
+    }
+    .registry-table-view th.col-num { text-align: center; }
+
+    .registry-table-view td {
+      padding: 0.55rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .registry-table-view tbody tr { transition: background 0.12s; }
+    .registry-table-view tbody tr:nth-child(even) td { background: #fafbfc; }
+    .registry-table-view tbody tr:hover td { background: #f1f5f9 !important; }
+    .registry-table-view tbody tr:last-child td { border-bottom: none; }
+
+    .cell-entity { min-width: 0; }
+    .cell-entity-inner {
+      display: flex; align-items: flex-start; gap: 0.55rem; min-width: 0;
+    }
+    .cell-entity-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 0.35rem;
+    }
+    .cell-entity-dot.e-dot--on  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.25); }
+    .cell-entity-dot.e-dot--off { background: #cbd5e1; }
+    .cell-entity-dot.e-dot--ina { background: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.25); }
+    .cell-entity-text { min-width: 0; }
+    .cell-entity-name {
+      font-size: 0.8125rem; font-weight: 600; color: var(--text);
+      line-height: 1.3;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .cell-entity-id {
+      font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-faint);
+      margin-top: 0.12rem;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .cell-num {
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.8125rem; color: var(--text-secondary);
+    }
+    .pri-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.35rem; height: 1.35rem; padding: 0 0.25rem;
+      border-radius: 5px; font-size: 0.75rem; font-weight: 700;
+      background: var(--bg-subtle); border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .thresh-val {
+      font-variant-numeric: tabular-nums;
+      font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary);
+    }
+    .mask-chip {
+      display: inline-block; max-width: 100%;
+      padding: 0.2rem 0.5rem;
+      border-radius: 5px;
+      font-family: var(--font-mono); font-size: 0.6875rem;
+      color: #5b21b6; background: #f5f3ff;
+      border: 1px solid #e9d5ff;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .entity-id-cell { font-family: var(--font-mono); font-size: 0.67rem; color: var(--text-faint); }
+    .registry-table-view[hidden], .registry-group-view[hidden] { display: none !important; }
+
+    /* ── Add entity modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+      backdrop-filter: blur(4px); z-index: 100;
+      display: flex; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.75rem;
+      max-width: 560px; width: 100%; box-shadow: 0 20px 60px rgba(15,23,42,0.25);
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 1.25rem; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 520px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-label { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .form-input, .form-select {
+      padding: 0.55rem 0.8rem; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 0.875rem;
+      background: var(--bg-subtle); color: var(--text); outline: none;
+      font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus, .form-select:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .form-hint { font-size: 0.7rem; color: var(--text-faint); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 0.65rem; margin-top: 1.5rem; }
+    .form-error { color: var(--danger); font-size: 0.8rem; margin-top: 0.75rem; display: none; }
 
     @media (prefers-reduced-motion: reduce) {
       .btn, textarea { transition: none; }
-      .spinner { animation-duration: 1.2s; }
+      .spinner, .spin-sm { animation-duration: 1.2s; }
     }
     .visually-hidden {
       position: absolute; width: 1px; height: 1px;
@@ -292,80 +810,45 @@
           <div class="brand-top">
             <img class="brand-mark-only" src="/branding/logo.webp?v=4" width="44" height="44" alt="" decoding="async" fetchpriority="high" />
             <div class="brand-titles">
-              <h1 class="product-title">Bright Masker</h1>
+              <h1 class="product-title" id="appTitle">Bright Masker</h1>
             </div>
           </div>
-          <p class="header-sub">Sensitive-data masking powered by pattern detection and a trained GLiNER model — fast, private, no external API calls.</p>
+          <p class="header-sub" id="comparisonSubtitle">Loading configuration…</p>
         </div>
-        <div class="model-badge" id="modelBadge">
-          <span class="dot" aria-hidden="true"></span>
-          <span id="modelLabel">Loading…</span>
+        <div class="model-badges">
+          <span class="model-badge">
+            <span class="dot dot-gliner" aria-hidden="true"></span>
+            <span id="localBadge">Fine-tuned GLiNER · local</span>
+          </span>
+          <span class="model-badge" id="llmBadge">
+            <span class="dot dot-ok" id="llmDot" aria-hidden="true"></span>
+            <span id="llmLabel">Remote model</span>
+          </span>
         </div>
       </div>
     </header>
 
-    <!-- Pipeline diagram -->
-    <section class="flow-panel" aria-labelledby="flow-panel-title">
-      <h2 class="flow-panel-title" id="flow-panel-title">Processing pipeline</h2>
-      <div class="stepper-scroll">
-        <div class="stepper" role="list" aria-label="Pipeline stages">
-          <div class="stepper-node" role="listitem">
-            <span class="stepper-dot" aria-hidden="true"></span>
-            <span class="stepper-label">Input</span>
-            <span class="stepper-sublabel">Raw text</span>
-          </div>
-          <div class="stepper-connector" aria-hidden="true"></div>
-          <div class="stepper-node" role="listitem">
-            <span class="stepper-dot" aria-hidden="true"></span>
-            <span class="stepper-label">Preprocessor</span>
-            <span class="stepper-sublabel">Normalize · language</span>
-          </div>
-          <div class="stepper-connector" aria-hidden="true"></div>
-          <div class="stepper-node stepper-node--parallel" role="listitem">
-            <div class="stepper-parallel-rows">
-              <div class="stepper-parallel-row">
-                <span class="mini-dot" aria-hidden="true"></span>
-                <span class="stepper-label">Pattern</span>
-              </div>
-              <div class="stepper-parallel-row">
-                <span class="mini-dot" aria-hidden="true"></span>
-                <span class="stepper-label">GLiNER</span>
-              </div>
-            </div>
-            <span class="stepper-parallel-tag">Parallel · local</span>
-          </div>
-          <div class="stepper-connector" aria-hidden="true"></div>
-          <div class="stepper-node" role="listitem">
-            <span class="stepper-dot stepper-dot--muted" aria-hidden="true"></span>
-            <span class="stepper-label">Merge</span>
-            <span class="stepper-sublabel">Dedup · overlaps</span>
-          </div>
-          <div class="stepper-connector" aria-hidden="true"></div>
-          <div class="stepper-node" role="listitem">
-            <span class="stepper-dot" aria-hidden="true"></span>
-            <span class="stepper-label">Masking</span>
-            <span class="stepper-sublabel">Redact · substitute</span>
-          </div>
-          <div class="stepper-connector" aria-hidden="true"></div>
-          <div class="stepper-node" role="listitem">
-            <span class="stepper-dot stepper-dot--muted" aria-hidden="true"></span>
-            <span class="stepper-label">Output</span>
-            <span class="stepper-sublabel">Masked text</span>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- Tab navigation -->
+    <nav class="tab-nav" role="tablist">
+      <button class="tab-btn active" id="tabCompareBtn" role="tab" onclick="showTab('compare')">Compare Models</button>
+      <button class="tab-btn" id="tabEntitiesBtn" role="tab" onclick="showTab('entities')">Entity Registry</button>
+    </nav>
+
+    <!-- ════ COMPARE TAB ════ -->
+    <div id="tabCompare">
 
     <!-- Input -->
     <section class="card" aria-labelledby="input-heading">
       <h2 class="card-title" id="input-heading">Input text</h2>
       <label for="inputText" class="visually-hidden">Document text to mask</label>
-      <textarea id="inputText" placeholder="Paste medical records, legal filings, financial statements, support tickets, or any sensitive text. PII is detected and masked according to your entity configuration." aria-describedby="input-hint"></textarea>
-      <p id="input-hint" class="visually-hidden">Use Control or Command plus Enter to run masking.</p>
+      <textarea id="inputText"
+        placeholder="Paste medical records, legal filings, financial statements, support tickets, or any sensitive text. Both models run in parallel and results appear side by side."
+        aria-describedby="input-hint"></textarea>
+      <p id="input-hint" class="visually-hidden">Use Control or Command plus Enter to compare.</p>
       <div class="actions">
-        <button type="button" class="btn btn-primary" id="maskBtn" onclick="maskText()">
+        <button type="button" class="btn btn-primary" id="compareBtn" onclick="compare()">
           <div class="spinner" id="spinner" aria-hidden="true"></div>
-          Mask text
+          <span id="compareBtnLabel">Compare both models</span>
         </button>
         <button type="button" class="btn btn-ghost" onclick="clearAll()">Clear</button>
         <span class="kbd-hint" aria-hidden="true">⌘/Ctrl + Enter</span>
@@ -373,106 +856,301 @@
       </div>
     </section>
 
-    <!-- Results -->
-    <section class="card" id="resultsCard" style="display:none" aria-live="polite">
-      <div class="stats-bar" id="statsBar"></div>
-      <h2 class="card-title">Masked output</h2>
-      <div class="masked-output" id="maskedOutput"></div>
-      <h2 class="card-title" style="margin-top:1.5rem">Detected entities</h2>
-      <div class="table-wrap" id="entitiesTable"></div>
-    </section>
+    <!-- Comparison panels -->
+    <div class="compare-grid" id="compareGrid" style="display:none">
+
+      <!-- GLiNER panel -->
+      <div class="result-panel result-panel--gliner" id="glinerPanel">
+        <div class="panel-header panel-header--gliner">
+          <div class="panel-icon panel-icon--gliner" aria-hidden="true">⚡</div>
+          <div class="panel-meta">
+            <div class="panel-name" id="glinerPanelName">Fine-tuned GLiNER</div>
+            <div class="panel-desc" id="glinerPanelDesc">Local inference</div>
+          </div>
+          <span class="panel-status loading" id="glinerStatus">Waiting…</span>
+        </div>
+        <div class="panel-body" id="glinerBody">
+          <div class="loading-panel">
+            <div class="spin-sm"></div>
+            Running…
+          </div>
+        </div>
+      </div>
+
+      <!-- LLM panel -->
+      <div class="result-panel result-panel--llm" id="llmPanel">
+        <div class="panel-header panel-header--llm">
+          <div class="panel-icon panel-icon--llm" aria-hidden="true">🤖</div>
+          <div class="panel-meta">
+            <div class="panel-name" id="llmPanelName">Remote model</div>
+            <div class="panel-desc" id="llmPanelDesc">RunPod hosted</div>
+          </div>
+          <span class="panel-status loading" id="llmStatus">Waiting…</span>
+        </div>
+        <div class="panel-body" id="llmBody">
+          <div class="loading-panel">
+            <div class="spin-sm"></div>
+            Running…
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Diff summary -->
+    <div class="diff-card" id="diffCard">
+      <div class="diff-title">Entity comparison — what each model found</div>
+      <div class="diff-rows" id="diffRows"></div>
+    </div>
+
+    </div><!-- end #tabCompare -->
+
+    <!-- ════ ENTITIES TAB ════ -->
+    <div id="tabEntities" style="display:none">
+
+      <!-- Stats row + Add button -->
+      <div class="registry-topbar">
+        <div class="registry-stats" id="registryStats" aria-label="Registry statistics">
+          <div class="stat-card">
+            <div class="stat-card-value" id="statTotal">—</div>
+            <div class="stat-card-label">Total Entities</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-value" id="statActive">—</div>
+            <div class="stat-card-label">Active</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-value" id="statHipaa">—</div>
+            <div class="stat-card-label">HIPAA</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-value" id="statPci">—</div>
+            <div class="stat-card-label">PCI-DSS</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-value" id="statPattern">—</div>
+            <div class="stat-card-label">With Patterns</div>
+          </div>
+        </div>
+        <div class="registry-add-btn">
+          <button type="button" class="btn-add-entity" onclick="openAddModal()" aria-label="Add entity">
+            <span class="btn-add-icon" aria-hidden="true">+</span>
+            <span>Add Entity</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card registry-card">
+        <div class="registry-card-head">
+
+          <!-- Search + sort + view toggle -->
+          <div class="registry-toolbar">
+            <div class="registry-search-wrap">
+              <span class="registry-search-icon" aria-hidden="true">⌕</span>
+              <input type="search" class="registry-search" id="entitySearch"
+                placeholder="Search name, ID, description, mask format…"
+                oninput="applyEntityFilters()" aria-label="Search entities" />
+            </div>
+            <select class="registry-select" id="entitySort" onchange="applyEntityFilters()" aria-label="Sort entities">
+              <option value="priority">Sort: Priority</option>
+              <option value="name">Sort: Name A–Z</option>
+              <option value="id">Sort: ID</option>
+              <option value="threshold">Sort: Threshold</option>
+            </select>
+            <div class="view-toggle" role="group" aria-label="View mode">
+              <button type="button" class="view-toggle-btn" id="viewGroupedBtn" onclick="setEntityView('grouped')">Grouped</button>
+              <button type="button" class="view-toggle-btn active" id="viewTableBtn" onclick="setEntityView('table')">Table</button>
+            </div>
+          </div>
+
+          <!-- Single compact filter bar -->
+          <div class="filter-bar">
+            <span class="filter-label">Policy</span>
+            <div class="filter-chips" id="policyFilters" role="group" aria-label="Filter by policy"></div>
+            <span class="filter-sep" aria-hidden="true"></span>
+            <div class="filter-chips" role="group" aria-label="Filter by detection method">
+              <button type="button" class="filter-chip" data-detection="pattern" onclick="toggleDetectionFilter('pattern')">Pattern</button>
+              <button type="button" class="filter-chip" data-detection="ner" onclick="toggleDetectionFilter('ner')">GLiNER</button>
+              <button type="button" class="filter-chip" data-detection="presidio" onclick="toggleDetectionFilter('presidio')">Presidio</button>
+            </div>
+            <span class="filter-sep" aria-hidden="true"></span>
+            <div class="filter-chips" role="group" aria-label="Filter by status">
+              <button type="button" class="filter-chip active" data-status="all" onclick="setStatusFilter('all')">All</button>
+              <button type="button" class="filter-chip" data-status="active" onclick="setStatusFilter('active')">Active</button>
+              <button type="button" class="filter-chip" data-status="disabled" onclick="setStatusFilter('disabled')">Disabled</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="registry-body">
+          <div class="registry-results-bar">
+            <span id="entityCount">Loading…</span>
+            <button type="button" class="clear-filters-btn" id="clearFiltersBtn" hidden onclick="clearEntityFilters()">Clear filters</button>
+          </div>
+
+          <div class="registry-scroll-panel">
+          <div class="registry-group-view" id="entityGroupView" hidden>
+            <div class="entity-groups" id="entityGroups">
+              <p class="empty-state">Loading entities…</p>
+            </div>
+          </div>
+
+          <div class="registry-table-view" id="entityTableView">
+            <div class="table-wrap">
+              <table id="entityTable" aria-label="Entity registry table">
+                <colgroup>
+                  <col class="col-entity" />
+                  <col class="col-detect" />
+                  <col class="col-policy" />
+                  <col class="col-pri" />
+                  <col class="col-thresh" />
+                  <col class="col-format" />
+                  <col class="col-status" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Entity</th>
+                    <th>Detection</th>
+                    <th>Policy</th>
+                    <th class="col-num">Pri</th>
+                    <th class="col-num">Threshold</th>
+                    <th>Mask format</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="entityTableBody">
+                  <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end #tabEntities -->
+
+
+    <!-- Add entity modal -->
+    <div class="modal-backdrop" id="addEntityModal" style="display:none" onclick="closeModalIfBackdrop(event)">
+      <div class="modal" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
+        <h2 class="modal-title" id="modalTitle">Add New Entity</h2>
+        <form onsubmit="submitNewEntity(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="fId">Entity ID *</label>
+              <input class="form-input" id="fId" placeholder="e.g. custom_tax_code" required
+                pattern="[a-z][a-z0-9_]{1,63}" title="Lowercase letters, digits, underscores; start with a letter" />
+              <span class="form-hint">lowercase_snake_case</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fName">Display Name *</label>
+              <input class="form-input" id="fName" placeholder="e.g. Custom Tax Code" required />
+            </div>
+            <div class="form-group full">
+              <label class="form-label" for="fDesc">Description</label>
+              <input class="form-input" id="fDesc" placeholder="What this entity detects and when to flag it" />
+            </div>
+            <div class="form-group full">
+              <label class="form-label" for="fGliner">GLiNER Label *</label>
+              <input class="form-input" id="fGliner" placeholder='e.g. "custom tax code number"' required />
+              <span class="form-hint">Natural language description the NER model uses to identify this entity</span>
+            </div>
+            <div class="form-group full">
+              <label class="form-label" for="fPattern">Regex Pattern (optional)</label>
+              <input class="form-input" id="fPattern" placeholder="e.g. \bTC-\d{6}\b" />
+              <span class="form-hint">Use a capture group ( ) to extract just the value</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fPriority">Priority (1=highest)</label>
+              <input class="form-input" type="number" id="fPriority" value="5" min="1" max="10" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fThreshold">Confidence Threshold</label>
+              <input class="form-input" type="number" id="fThreshold" value="0.55" min="0.1" max="1.0" step="0.05" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fPolicy">Policy</label>
+              <select class="form-select" id="fPolicy">
+                <option value="general">general</option>
+                <option value="hipaa">hipaa</option>
+                <option value="pci_dss">pci_dss</option>
+                <option value="law_enforcement">law_enforcement</option>
+                <option value="transportation">transportation</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fFormat">Mask Format</label>
+              <input class="form-input" id="fFormat" value="[ENTITY {n}]" placeholder="[ENTITY {n}]" />
+              <span class="form-hint">{n} = sequential number</span>
+            </div>
+          </div>
+          <p class="form-error" id="modalError"></p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" onclick="closeAddModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="modalSubmitBtn">Add Entity</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
   </div>
 
   <script>
-    // Show NER model name in badge
-    async function loadHealth() {
-      try {
-        const res = await fetch('/health');
-        const data = await res.json();
-        const model = data.ner_model || 'GLiNER';
-        const name = model.split('/').pop().replace(/-/g, ' ');
-        document.getElementById('modelLabel').textContent = name;
-      } catch(e) {
-        document.getElementById('modelLabel').textContent = 'GLiNER';
-      }
+    let UI = {
+      runpod_proxy_path: '/proxy/runpod',
+      comparison_enabled: false,
+      ui_health_timeout_ms: 8000,
+      remote_model_badge: 'Remote model',
+      remote_model_offline_label: 'Remote · offline',
+    };
+
+    function esc(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    function statChip(label, valueHtml) {
-      return `<span class="stat-chip"><span class="stat-label">${label}</span><strong>${valueHtml}</strong></span>`;
+    function toSec(ms) {
+      if (ms == null) return '—';
+      const s = ms / 1000;
+      return s < 1 ? s.toFixed(2) + 's' : s.toFixed(1) + 's';
     }
 
-    function clearPreviousResults() {
-      document.getElementById('resultsCard').style.display = 'none';
-      document.getElementById('statsBar').innerHTML = '';
-      document.getElementById('maskedOutput').textContent = '';
-      document.getElementById('entitiesTable').innerHTML = '';
+    function statChip(label, val) {
+      return `<span class="stat-chip"><span class="stat-label">${label}</span><strong>${esc(String(val))}</strong></span>`;
     }
 
-    async function maskText() {
-      const text = document.getElementById('inputText').value.trim();
-      if (!text) return;
-
-      clearPreviousResults();
-
-      const btn     = document.getElementById('maskBtn');
-      const spinner = document.getElementById('spinner');
-      const errEl   = document.getElementById('errorMsg');
-
-      btn.disabled = true;
-      spinner.style.display = 'block';
-      errEl.style.display   = 'none';
-
-      try {
-        const res = await fetch('/mask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
-        if (!res.ok) {
-          const e = await res.json();
-          throw new Error(e.detail || `HTTP ${res.status}`);
-        }
-        renderResults(await res.json());
-      } catch(e) {
-        errEl.textContent   = 'Error: ' + e.message;
-        errEl.style.display = 'block';
-      } finally {
-        btn.disabled = false;
-        spinner.style.display = 'none';
-      }
+    function sourceBadge(src) {
+      const map = { pattern: ['badge-pattern','Pattern'], ner: ['badge-ner','GLiNER'], llm: ['badge-llm','LLM'] };
+      const [cls, lbl] = map[src] || ['badge-ner', src];
+      return `<span class="badge ${cls}">${lbl}</span>`;
     }
 
-    function renderResults(data) {
-      document.getElementById('resultsCard').style.display = 'block';
-      document.getElementById('maskedOutput').textContent  = data.masked_text;
-
-      const s = data.stats;
-      const toMs = ms => Math.round(ms) + ' ms';
-
-      const chips = [
-        statChip('Total', toMs(data.response_time_ms)),
-        statChip('Pattern', toMs(s.pattern_ms)),
-        statChip('GLiNER', toMs(s.ner_ms)),
-        statChip('Entities', String(s.spans_total)),
-        statChip('Language', esc(s.language || '—')),
-      ];
-      document.getElementById('statsBar').innerHTML = chips.join('');
-
-      const container = document.getElementById('entitiesTable');
-      if (!data.spans.length) {
-        container.innerHTML = '<p class="empty-state">No PII detected in this input.</p>';
+    function renderPanel(bodyEl, statusEl, panelKey, data, err) {
+      const statusClass = panelKey === 'gliner' ? 'done-gliner' : 'done-llm';
+      if (err) {
+        statusEl.className = 'panel-status error';
+        statusEl.textContent = 'Error';
+        bodyEl.innerHTML = `<div class="error-panel">${esc(err)}</div>`;
         return;
       }
 
-      const sourceLabels = {
-        'pattern': 'Pattern (Presidio)',
-        'ner':     'GLiNER model',
-      };
-      const rows = data.spans.map(sp => {
-        const pct = Math.round(sp.confidence * 100);
+      const s = data.stats || {};
+      const chips = [];
+      chips.push(statChip('Total', toSec(data.response_time_ms)));
+      if (s.pattern_ms != null) chips.push(statChip('Pattern', toSec(s.pattern_ms)));
+      if (s.ner_ms != null)     chips.push(statChip('GLiNER', toSec(s.ner_ms)));
+      if (s.llm_ms != null && s.llm_ms > 0) chips.push(statChip('LLM', toSec(s.llm_ms)));
+      chips.push(statChip('Entities', String(s.spans_total ?? data.spans.length)));
+      if (s.language)           chips.push(statChip('Lang', s.language));
+
+      statusEl.className = 'panel-status ' + statusClass;
+      statusEl.textContent = toSec(data.response_time_ms) + ' total';
+
+      const rows = (data.spans || []).map(sp => {
+        const pct = Math.round((sp.confidence || 0) * 100);
         return `<tr>
-          <td>${esc(sp.display_name)}</td>
+          <td style="max-width:120px;word-break:break-word">${esc(sp.display_name || sp.entity_id)}</td>
           <td><span class="original-val">${esc(sp.original)}</span></td>
           <td><span class="masked-val">${esc(sp.masked)}</span></td>
           <td>
@@ -481,38 +1159,569 @@
               <span class="conf-pct">${pct}%</span>
             </div>
           </td>
-          <td><span class="badge badge-${sp.source}">${esc(sourceLabels[sp.source] || sp.source)}</span></td>
+          <td>${sourceBadge(sp.source)}</td>
         </tr>`;
       }).join('');
 
-      container.innerHTML = `
-        <table>
-          <thead><tr>
-            <th>Entity</th><th>Original</th><th>Masked</th>
-            <th>Confidence</th><th>Source</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>`;
-
-      document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      bodyEl.innerHTML = `
+        <div class="stats-strip">${chips.join('')}</div>
+        <p class="card-title-sm">Masked output</p>
+        <div class="masked-output">${esc(data.masked_text)}</div>
+        <div class="table-section">
+          <p class="card-title-sm">Detected entities</p>
+          ${data.spans && data.spans.length
+            ? `<div class="table-wrap"><table>
+                <thead><tr>
+                  <th>Entity</th><th>Original</th><th>Masked</th>
+                  <th>Confidence</th><th>Source</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+              </table></div>`
+            : '<p class="empty-state">No PII detected.</p>'
+          }
+        </div>`;
     }
 
-    function esc(s) {
-      if (s == null) return '';
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    function buildDiff(glinerData, llmData) {
+      if (!glinerData || !llmData) return;
+      const diffEl = document.getElementById('diffCard');
+      const rowsEl = document.getElementById('diffRows');
+
+      // Build sets of found text per entity_id for each model
+      function spansMap(data) {
+        const m = {};
+        for (const sp of (data.spans || [])) {
+          const key = sp.entity_id || sp.display_name;
+          if (!m[key]) m[key] = { display: sp.display_name || key, texts: new Set() };
+          m[key].texts.add(sp.original.toLowerCase());
+        }
+        return m;
+      }
+
+      const gMap = spansMap(glinerData);
+      const lMap = spansMap(llmData);
+      const allKeys = new Set([...Object.keys(gMap), ...Object.keys(lMap)]);
+
+      const rows = [];
+      for (const key of allKeys) {
+        const inG = !!gMap[key];
+        const inL = !!lMap[key];
+        const display = (gMap[key] || lMap[key]).display;
+
+        if (inG && inL) {
+          const gTexts = gMap[key].texts;
+          const lTexts = lMap[key].texts;
+          const agree = [...gTexts].every(t => lTexts.has(t)) && [...lTexts].every(t => gTexts.has(t));
+          rows.push(`<div class="diff-row">
+            <span class="entity-name">${esc(display)}</span>
+            <span class="diff-tag ${agree ? 'diff-tag--agree' : 'diff-tag--disagree'}">${agree ? 'Both agree' : 'Differ'}</span>
+            <span class="diff-detail">GLiNER: ${esc([...gTexts].join(', '))} &nbsp;·&nbsp; LLM: ${esc([...lTexts].join(', '))}</span>
+          </div>`);
+        } else if (inG) {
+          rows.push(`<div class="diff-row">
+            <span class="entity-name">${esc(display)}</span>
+            <span class="diff-tag diff-tag--gliner">GLiNER only</span>
+            <span class="diff-detail">${esc([...gMap[key].texts].join(', '))}</span>
+          </div>`);
+        } else {
+          rows.push(`<div class="diff-row">
+            <span class="entity-name">${esc(display)}</span>
+            <span class="diff-tag diff-tag--llm">LLM only</span>
+            <span class="diff-detail">${esc([...lMap[key].texts].join(', '))}</span>
+          </div>`);
+        }
+      }
+
+      rowsEl.innerHTML = rows.length ? rows.join('') : '<p class="empty-state">Both models found no entities, or results are identical.</p>';
+      diffEl.style.display = 'block';
+    }
+
+    let glinerResult = null;
+    let llmResult = null;
+
+    async function compare() {
+      const text = document.getElementById('inputText').value.trim();
+      if (!text) return;
+
+      glinerResult = null;
+      llmResult = null;
+
+      const btn = document.getElementById('compareBtn');
+      const spinner = document.getElementById('spinner');
+      btn.disabled = true;
+      spinner.style.display = 'block';
+
+      document.getElementById('compareGrid').style.display = 'grid';
+      document.getElementById('diffCard').style.display = 'none';
+
+      const glinerBody  = document.getElementById('glinerBody');
+      const llmBody     = document.getElementById('llmBody');
+      const glinerStatus = document.getElementById('glinerStatus');
+      const llmStatus   = document.getElementById('llmStatus');
+
+      const loadingHtml = `<div class="loading-panel"><div class="spin-sm"></div>Running…</div>`;
+      glinerBody.innerHTML = loadingHtml;
+      glinerStatus.className = 'panel-status loading';
+      glinerStatus.textContent = 'Running…';
+      if (UI.comparison_enabled) {
+        llmBody.innerHTML = loadingHtml;
+        llmStatus.className = 'panel-status loading';
+        llmStatus.textContent = 'Running…';
+      }
+
+      const payload = JSON.stringify({ text });
+      const headers = { 'Content-Type': 'application/json' };
+
+      async function callLocal() {
+        const res = await fetch('/mask', { method: 'POST', headers, body: payload });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+        return res.json();
+      }
+
+      async function callRemote() {
+        const res = await fetch(`${UI.runpod_proxy_path}/mask`, { method: 'POST', headers, body: payload });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+        return res.json();
+      }
+
+      const glinerPromise = callLocal().then(data => {
+        glinerResult = data;
+        renderPanel(glinerBody, glinerStatus, 'gliner', data, null);
+        if (llmResult) buildDiff(glinerResult, llmResult);
+      }).catch(err => {
+        renderPanel(glinerBody, glinerStatus, 'gliner', null, err.message);
+      });
+
+      const promises = [glinerPromise];
+      if (UI.comparison_enabled) {
+        const llmPromise = callRemote().then(data => {
+          llmResult = data;
+          renderPanel(llmBody, llmStatus, 'llm', data, null);
+          if (glinerResult) buildDiff(glinerResult, llmResult);
+        }).catch(err => {
+          renderPanel(llmBody, llmStatus, 'llm', null, err.message);
+        });
+        promises.push(llmPromise);
+      }
+
+      await Promise.allSettled(promises);
+
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      document.getElementById('compareGrid').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function clearAll() {
       document.getElementById('inputText').value = '';
-      clearPreviousResults();
-      document.getElementById('errorMsg').style.display = 'none';
+      document.getElementById('compareGrid').style.display = 'none';
+      document.getElementById('diffCard').style.display = 'none';
+      glinerResult = null;
+      llmResult = null;
     }
 
     document.getElementById('inputText').addEventListener('keydown', e => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') maskText();
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') compare();
     });
 
-    loadHealth();
+    function applyUiConfig(cfg) {
+      UI = { ...UI, ...cfg };
+      document.title = cfg.page_title;
+      document.getElementById('appTitle').textContent = cfg.app_title;
+      document.getElementById('comparisonSubtitle').textContent = cfg.comparison_subtitle;
+      document.getElementById('localBadge').textContent = cfg.local_model_badge;
+      document.getElementById('glinerPanelName').textContent = cfg.local_model_name;
+      document.getElementById('glinerPanelDesc').textContent = cfg.local_model_desc;
+      document.getElementById('llmPanelName').textContent = cfg.remote_model_name;
+      document.getElementById('llmPanelDesc').textContent = cfg.remote_model_desc;
+      document.getElementById('llmLabel').textContent = cfg.remote_model_badge;
+      const grid = document.getElementById('compareGrid');
+      const llmPanel = document.getElementById('llmPanel');
+      const llmBadge = document.getElementById('llmBadge');
+      const compareBtn = document.getElementById('compareBtn');
+
+      llmPanel.style.display = cfg.comparison_enabled ? '' : 'none';
+      llmBadge.style.display = cfg.comparison_enabled ? '' : 'none';
+      grid.classList.toggle('compare-grid--single', !cfg.comparison_enabled);
+      document.getElementById('compareBtnLabel').textContent =
+        cfg.comparison_enabled ? 'Compare both models' : 'Mask with local model';
+    }
+
+    async function checkRemoteHealth() {
+      if (!UI.comparison_enabled) return;
+      const offline = UI.remote_model_offline_label;
+      try {
+        const res = await fetch(`${UI.runpod_proxy_path}/health`, {
+          signal: AbortSignal.timeout(UI.ui_health_timeout_ms),
+        });
+        if (res.ok) {
+          document.getElementById('llmDot').className = 'dot dot-ok';
+        } else {
+          document.getElementById('llmDot').className = 'dot dot-err';
+          document.getElementById('llmLabel').textContent = offline;
+        }
+      } catch {
+        document.getElementById('llmDot').className = 'dot dot-err';
+        document.getElementById('llmLabel').textContent = offline;
+      }
+    }
+
+    (async () => {
+      try {
+        const res = await fetch('/api/config');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        applyUiConfig(await res.json());
+      } catch (err) {
+        console.warn('Failed to load /api/config', err);
+      }
+      await checkRemoteHealth();
+    })();
+
+    // ── Tab switching ────────────────────────────────────────────────────────
+    function showTab(name) {
+      document.getElementById('tabCompare').style.display = name === 'compare' ? 'block' : 'none';
+      document.getElementById('tabEntities').style.display = name === 'entities' ? 'flex' : 'none';
+      document.getElementById('tabCompareBtn').classList.toggle('active', name === 'compare');
+      document.getElementById('tabEntitiesBtn').classList.toggle('active', name === 'entities');
+      if (name === 'entities') loadEntities();
+    }
+
+    // ── Entity registry ──────────────────────────────────────────────────────
+    let _allEntities = [];
+    let _registryCategories = [];
+    let _entityView = 'table';
+    let _policyFilter = null;
+    let _detectionFilters = new Set();
+    let _statusFilter = 'all';
+
+    const POLICY_LABELS = { hipaa:'HIPAA', pci_dss:'PCI-DSS', general:'General', law_enforcement:'CJIS', transportation:'Transport' };
+    const POLICY_CLS    = { hipaa:'hipaa', pci_dss:'pci', general:'gen', law_enforcement:'law', transportation:'tran' };
+    const DETECT_CLS    = { pattern:'pattern', ner:'ner', presidio:'presidio' };
+
+    function policyBadges(policies) {
+      const items = (policies || []).map(p => {
+        const cls = POLICY_CLS[p] || 'gen';
+        const lbl = POLICY_LABELS[p] || p;
+        return `<span class="pt pt-${cls}">${esc(lbl)}</span>`;
+      });
+      return items.length ? `<span class="tags">${items.join('')}</span>` : '<span style="color:var(--text-faint)">—</span>';
+    }
+
+    function detectionBadges(e) {
+      const parts = [];
+      if (e.has_pattern) parts.push('<span class="dt dt-pattern">Pattern</span>');
+      if (e.has_presidio) parts.push('<span class="dt dt-presidio">Presidio</span>');
+      if (e.has_gliner || e.gliner_label) parts.push('<span class="dt dt-ner">GLiNER</span>');
+      return parts.length ? `<span class="tags">${parts.join('')}</span>` : '<span style="color:var(--text-faint)">—</span>';
+    }
+
+    function entityStatusBadge(e) {
+      if (!e.enabled)   return '<span class="sb sb--off"><span class="sb-dot"></span>Disabled</span>';
+      if (!e.is_active) return '<span class="sb sb--ina"><span class="sb-dot"></span>Inactive</span>';
+      return '<span class="sb sb--on"><span class="sb-dot"></span>Active</span>';
+    }
+
+    function entityDotCls(e) {
+      if (!e.enabled)   return 'e-dot e-dot--off';
+      if (!e.is_active) return 'e-dot e-dot--ina';
+      return 'e-dot e-dot--on';
+    }
+
+    function formatThreshold(e) {
+      const t = e.confidence_threshold;
+      return t != null ? Number(t).toFixed(2) : '0.85';
+    }
+
+    function sortEntities(list) {
+      const mode = document.getElementById('entitySort')?.value || 'priority';
+      const sorted = [...list];
+      if (mode === 'name') sorted.sort((a, b) => a.display_name.localeCompare(b.display_name));
+      else if (mode === 'id') sorted.sort((a, b) => a.id.localeCompare(b.id));
+      else if (mode === 'threshold') sorted.sort((a, b) => (b.confidence_threshold || 0) - (a.confidence_threshold || 0));
+      else sorted.sort((a, b) => a.priority - b.priority || a.display_name.localeCompare(b.display_name));
+      return sorted;
+    }
+
+    function entityMatchesDetection(e, filters) {
+      if (!filters.size) return true;
+      if (filters.has('pattern') && e.has_pattern) return true;
+      if (filters.has('presidio') && e.has_presidio) return true;
+      if (filters.has('ner') && (e.has_gliner || e.gliner_label)) return true;
+      return false;
+    }
+
+    function getFilteredEntities() {
+      const q = (document.getElementById('entitySearch')?.value || '').toLowerCase().trim();
+      return sortEntities(_allEntities.filter(e => {
+        if (_policyFilter && e.category !== _policyFilter) return false;
+        if (_detectionFilters.size && !entityMatchesDetection(e, _detectionFilters)) return false;
+        if (_statusFilter === 'active' && !e.is_active) return false;
+        if (_statusFilter === 'disabled' && e.enabled) return false;
+        if (q) {
+          const hay = [e.display_name, e.id, e.description, e.format, ...(e.policy || [])].join(' ').toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      }));
+    }
+
+    function hasActiveFilters() {
+      return !!(
+        _policyFilter ||
+        _detectionFilters.size ||
+        _statusFilter !== 'all' ||
+        (document.getElementById('entitySearch')?.value || '').trim()
+      );
+    }
+
+    function updateFilterUi() {
+      document.querySelectorAll('#policyFilters .filter-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.policy === _policyFilter);
+      });
+      document.querySelectorAll('[data-detection]').forEach(btn => {
+        btn.classList.toggle('active', _detectionFilters.has(btn.dataset.detection));
+      });
+      document.querySelectorAll('[data-status]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.status === _statusFilter);
+      });
+      const clearBtn = document.getElementById('clearFiltersBtn');
+      if (clearBtn) clearBtn.hidden = !hasActiveFilters();
+    }
+
+    function updateRegistryStats(data) {
+      const entities = data.entities || _allEntities;
+      document.getElementById('statTotal').textContent = data.total ?? entities.length;
+      document.getElementById('statActive').textContent = data.active_count ?? entities.filter(e => e.is_active).length;
+      const byCat = data.by_category || {};
+      document.getElementById('statHipaa').textContent = byCat.hipaa ?? entities.filter(e => e.category === 'hipaa').length;
+      document.getElementById('statPci').textContent = byCat.pci_dss ?? entities.filter(e => e.category === 'pci_dss').length;
+      document.getElementById('statPattern').textContent = entities.filter(e => e.has_pattern).length;
+    }
+
+    function buildPolicyFilters(categories, entities) {
+      const el = document.getElementById('policyFilters');
+      if (!el) return;
+      const counts = {};
+      entities.forEach(e => { counts[e.category] = (counts[e.category] || 0) + 1; });
+      const cats = categories.length ? categories : [
+        { id: 'hipaa',           label: 'HIPAA Safe Harbor' },
+        { id: 'pci_dss',         label: 'PCI-DSS v4.0' },
+        { id: 'general',         label: 'General PII' },
+        { id: 'law_enforcement', label: 'Law Enforcement / CJIS' },
+        { id: 'transportation',  label: 'Transportation' },
+      ];
+      el.innerHTML = cats.map(c => {
+        const n = counts[c.id] || 0;
+        if (!n) return '';
+        return `<button type="button" class="filter-chip" data-policy="${esc(c.id)}" onclick="togglePolicyFilter('${esc(c.id)}')">${esc(c.label)}<span class="chip-count">${n}</span></button>`;
+      }).join('');
+    }
+
+    function togglePolicyFilter(policy) {
+      _policyFilter = _policyFilter === policy ? null : policy;
+      updateFilterUi();
+      applyEntityFilters();
+    }
+
+    function toggleDetectionFilter(method) {
+      if (_detectionFilters.has(method)) _detectionFilters.delete(method);
+      else _detectionFilters.add(method);
+      updateFilterUi();
+      applyEntityFilters();
+    }
+
+    function setStatusFilter(status) {
+      _statusFilter = status;
+      updateFilterUi();
+      applyEntityFilters();
+    }
+
+    function clearEntityFilters() {
+      _policyFilter = null;
+      _detectionFilters.clear();
+      _statusFilter = 'all';
+      const search = document.getElementById('entitySearch');
+      if (search) search.value = '';
+      updateFilterUi();
+      applyEntityFilters();
+    }
+
+    function setEntityView(mode) {
+      _entityView = mode;
+      document.getElementById('viewGroupedBtn').classList.toggle('active', mode === 'grouped');
+      document.getElementById('viewTableBtn').classList.toggle('active', mode === 'table');
+      document.getElementById('entityGroupView').hidden = mode !== 'grouped';
+      document.getElementById('entityTableView').hidden = mode !== 'table';
+    }
+
+    function applyEntityFilters() {
+      const filtered = getFilteredEntities();
+      const countEl = document.getElementById('entityCount');
+      if (countEl) {
+        countEl.innerHTML = hasActiveFilters()
+          ? `Showing <strong>${filtered.length}</strong> of ${_allEntities.length} entities`
+          : `<strong>${filtered.length}</strong> entities across ${_registryCategories.length || 5} categories`;
+      }
+      renderEntityGroups(filtered);
+      renderEntityTable(filtered);
+    }
+
+    function renderEntityRow(e) {
+      const thresh = formatThreshold(e);
+      return `<div class="entity-row">
+        <div class="entity-row-main">
+          <div class="entity-row-name">
+            <span class="${entityDotCls(e)}" title="${e.is_active ? 'Active' : e.enabled ? 'Policy gated' : 'Disabled'}"></span>
+            ${esc(e.display_name)}
+          </div>
+          <div class="entity-row-id">${esc(e.id)}</div>
+        </div>
+        <div style="display:flex;gap:.25rem;flex-wrap:wrap;align-items:center">${detectionBadges(e)}</div>
+        <div style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.format)}</div>
+      </div>`;
+    }
+
+    function renderEntityGroups(entities) {
+      const container = document.getElementById('entityGroups');
+      if (!container) return;
+      if (!entities.length) {
+        container.innerHTML = '<p class="empty-state">No entities match your filters.</p>';
+        return;
+      }
+      const byCat = {};
+      entities.forEach(e => {
+        if (!byCat[e.category]) byCat[e.category] = [];
+        byCat[e.category].push(e);
+      });
+      const catMeta = {};
+      _registryCategories.forEach(c => { catMeta[c.id] = c; });
+      const order = _registryCategories.map(c => c.id).filter(id => byCat[id]);
+      Object.keys(byCat).forEach(id => { if (!order.includes(id)) order.push(id); });
+
+      const collapseGroups = order.length > 1;
+      container.innerHTML = order.map(catId => {
+        const meta = catMeta[catId] || { label: catId, description: '', icon: '•' };
+        const items = byCat[catId];
+        const rows = items.map(renderEntityRow).join('');
+        return `<section class="entity-group${collapseGroups ? ' collapsed' : ''}" data-category="${esc(catId)}">
+          <button type="button" class="entity-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+            <span class="entity-group-icon" aria-hidden="true">${meta.icon || '•'}</span>
+            <span class="entity-group-meta">
+              <span class="entity-group-title">${esc(meta.label)}</span>
+              <span class="entity-group-desc">${esc(meta.description || '')}</span>
+            </span>
+            <span class="entity-group-count">${items.length}</span>
+            <span class="entity-group-chevron" aria-hidden="true">▼</span>
+          </button>
+          <div class="entity-group-body">${rows}</div>
+        </section>`;
+      }).join('');
+    }
+
+    function renderEntityTable(entities) {
+      const tbody = document.getElementById('entityTableBody');
+      if (!tbody) return;
+      if (!entities.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No entities match your filters.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = entities.map(e => {
+        const thresh = formatThreshold(e);
+        return `<tr>
+          <td class="cell-entity">
+            <div class="cell-entity-inner">
+              <span class="cell-entity-dot ${entityDotCls(e)}"></span>
+              <div class="cell-entity-text">
+                <div class="cell-entity-name">${esc(e.display_name)}</div>
+                <div class="cell-entity-id">${esc(e.id)}</div>
+              </div>
+            </div>
+          </td>
+          <td>${detectionBadges(e)}</td>
+          <td>${policyBadges(e.policy)}</td>
+          <td class="cell-num"><span class="pri-badge">${e.priority}</span></td>
+          <td class="cell-num"><span class="thresh-val">${thresh}</span></td>
+          <td><span class="mask-chip" title="${esc(e.format)}">${esc(e.format)}</span></td>
+          <td>${entityStatusBadge(e)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function loadEntities() {
+      try {
+        const res = await fetch('/entities');
+        const data = await res.json();
+        _allEntities = data.entities || [];
+        _registryCategories = data.categories || [];
+        buildPolicyFilters(_registryCategories, _allEntities);
+        updateRegistryStats(data);
+        updateFilterUi();
+        applyEntityFilters();
+      } catch (e) {
+        const msg = esc(e.message);
+        document.getElementById('entityGroups').innerHTML = `<p class="empty-state">Failed to load entities: ${msg}</p>`;
+        document.getElementById('entityTableBody').innerHTML = `<tr><td colspan="7" class="empty-state">Failed to load: ${msg}</td></tr>`;
+      }
+    }
+
+    // ── Add entity modal ─────────────────────────────────────────────────────
+    function openAddModal() {
+      document.getElementById('addEntityModal').style.display = 'flex';
+      document.getElementById('modalError').style.display = 'none';
+      document.getElementById('fId').focus();
+    }
+
+    function closeAddModal() {
+      document.getElementById('addEntityModal').style.display = 'none';
+    }
+
+    function closeModalIfBackdrop(e) {
+      if (e.target === document.getElementById('addEntityModal')) closeAddModal();
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeAddModal();
+    });
+
+    async function submitNewEntity(e) {
+      e.preventDefault();
+      const btn = document.getElementById('modalSubmitBtn');
+      const errEl = document.getElementById('modalError');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Adding…';
+
+      const payload = {
+        id: document.getElementById('fId').value.trim(),
+        display_name: document.getElementById('fName').value.trim(),
+        description: document.getElementById('fDesc').value.trim(),
+        gliner_label: document.getElementById('fGliner').value.trim(),
+        pattern: document.getElementById('fPattern').value.trim() || null,
+        priority: parseInt(document.getElementById('fPriority').value) || 5,
+        confidence_threshold: parseFloat(document.getElementById('fThreshold').value) || 0.55,
+        policy: [document.getElementById('fPolicy').value],
+        masking_format: document.getElementById('fFormat').value.trim() || '[ENTITY {n}]',
+      };
+
+      try {
+        const res = await fetch('/api/entities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+        closeAddModal();
+        e.target.reset();
+        await loadEntities();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Add Entity';
+      }
+    }
   </script>
 </body>
 </html>

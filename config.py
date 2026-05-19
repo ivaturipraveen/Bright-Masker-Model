@@ -32,6 +32,7 @@ class EntityConfig(BaseModel):
     patterns: list[str] = []
     masking: MaskingConfig
     notes: str = ""
+    counter_group: Optional[str] = None
 
 
 class GlobalConfig(BaseModel):
@@ -59,38 +60,57 @@ class Config:
                 return bool(overrides[key])
             return os.getenv(env, str(default)).lower() in ("true", "1", "yes")
 
-        # ── GLiNER model ────────────────────────────────────────────────────
-        # Set FINE_TUNED_MODEL_PATH after running train/finetune.py to use
-        # the trained model. Empty string = base GLiNER model.
-        self.gliner_model_name = _s("gliner_model_name", "GLINER_MODEL_NAME", "urchade/gliner_large-v2.1")
-        self.fine_tuned_model_path = _s("fine_tuned_model_path", "FINE_TUNED_MODEL_PATH", "")
+        # ── Model ───────────────────────────────────────────────────────────
+        self.gliner_model_name       = "urchade/gliner_large-v2.1"
+        self.fine_tuned_model_path   = _s("fine_tuned_model_path", "FINE_TUNED_MODEL_PATH", "")
+        self.gliner_threshold        = _f("gliner_threshold", "GLINER_THRESHOLD", 0.35)
+        self.gliner_max_chunk_chars  = 1200
+        self.gliner_chunk_overlap_chars = 100
 
-        # NER threshold — 0.55 is a good default without an LLM to filter FPs.
-        # Lower = higher recall, more false positives.
-        # Higher = fewer false positives, may miss borderline entities.
-        self.gliner_threshold = _f("gliner_threshold", "GLINER_THRESHOLD", 0.55)
-        self.gliner_max_chunk_chars = _i("gliner_max_chunk_chars", "GLINER_MAX_CHUNK_CHARS", 1200)
-        self.gliner_chunk_overlap_chars = _i("gliner_chunk_overlap_chars", "GLINER_CHUNK_OVERLAP_CHARS", 100)
-
-        # ── spaCy / Presidio (pattern layer) ────────────────────────────────
-        self.spacy_model_name = _s("spacy_model_name", "SPACY_MODEL_NAME", "en_core_web_sm")
-        self.presidio_min_score = _f("presidio_min_score", "PRESIDIO_MIN_SCORE", 0.6)
-        self.presidio_nlp_engine = _s("presidio_nlp_engine", "PRESIDIO_NLP_ENGINE", "spacy")
-        self.presidio_language = _s("presidio_language", "PRESIDIO_LANGUAGE", "en")
+        # ── Pattern layer ───────────────────────────────────────────────────
+        self.spacy_model_name   = "en_core_web_lg"
+        self.presidio_min_score = 0.6
+        self.presidio_nlp_engine = "spacy"
+        self.presidio_language  = "en"
 
         # ── Entity config ───────────────────────────────────────────────────
-        self.entities_config_path = Path(_s("entities_config_path", "ENTITIES_CONFIG_PATH", "entities_config.yaml"))
+        self.entities_config_path = Path(
+            _s("entities_config_path", "ENTITIES_CONFIG_PATH", "./entities_config.yaml")
+        )
 
-        # ── Masking engine ──────────────────────────────────────────────────
-        self.faker_seed = _i("faker_seed", "FAKER_SEED", 42)
-        self.encryption_key = _s("encryption_key", "ENCRYPTION_KEY", "change-this-key-in-production")
+        # ── Masking ─────────────────────────────────────────────────────────
+        self.faker_seed      = 42
+        self.encryption_key  = _s("encryption_key", "ENCRYPTION_KEY",
+                                  "change-this-to-a-random-secret-key-in-production")
 
-        # ── Pipeline ────────────────────────────────────────────────────────
-        self.enable_async_layers = _b("enable_async_layers", "ENABLE_ASYNC_LAYERS", True)
-        self.batch_max_concurrency = _i("batch_max_concurrency", "BATCH_MAX_CONCURRENCY", 4)
+        # ── Server ──────────────────────────────────────────────────────────
+        self.log_level            = _s("log_level", "LOG_LEVEL", "INFO")
+        self.log_format           = "json"
+        self.max_text_chars       = 500_000
+        self.batch_max_concurrency = 4
+        self.warmup_text          = "Warm-up: John Smith, john@example.com, (555) 010-0100."
 
-        # ── Logging ─────────────────────────────────────────────────────────
-        self.log_level = _s("log_level", "LOG_LEVEL", "INFO")
+        # ── RunPod remote (optional — leave RUNPOD_BASE_URL empty for local-only) ──
+        self.runpod_base_url         = _s("runpod_base_url", "RUNPOD_BASE_URL", "").rstrip("/")
+        self.runpod_proxy_path       = "/proxy/runpod"
+        self.runpod_proxy_enabled    = True
+        self.runpod_health_timeout_sec = 10.0
+        self.runpod_mask_timeout_sec   = 60.0
+        self.ui_health_timeout_ms      = 8000
+
+        # ── UI labels (hardcoded — not env-configurable) ────────────────────
+        self.app_title          = "Bright Masker"
+        self.page_title         = "Bright Masker — PII Detection"
+        self.comparison_subtitle = (
+            "Side-by-side: GLiNER Fine-tuned (local) vs. Qwen 8B LLM (RunPod) — same input, both in parallel."
+        )
+        self.local_model_name         = "GLiNER Fine-tuned"
+        self.local_model_badge        = "GLiNER Fine-tuned · local"
+        self.local_model_desc         = "105 entity types · fine-tuned · no LLM"
+        self.remote_model_name        = "Qwen 8B LLM"
+        self.remote_model_badge       = "Qwen 8B · RunPod"
+        self.remote_model_desc        = "GLiNER + Qwen3-8B-AWQ · RunPod hosted"
+        self.remote_model_offline_label = "Qwen 8B · offline"
 
 
 class AppConfig:
@@ -124,7 +144,6 @@ class AppConfig:
             data = yaml.safe_load(fh)
 
         self._global_config = GlobalConfig(**data.get("global", {}))
-
         active_policies: set[str] = set(self._global_config.enabled_policies)
 
         entities: list[EntityConfig] = []

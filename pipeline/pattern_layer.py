@@ -115,8 +115,12 @@ class PatternLayer:
         return spans
 
     def _run_all(self, text: str, language: str) -> list[DetectedSpan]:
-        presidio = self._run_presidio(text, language)
-        custom = self._run_custom_patterns(text)
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_presidio = pool.submit(self._run_presidio, text, language)
+            f_custom = pool.submit(self._run_custom_patterns, text)
+            presidio = f_presidio.result()
+            custom = f_custom.result()
         all_spans = presidio + custom
 
         by_entity: dict[str, list[str]] = {}

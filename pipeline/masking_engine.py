@@ -46,6 +46,7 @@ class MaskingEngine:
                         span.entity_id,
                         entity_cfg.masking.strategy,
                         entity_cfg.masking.format,
+                        entity_cfg.counter_group,
                     )
                     self._cache[cache_key] = masked_value
                 except Exception as exc:
@@ -92,10 +93,12 @@ class MaskingEngine:
         return "".join(chars), masked_spans
 
     def _apply_strategy(
-        self, original: str, entity_id: str, strategy: MaskingStrategy, format_template: str
+        self, original: str, entity_id: str, strategy: MaskingStrategy, format_template: str,
+        counter_group: str | None = None,
     ) -> str:
-        n = self._type_counters.get(entity_id, 0) + 1
-        self._type_counters[entity_id] = n
+        counter_key = counter_group or entity_id
+        n = self._type_counters.get(counter_key, 0) + 1
+        self._type_counters[counter_key] = n
         token_map = build_token_map(original, entity_id, self._faker)
         token_map["n"] = n
 
