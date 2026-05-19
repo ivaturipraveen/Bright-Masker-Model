@@ -108,11 +108,11 @@ entities:
 
   - id: person_name
     display_name: Person / Full Name / Alias
-    description: "Human personal names only: first name, last name, full name, nickname, or alias of a real person. Do NOT flag dates, section headers, department names, medical terms, organization names, city names, or state names."
+    description: "Human personal names only: first name, last name, full name, nickname, or alias of a real person. Do NOT flag dates, section headers, department names, medical terms, lab test names, organization names, city names, or state names."
     policy: [hipaa]
     enabled: true
     priority: 1
-    confidence_threshold: 0.45
+    confidence_threshold: 0.62
     gliner_label: "person full name"
     presidio_type: PERSON
     masking:
@@ -125,7 +125,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
-    confidence_threshold: 0.45
+    confidence_threshold: 0.75
     gliner_label: "physician or doctor name"
     patterns:
       - '((?:Dr\.|Doctor)\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,2})'
@@ -154,7 +154,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 3
-    confidence_threshold: 0.40
+    confidence_threshold: 0.72
     gliner_label: "city or town in a personal address"
     patterns:
       - ',\s*([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2}),\s*[A-Z]{2}\s+\d{5}'
@@ -282,8 +282,11 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    confidence_threshold: 0.92
     gliner_label: "email address"
     presidio_type: EMAIL_ADDRESS
+    patterns:
+      - '([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})'
     masking:
       strategy: redact
       format: "[EMAIL {n}]"
@@ -324,7 +327,7 @@ entities:
 
   - id: health_plan_beneficiary_number
     display_name: Health Plan Beneficiary / Member Number
-    description: "Health plan beneficiary number, member ID, or group number. Detect near keywords: Beneficiary Number, Member ID, Member Number, Group Number, Subscriber ID."
+    description: "Health plan beneficiary number, member ID, or group number. Detect near keywords: Beneficiary Number, Member ID, Member Number, Group Number, Subscriber ID, insurance identification."
     policy: [hipaa]
     enabled: true
     priority: 1
@@ -332,6 +335,8 @@ entities:
     patterns:
       # Insurer-prefixed IDs — most reliable, no keyword required
       - '(?:HPN|UHC|HP|BCBS|CIGNA|AETNA|HUMANA|ANTHEM|KAISER|UNITED|MOLINA|CVS|OPTUM)-[A-Za-z0-9\-]{4,20}'
+      # State-prefixed insurance IDs e.g. CA-8821901
+      - '(?:insurance\s+identification|insurance\s+id)\s*[:#]?\s*([A-Z]{2}-\d{5,10})\b'
       # Keyword-preceded values — allow "is", ":", "#" as separators
       - '(?:Health\s+Plan\s+)?Beneficiary\s+(?:Number|No|ID)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{4,20})'
       - 'Member\s+(?:ID|Number|No)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{4,20})'
@@ -468,6 +473,7 @@ entities:
     policy: [hipaa, transportation]
     enabled: true
     priority: 2
+    confidence_threshold: 0.92
     gliner_label: "vehicle license plate number"
     patterns:
       - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{1,3}[\s\-]?[A-Z0-9]{1,4}[\s\-]?[A-Z0-9]{0,4})'
@@ -1501,7 +1507,7 @@ entities:
     description: "Name of a hospital, medical center, health system, clinic, or other healthcare facility. Example: 'Westside Medical Center', 'Valley Diagnostics Laboratory', 'Pacific Bay Medical Center'."
     policy: [hipaa]
     enabled: true
-    priority: 2
+    priority: 1
     gliner_label: "hospital or medical center name"
     patterns:
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)))\b'

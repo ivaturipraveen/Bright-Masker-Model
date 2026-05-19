@@ -1,0 +1,139 @@
+Example 1 — Full Healthcare Record
+Input
+Patient name is Jennifer L. Parker, born on 08/14/1982, residing at 742 Evergreen Terrace, Chicago, IL 60614. She can be reached at (312) 555-0148 or jennifer.parker82@healthmail.com. Her insurance member ID is INS-884211 and medical record number MRN-551992. She visited Westside Medical Center on 01/20/2026 for severe asthma and shortness of breath. Prescribed medications include Prednisone 20mg and Albuterol inhaler. Follow-up physician is Dr. Robert Hayes.
+
+Masked Output
+Patient name is [PERSON 1], born on [DATE 1], residing at [ADDRESS 1], [LOCATION 1], [STATE 1] [ZIPCODE 1]. She can be reached at [PHONE NUMBER 1] or [EMAIL 1]. Her insurance member ID is [INSURANCE ID 1] and medical record number [MRN 1]. She visited [HOSPITAL 1] on [DATE 2] for severe asthma and shortness of breath. Prescribed medications include [MEDICATION 1] and [MEDICATION 2]. Follow-up physician is [DOCTOR 1].
+
+Example 2 — Banking and Financial Information
+Input
+Account holder Michael D. Brown lives at 85 River Road, Newark, NJ 07102. His bank account number is 445566778899 and routing number is 021000021. He can be contacted at michael.brown77@securemail.com or 973-555-0171. Recent transaction of $12,450 was processed on 02/12/2026 using Visa card ending in 8821. Relationship manager is Angela Foster from City National Bank.
+
+Masked Output
+Account holder [PERSON 1] lives at [ADDRESS 1], [LOCATION 1], [STATE 1] [ZIPCODE 1]. His bank account number is [BANK ACCOUNT 1] and routing number is [ROUTING NUMBER 1]. He can be contacted at [EMAIL 1] or [PHONE NUMBER 1]. Recent transaction of [AMOUNT 1] was processed on [DATE 1] using [CARD TYPE 1] card ending in [CARD LAST4 1]. Relationship manager is [PERSON 2] from [BANK 1].
+
+Example 3 — Employment and HR Record
+Input
+Employee Sarah Williams joined BrightTech Solutions on 09/01/2024 as Senior Software Engineer. Her employee ID is EMP-77421 and corporate email is sarah.williams@brighttech.io. She resides at 211 Green Lane, Dallas, TX 75201 and emergency contact number is 214-555-0122. Payroll account is deposited to Chase account number 9988221177. Reporting manager is Daniel Cooper.
+Masked Output
+Employee [PERSON 1] joined [COMPANY 1] on [DATE 1] as Senior Software Engineer. Her employee ID is [EMPLOYEE ID 1] and corporate email is [EMAIL 1]. She resides at [ADDRESS 1], [LOCATION 1], [STATE 1] [ZIPCODE 1] and emergency contact number is [PHONE NUMBER 1]. Payroll account is deposited to [BANK 1] account number [BANK ACCOUNT 1]. Reporting manager is [PERSON 2].
+
+Example 4 — Insurance Claim Record
+Input
+Policyholder David Anderson filed claim number CLM-882901 with United Shield Insurance on 03/14/2026 after a vehicle collision. His driver license number is D4598821 and vehicle registration is TX-98-AB-2211. He lives at 900 Oak Street, Houston, TX 77002. Contact email is david.anderson91@mailbox.com and mobile number is 713-555-0184. Assigned claims officer is Rebecca Stone.
+Masked Output
+Policyholder [PERSON 1] filed claim number [CLAIM ID 1] with [INSURANCE COMPANY 1] on [DATE 1] after a vehicle collision. His driver license number is [LICENSE NUMBER 1] and vehicle registration is [VEHICLE NUMBER 1]. He lives at [ADDRESS 1], [LOCATION 1], [STATE 1] [ZIPCODE 1]. Contact email is [EMAIL 1] and mobile number is [PHONE NUMBER 1]. Assigned claims officer is [PERSON 2].
+
+Example 5 — Educational Institution Record
+Input
+Student Emily Johnson enrolled at Northern State University for the Fall 2025 semester. Her student ID is STU-551992 and campus email is emily.johnson25@nsu.edu. She currently resides at 450 College Avenue, Boston, MA 02115. Tuition payment of $18,700 was completed on 08/15/2025 using Mastercard ending in 4451. Academic advisor is Professor Linda Carter.
+Masked Output
+Student [PERSON 1] enrolled at [UNIVERSITY 1] for the Fall 2025 semester. Her student ID is [STUDENT ID 1] and campus email is [EMAIL 1]. She currently resides at [ADDRESS 1], [LOCATION 1], [STATE 1] [ZIPCODE 1]. Tuition payment of [AMOUNT 1] was completed on [DATE 1] using [CARD TYPE 1] ending in [CARD LAST4 1]. Academic advisor is [PERSON 2].
+
+Example 6 — Legal Case Information
+Input
+Client Jonathan Reed met attorney Melissa Grant at Grant & Associates on 04/02/2026 regarding civil litigation case CV-2026-8821. His passport number is X9982177 and contact number is 415-555-0199. Residence address is 17 Sunset Boulevard, San Francisco, CA 94110. Court hearing is scheduled at California Superior Court on 05/12/2026. Opposing counsel is Richard Blake.
+Masked Output
+Client [PERSON 1] met attorney [PERSON 2] at [LAW FIRM 1] on [DATE 1] regarding civil litigation case [CASE NUMBER 1]. His passport number is [PASSPORT 1] and contact number is [PHONE NUMBER 1]. Residence address is [ADDRESS 1], [LOCATION 1], [STATE 1] [ZIPCODE 1]. Court hearing is scheduled at [COURT 1] on [DATE 2]. Opposing counsel is [PERSON 3].
+
+Example 7 — Travel and Passport Details
+Input
+Passenger Olivia Martinez booked flight AI-442 from New York to London on 06/10/2026. Her passport number is P8821991 and booking reference is BK-771922. She can be reached at olivia.martinez@travelmail.com or +1-646-555-0127. Hotel reservation was made at Grand Royal Hotel, London. Emergency contact is Carlos Martinez.
+Masked Output
+Passenger [PERSON 1] booked flight [FLIGHT NUMBER 1] from [LOCATION 1] to [LOCATION 2] on [DATE 1]. Her passport number is [PASSPORT 1] and booking reference is [BOOKING ID 1]. She can be reached at [EMAIL 1] or [PHONE NUMBER 1]. Hotel reservation was made at [HOTEL 1]. Emergency contact is [PERSON 2].
+
+Example 8 — Government Identity Record
+Input
+Citizen Robert King submitted application number GOV-551882 for property registration on 07/18/2025. His SSN is 552-88-1199 and tax identification number is TAX-882119. Residence address is 77 Hill View Road, Phoenix, AZ 85001. Contact number is 602-555-0172 and official email is robert.king@citizenmail.com. Reviewing officer is Patricia Moore.
+Masked Output
+Citizen [PERSON 1] submitted application number [APPLICATION ID 1] for property registration on [DATE 1]. His SSN is [SSN 1] and tax identification number is [TAX ID 1]. Residence address is [ADDRESS 1], [LOCATION 1], [STATE 1] [ZIPCODE 1]. Contact number is [PHONE NUMBER 1] and official email is [EMAIL 1]. Reviewing officer is [PERSON 2].
+
+Example 9
+Hi, my name is Dr. Samantha Lee, and I work at Stanford Health Care as a Neurologist. Yesterday, I emailed John M. Peterson (DOB: 04/15/1982, SSN: 123-45-6789) regarding his MRI scan report from Los Altos Neurology Center. The report showed early signs of multiple sclerosis, and I suggested a follow-up at 123 Main St, Palo Alto, CA 94301 next Tuesday at 10:30 a.m. Please make sure the insurance ID 458921034 and claim number CL-99823 are attached before sharing it with Dr. Miguel Santos at UCSF.
+Also, note that Jane Doe, our clinical research assistant from UCSF Department of Neuroscience, requested a Spanish translation for the summary. The attached file includes both English and Spanish notes — please redact or tag accordingly
+Finally, please confirm if this data can be shared with OpenAI’s GPT-4 API under the “HIPAA-safe mode.
+
+Example 10
+
+HEADER
+Apollo
+Diagnostic Form DF-196
+Health System
+APOLLO PATHOLOGY ASSOCIATES, INC
+CHRISTIAN CHURCH CITY HOSPITAL
+DEPARTMENT OF PATHOLOGY 742 Main Avenue
+AND ARTIFICIAL SCIENCE Toledo,OH 43615
+(419) 555-8923
+
+SECTION: FINAL PATIENTSUMMARYREPORT
+PATIENT NAME: Jonathan Miller MRN:4829746
+DOB:07/15/2005 20Y Female BILLING NO:8646139
+LOCATION:Wisconsin PROCEDURE DATE:04/24/2025
+URGEON: Steven Walker RECEIVED DATE:04/26/2025
+DOCTOR: Joseph Smith REPORT DATE:04/28/2025
+DIAGNOSIS:
+Type 2 Diabetes Mellitus
+DOCTOR NOTES:
+Patient reports feeling well-controlled. No significant complaints. Reports adherence to medication
+regimen. Patient with Type 2 Diabetes Mellitus, well-controlled on current medication regimen. Lipid panel
+and HbA1c within target range. No new concems reported. Continue current medication regimen. Encourage
+adherence to Diabetic-friendly diet and moderate exercise.
+
+SECTION: PATIENTSUMMARY
+pnathan Miller, born on 15/07/2005, is a 20-year-old female patient. The patient has a history of Type 2
+Diabetes Mellitus and is currently undergoing management and monitoring. Regular blood glucose checks and
+lifestyle modifications are advised to maintain optimal health. The patients condition remains stable with
+ongoing care.
+
+SECTION: PATIENT LIFESTYLE AND VITALS
+Smoking Status:Never
+Alcohol Consumption: Rarely
+Diet Preference: Diabetic-friendly
+Exercise Habits:Mild
+Heart Rate:72
+Respiratory Rate:16
+emperature Celsius:36.8
+Oxygen Saturation Percent:98
+Blood Pressure:128/78 mmHg
+Recorded Date:03/11/2024
+
+FOOTER
+DEPARTMENT OF PATHOLOGY AND ARTIFICIAL SCIENCE
+TOLEDO.OH (419)555-8923
+DIAGNOSTIC FORM REPORT
+
+HEADER
+FINAL PATIENT SUMMARY REPORT
+
+HEADER
+PATIENT NAME: Jonathan Miller Diagnostic Form: DF-196
+MRN:4829746
+
+Past Hospital Visits
+Date Reason
+15/10/2024 Routine check-up
+Diabetes management review
+05/08/2024 Cold symptoms
+12/06/2024 Annual physical exam
+28/04/2024 Follow-up appointment
+10/03/2024 Influenza vaccination
+Medical Tests
+Medication Test Status On/Last
+IbAIc Done 01/11/2024
+Lipid Panel Done 01/11/2024
+Complete Blood Count (CBC) Done 01/11/2024
+Comprehensive Metabolic Panel (CMP) Done 01/11/2024
+Urinalysis Done 01/11/2024
+ECG Pending 05/11/2024
+Julie Terry
+Electronically Signed Insurance Agent
+
+FOOTER
+DEPARTMENT OF PATHOLOGY AND ARTIFICIAL SCIENCE
+TOLEDO,OH (419) S55-8923
+DIAGNOSTIC FORM REPORT
+
+
+
+
+

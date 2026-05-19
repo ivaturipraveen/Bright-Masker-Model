@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from config import AppConfig, EntityConfig
 from models.schemas import DetectedSpan
 from utils.logger import get_logger
@@ -7,6 +9,9 @@ from utils.logger import get_logger
 log = get_logger(__name__)
 
 _SOURCE_ORDER = {"pattern": 0, "ner": 1, "llm": 2}
+
+_DATE_RE = re.compile(r'^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$')
+_TRAILING_LOWERCASE_RE = re.compile(r'(\s+[a-z]\w*)+$')
 
 
 class SpanMerger:
@@ -17,6 +22,7 @@ class SpanMerger:
         entity_configs: dict[str, EntityConfig],
         app_config: AppConfig | None = None,
     ) -> tuple[list[DetectedSpan], list[DetectedSpan]]:
+        spans = self._validate_and_clean(spans)
         deduped = self._remove_exact_duplicates(spans)
         log.debug("merger_dedup",
                  before=len(spans),
@@ -37,6 +43,27 @@ class SpanMerger:
                  low_conf_spans=[(s.entity_id, round(s.confidence, 2)) for s in low_conf])
 
         return high_conf, low_conf
+
+    def _validate_and_clean(self, spans: list[DetectedSpan]) -> list[DetectedSpan]:
+        result: list[DetectedSpan] = []
+        for span in spans:
+            # Email must contain @ — rejects person names misclassified as email
+            if span.entity_id == "email_address" and "@" not in span.text:
+                log.debug("span_rejected_no_at", text=span.text, entity_id=span.entity_id)
+                continue
+            # License plate must not be a bare date (MM/DD/YYYY misclassified by GLiNER)
+            if span.entity_id == "license_plate" and _DATE_RE.match(span.text.strip()):
+                log.debug("span_rejected_date_as_plate", text=span.text)
+                continue
+            # Physician name: strip trailing lowercase words e.g. "supervised", "and"
+            if span.entity_id == "physician_name":
+                cleaned = _TRAILING_LOWERCASE_RE.sub("", span.text)
+                if cleaned != span.text:
+                    trim = len(span.text) - len(cleaned)
+                    span = span.model_copy(update={"text": cleaned, "end": span.end - trim})
+                    log.debug("physician_name_trimmed", original=span.text, cleaned=cleaned)
+            result.append(span)
+        return result
 
     def _remove_exact_duplicates(
         self, spans: list[DetectedSpan]
