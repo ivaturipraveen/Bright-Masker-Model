@@ -32,16 +32,16 @@ if ! "$VENV/bin/python" -c "import spacy; spacy.load('$SPACY_MODEL')" 2>/dev/nul
   "$VENV/bin/pip" install -q "https://github.com/explosion/spacy-models/releases/download/${SPACY_MODEL}-3.8.0/${SPACY_MODEL}-3.8.0-py3-none-any.whl"
 fi
 
-# ── 4. .env check ─────────────────────────────────────────────────────────────
+# ── 4. .env (optional — RunPod uses system env vars instead) ──────────────────
 if [ ! -f ".env" ]; then
-  echo "  ERROR: No .env file found. Copy .env.example to .env and set your values."
-  exit 1
+  echo "  No .env file — using system environment variables."
 fi
 
 # ── 5. S3 model weights ───────────────────────────────────────────────────────
-S3_BUCKET="$(_env_val S3_BUCKET)"
-S3_MODEL_PREFIX="$(_env_val S3_MODEL_PREFIX)"
-MODEL_DIR="$(_env_val FINE_TUNED_MODEL_PATH)"
+# System env (RunPod env vars panel) takes priority over .env file
+S3_BUCKET="${S3_BUCKET:-$(_env_val S3_BUCKET)}"
+S3_MODEL_PREFIX="${S3_MODEL_PREFIX:-$(_env_val S3_MODEL_PREFIX)}"
+MODEL_DIR="${FINE_TUNED_MODEL_PATH:-$(_env_val FINE_TUNED_MODEL_PATH)}"
 MODEL_DIR="${MODEL_DIR:-models/pii_gliner}"
 S3_BUCKET="${S3_BUCKET:-brightmasker}"
 S3_MODEL_PREFIX="${S3_MODEL_PREFIX:-models/pii_gliner}"
@@ -59,8 +59,9 @@ if [ ! -f "$MODEL_BIN" ]; then
 
   mkdir -p "$MODEL_DIR"
 
-  AWS_ACCESS_KEY_ID="$(_env_val AWS_ACCESS_KEY_ID)" \
-  AWS_SECRET_ACCESS_KEY="$(_env_val AWS_SECRET_ACCESS_KEY)" \
+  # Use system env first (RunPod env vars), fall back to .env file
+  AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-$(_env_val AWS_ACCESS_KEY_ID)}" \
+  AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-$(_env_val AWS_SECRET_ACCESS_KEY)}" \
   AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
   "$VENV/bin/aws" s3 sync "s3://${S3_BUCKET}/${S3_MODEL_PREFIX}/" "$MODEL_DIR/" \
     --exclude "*" \
