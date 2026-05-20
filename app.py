@@ -400,21 +400,53 @@ def _register_bright_shield_proxy_routes(application: FastAPI, settings: Config)
 
     @application.post(f"{proxy_path}/mask", include_in_schema=False)
     async def proxy_bright_shield_mask(request: Request):
-        """Proxy mask requests to Bright Shield /rpc/text-detect to avoid CORS issues in the browser."""
+        """Proxy mask requests to Bright Shield and normalise to the local /mask response shape."""
         body = await request.body()
         try:
             payload = json.loads(body)
-            request_payload = {
-                "text": payload.get("text", ""),
-                "aggregate_entities": True,
-            }
+            original_text: str = payload.get("text", "")
+            t0 = time.perf_counter()
             async with httpx.AsyncClient(timeout=mask_timeout) as client:
                 r = await client.post(
                     f"{base_url}/rpc/text-detect",
-                    json=request_payload,
+                    json={"text": original_text, "aggregate_entities": True},
                     headers={"Content-Type": "application/json"},
                 )
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+
+            if r.status_code != 200:
                 return JSONResponse(content=r.json(), status_code=r.status_code)
+
+            results = r.json().get("results", [])
+
+            # Build spans in the same shape renderPanel/buildDiff expect
+            spans = [
+                {
+                    "entity_id": res.get("entity_type", "Unknown").lower().replace(" ", "_"),
+                    "display_name": res.get("entity_type", "Unknown"),
+                    "original": res.get("entity_text", ""),
+                    "masked": f"[{res.get('entity_type', 'UNKNOWN').upper()}]",
+                    "confidence": round(res.get("score", 0.0), 4),
+                    "source": "bright_shield",
+                    "strategy": "redact",
+                }
+                for res in results
+            ]
+
+            # Apply masks right-to-left to preserve character offsets
+            masked_text = original_text
+            for res in sorted(results, key=lambda x: x.get("start", 0), reverse=True):
+                start, end = res.get("start", 0), res.get("end", 0)
+                label = f"[{res.get('entity_type', 'UNKNOWN').upper()}]"
+                masked_text = masked_text[:start] + label + masked_text[end:]
+
+            return JSONResponse(content={
+                "masked_text": masked_text,
+                "original_text": original_text,
+                "spans": spans,
+                "stats": {"spans_total": len(spans), "language": "en"},
+                "response_time_ms": round(elapsed_ms, 2),
+            })
         except httpx.TimeoutException as e:
             raise HTTPException(504, "Bright Shield request timed out") from e
         except Exception as e:
