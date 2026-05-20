@@ -90,27 +90,27 @@ class Config:
         self.batch_max_concurrency = 4
         self.warmup_text          = "Warm-up: John Smith, john@example.com, (555) 010-0100."
 
-        # ── RunPod remote (optional — leave RUNPOD_BASE_URL empty for local-only) ──
-        self.runpod_base_url         = _s("runpod_base_url", "RUNPOD_BASE_URL", "").rstrip("/")
-        self.runpod_proxy_path       = "/proxy/runpod"
-        self.runpod_proxy_enabled    = True
-        self.runpod_health_timeout_sec = 10.0
-        self.runpod_mask_timeout_sec   = 60.0
-        self.ui_health_timeout_ms      = 8000
+        # ── Bright Shield remote (optional — leave BRIGHT_SHIELD_BASE_URL empty for local-only) ──
+        self.bright_shield_base_url         = _s("bright_shield_base_url", "BRIGHT_SHIELD_BASE_URL", "").rstrip("/")
+        self.bright_shield_proxy_path       = "/proxy/bright-shield"
+        self.bright_shield_proxy_enabled    = True
+        self.bright_shield_health_timeout_sec = 10.0
+        self.bright_shield_mask_timeout_sec   = 60.0
+        self.ui_health_timeout_ms             = 8000
 
         # ── UI labels (hardcoded — not env-configurable) ────────────────────
         self.app_title          = "Bright Masker"
         self.page_title         = "Bright Masker — PII Detection"
         self.comparison_subtitle = (
-            "Side-by-side: GLiNER Fine-tuned (local) vs. Qwen 8B LLM (RunPod) — same input, both in parallel."
+            "Side-by-side: GLiNER Fine-tuned (local) vs. Bright Shield API — same input, both in parallel."
         )
         self.local_model_name         = "GLiNER Fine-tuned"
         self.local_model_badge        = "GLiNER Fine-tuned · local"
         self.local_model_desc         = "105 entity types · fine-tuned · no LLM"
-        self.remote_model_name        = "Qwen 8B LLM"
-        self.remote_model_badge       = "Qwen 8B · RunPod"
-        self.remote_model_desc        = "GLiNER + Qwen3-8B-AWQ · RunPod hosted"
-        self.remote_model_offline_label = "Qwen 8B · offline"
+        self.remote_model_name        = "Bright Shield"
+        self.remote_model_badge       = "Bright Shield · API"
+        self.remote_model_desc        = "Bright Shield PII Detection API"
+        self.remote_model_offline_label = "Bright Shield · offline"
 
 
 class AppConfig:

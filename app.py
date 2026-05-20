@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
         ner_model=ner_model,
         spacy=_settings.spacy_model_name,
         entities=len(_app_config.entities),
-        runpod=bool(_settings.runpod_base_url),
+        bright_shield=bool(_settings.bright_shield_base_url),
     )
 
     if _settings.warmup_text.strip():
@@ -356,9 +356,9 @@ async def api_config():
         "remote_model_desc": settings.remote_model_desc,
         "remote_model_offline_label": settings.remote_model_offline_label,
         "entity_count": entity_count,
-        "runpod_proxy_path": settings.runpod_proxy_path,
+        "bright_shield_proxy_path": settings.bright_shield_proxy_path,
         "comparison_enabled": bool(
-            settings.runpod_base_url and settings.runpod_proxy_enabled
+            settings.bright_shield_base_url and settings.bright_shield_proxy_enabled
         ),
         "ui_health_timeout_ms": settings.ui_health_timeout_ms,
     }
@@ -379,45 +379,50 @@ async def mask_text(request: MaskRequest):
     return _build_mask_response(result, _app_config, (time.perf_counter() - t0) * 1000)
 
 
-def _register_runpod_proxy_routes(application: FastAPI, settings: Config) -> None:
-    if not settings.runpod_base_url or not settings.runpod_proxy_enabled:
+def _register_bright_shield_proxy_routes(application: FastAPI, settings: Config) -> None:
+    if not settings.bright_shield_base_url or not settings.bright_shield_proxy_enabled:
         return
 
-    base_url = settings.runpod_base_url
-    proxy_path = settings.runpod_proxy_path
-    health_timeout = settings.runpod_health_timeout_sec
-    mask_timeout = settings.runpod_mask_timeout_sec
+    base_url = settings.bright_shield_base_url
+    proxy_path = settings.bright_shield_proxy_path
+    health_timeout = settings.bright_shield_health_timeout_sec
+    mask_timeout = settings.bright_shield_mask_timeout_sec
 
     @application.get(f"{proxy_path}/health", include_in_schema=False)
-    async def proxy_runpod_health():
-        """Proxy the RunPod health check to avoid CORS issues in the browser."""
+    async def proxy_bright_shield_health():
+        """Proxy the Bright Shield health check to avoid CORS issues in the browser."""
         try:
             async with httpx.AsyncClient(timeout=health_timeout) as client:
                 r = await client.get(f"{base_url}/health")
                 return JSONResponse(content=r.json(), status_code=r.status_code)
         except Exception as e:
-            raise HTTPException(502, f"RunPod unreachable: {e}") from e
+            raise HTTPException(502, f"Bright Shield unreachable: {e}") from e
 
     @application.post(f"{proxy_path}/mask", include_in_schema=False)
-    async def proxy_runpod_mask(request: Request):
-        """Proxy mask requests to RunPod to avoid CORS issues in the browser."""
+    async def proxy_bright_shield_mask(request: Request):
+        """Proxy mask requests to Bright Shield /rpc/text-detect to avoid CORS issues in the browser."""
         body = await request.body()
         try:
+            payload = json.loads(body)
+            request_payload = {
+                "text": payload.get("text", ""),
+                "aggregate_entities": True,
+            }
             async with httpx.AsyncClient(timeout=mask_timeout) as client:
                 r = await client.post(
-                    f"{base_url}/mask",
-                    content=body,
+                    f"{base_url}/rpc/text-detect",
+                    json=request_payload,
                     headers={"Content-Type": "application/json"},
                 )
                 return JSONResponse(content=r.json(), status_code=r.status_code)
         except httpx.TimeoutException as e:
-            raise HTTPException(504, "RunPod request timed out") from e
+            raise HTTPException(504, "Bright Shield request timed out") from e
         except Exception as e:
-            raise HTTPException(502, f"RunPod unreachable: {e}") from e
+            raise HTTPException(502, f"Bright Shield unreachable: {e}") from e
 
 
 _bootstrap_settings = Config()
-_register_runpod_proxy_routes(app, _bootstrap_settings)
+_register_bright_shield_proxy_routes(app, _bootstrap_settings)
 
 
 @app.post("/mask/stream")
