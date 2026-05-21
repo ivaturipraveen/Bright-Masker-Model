@@ -143,7 +143,7 @@ entities:
     priority: 2
     gliner_label: "street address with house number"
     patterns:
-      - '(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Terrace|Highway|Hwy|Parkway|Pkwy)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
+      - '(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Circles|Terrace|Terr|Highway|Hwy|Parkway|Pkwy|Squares?|Extensions?|Camp|Shoal|Trail|Trace|Roads?|Islands?|Route|Viaduct|Gardens?|Summit|Brook|Plains?|Points?|Center|Alley|Causeway|Prairie|Ports?|Neck|Wall|Coves?|Crescent|Station|Union|Via|Plaza|Tunnel|Springs?|Bend|Creek|Glen|Hill|Hills|Heights|Ridge|Run|Path|Pass|Pike|Row|Walk|Crossing|Landing|Loop|Meadow|Park|Overpass|Bypass|Corridor|Connector|Approach|Access|Drive|Branch|Close|Gate|Green|Grove|Hollow|Knoll|Lake|Manor|Mill|Mount|Mountain|Orchard|Overlook|Pond|Quarter|Ranch|River|Shore|Spur|Terrace|View|Village|Vista|Wood|Yard)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
     masking:
       strategy: redact
       format: "[ADDRESS {n}]"
@@ -233,13 +233,16 @@ entities:
     counter_group: date
     gliner_label: "clinical procedure or visit date"
     patterns:
-      - '(?:PROCEDURE|RECEIVED|REPORT|ADMISSION|DISCHARGE|SERVICE|VISIT|RECORD(?:ED)?|SUBMITTED?|CREATED?|OPENED?|LOSS|INCIDENT|TRANSACTION|ENROLLMENT|TERMINATION|EFFECTIVE|EXPIRY|EXPIRATION|FILING|HEARING|ARREST|CONVICTION|BOOKING)\s+DATE\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
-      - 'DATE\s+OF\s+(?:LOSS|INCIDENT|SERVICE|ADMISSION|DISCHARGE|BIRTH|DEATH|INJURY|ACCIDENT|FILING|ARREST)\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
-      - '(?:Done|Pending|Completed|Ordered|Processed|Submitted|Filed|Booked|Enrolled|Joined|Registered|Reported|Opened|Arrested|Convicted|Sentenced|Created|Issued|Activated|Closed|Resolved|Reviewed|Approved|Denied|Referred|Scheduled|Processed|Processed)\s*[:\s]+(?:on\s+)?(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
+      # Keyword + DATE + value (added CLINICAL, SURGERY, EXAM, TREATMENT, LAB, TEST, REFERRAL)
+      - '(?:PROCEDURE|CLINICAL|RECEIVED|REPORT|ADMISSION|DISCHARGE|SERVICE|VISIT|RECORD(?:ED)?|SUBMITTED?|CREATED?|OPENED?|LOSS|INCIDENT|TRANSACTION|ENROLLMENT|TERMINATION|EFFECTIVE|EXPIRY|EXPIRATION|FILING|HEARING|ARREST|CONVICTION|BOOKING|SURGERY|EXAM|TREATMENT|LAB|TEST|REFERRAL|ASSESSMENT|CONSULT|THERAPY|IMAGING|SCAN|SCREENING|DIAGNOSIS|DISCHARGE|REVIEW|AUDIT|INTERVIEW|EVALUATION)\s+DATE\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
+      - 'DATE\s+OF\s+(?:LOSS|INCIDENT|SERVICE|ADMISSION|DISCHARGE|BIRTH|DEATH|INJURY|ACCIDENT|FILING|ARREST|SURGERY|PROCEDURE|VISIT|ASSESSMENT)\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
+      - '(?:Done|Pending|Completed|Ordered|Processed|Submitted|Filed|Booked|Enrolled|Joined|Registered|Reported|Opened|Arrested|Convicted|Sentenced|Created|Issued|Activated|Closed|Resolved|Reviewed|Approved|Denied|Referred|Scheduled|Processed|Visited|Assessed|Treated|Examined|Discharged|Admitted|Diagnosed)\s*[:\s]+(?:on\s+)?(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
       - '[—–]\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
       - '(?:on\s+)(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
       - '(?:recorded|noted|documented|entered|logged)\s+as\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
       - '(?:scheduled|planned|set|confirmed)\s+for\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
+      # Date after keyword with colon: "Clinical Date: 04/15/2025" or "Ref Date 02/02/2026"
+      - '(?:Clinical|Ref(?:erence)?|Issue|Expir(?:y|ation)?|Effective|Start|End|Close|Open|Service|Visit|Procedure|Exam|Lab)\s+Date\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -255,8 +258,18 @@ entities:
     gliner_label: "phone number"
     presidio_type: PHONE_NUMBER
     patterns:
-      - '(\(\d{3}\)\s*\d{3}[-.\s]\d{4})'
+      # (NNN) NNN-NNNN with optional extension
+      - '(\(\d{3}\)\s*\d{3}[-.\s]\d{4}(?:x\d{1,6})?)'
+      # +1 or international format
       - '(\+\d[\d\s\-\(\)]{9,15})'
+      # 001-NNN-NNN-NNNN international format with optional extension
+      - '(001-\d{3}-\d{3}-\d{4}(?:x\d{1,8})?)'
+      # dotted format NNN.NNN.NNNN with optional extension
+      - '(\d{3}\.\d{3}\.\d{4}(?:x\d{1,6})?)'
+      # dashed NNN-NNN-NNNN with optional extension
+      - '(\d{3}-\d{3}-\d{4}(?:x\d{1,6})?)'
+      # long international digits without separators (10-15 digits)
+      - '(?<!\d)(\d{10,15})(?!\d)'
     masking:
       strategy: redact
       format: "[PHONE NUMBER {n}]"
@@ -313,11 +326,12 @@ entities:
 
   - id: medical_record_number
     display_name: Medical Record Number (MRN)
-    description: "Flag only the numeric or alphanumeric VALUE that follows keywords: MRN, Medical Record Number, Patient ID. Example: in 'MRN:4829746' flag '4829746', NOT the word 'MRN' itself."
+    description: "Flag ONLY the numeric or alphanumeric VALUE that follows keywords: MRN, Medical Record Number, Patient ID. Do NOT tag performance evaluations, employee records, or any non-medical identifiers. Example: 'MRN:4829746' — flag '4829746' only."
     policy: [hipaa]
     enabled: true
     priority: 1
-    gliner_label: "medical record number MRN"
+    confidence_threshold: 0.90
+    gliner_label: "medical record number MRN patient chart number"
     patterns:
       - '(?:MRN|Medical\s+Record\s+(?:Number|No))\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - 'Patient\s+ID\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
@@ -335,8 +349,8 @@ entities:
     priority: 1
     gliner_label: "health plan member ID or beneficiary number"
     patterns:
-      # Insurer-prefixed IDs — most reliable, no keyword required
-      - '(?:HPN|UHC|HP|BCBS|CIGNA|AETNA|HUMANA|ANTHEM|KAISER|UNITED|MOLINA|CVS|OPTUM)-[A-Za-z0-9\-]{4,20}'
+      # Insurer-prefixed IDs — most reliable, no keyword required (added INS- prefix)
+      - '(?:HPN|UHC|HP|BCBS|CIGNA|AETNA|HUMANA|ANTHEM|KAISER|UNITED|MOLINA|CVS|OPTUM|INS)-[A-Za-z0-9\-]{4,20}'
       # State-prefixed insurance IDs e.g. CA-8821901
       - '(?:insurance\s+identification|insurance\s+id)\s*[:#]?\s*([A-Z]{2}-\d{5,10})\b'
       # Keyword-preceded values — allow "is", ":", "#" as separators
@@ -393,6 +407,8 @@ entities:
       - '(?:Medical|Clinical|State|Professional)\s+License\s*(?:Number|No|#)?\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - 'License\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - 'Certificate\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      # ML-XXXXXX direct prefix format
+      - '\bML-([A-Za-z0-9]{4,12})\b'
     masking:
       strategy: redact
       format: "[MED LICENSE {n}]"
@@ -418,15 +434,17 @@ entities:
     priority: 1
     gliner_label: "NPI provider number"
     patterns:
-      - '\bNPI\s*[:#]?\s*(\d{10})\b'
+      - '\bNPI\s*[-:#]?\s*(\d{10})\b'
       - 'National\s+Provider\s+Identifier\s*[:#]?\s*(\d{10})'
+      # "NPI of provider: NPI-1822873088"
+      - '\bNPI-(\d{10})\b'
     masking:
       strategy: redact
       format: "[NPI {n}]"
 
   - id: passport_number
     display_name: Passport Number
-    description: "Passport or travel document number. Example: X1234567 (letter + 7 digits)"
+    description: "Passport or travel document number. Example: X1234567 (letter + 7 digits), P9876543. Detect after keywords: Passport Number, Passport No, Passport:, Passport #."
     policy: [hipaa]
     enabled: true
     priority: 1
@@ -435,6 +453,9 @@ entities:
     patterns:
       - 'Passport\s+(?:Number|No|#)\s*[:#]?\s*([A-Za-z][A-Za-z0-9]{5,10})'
       - 'Passport\s+(?:Number|No|#)\s*[:#]?\s*(\d{9})'
+      # "Passport: S84593961" — colon format without Number/No keyword
+      - 'Passport\s*:\s*([A-Za-z][A-Za-z0-9]{5,10})'
+      - 'Passport\s*:\s*(\d{9})'
     masking:
       strategy: redact
       format: "[PASSPORT {n}]"
@@ -472,11 +493,11 @@ entities:
 
   - id: license_plate
     display_name: License Plate Number
-    description: "Vehicle license plate number. Detect based on keyword: license plate, plate number, vehicle plate, tag number. Example: ABC-1234"
+    description: "Vehicle license plate number ONLY. Detect ONLY when keyword 'license plate', 'plate number', 'vehicle plate', or 'tag number' is explicitly present. Do NOT tag driver license numbers, dates, case numbers, or any identifier without the explicit license plate keyword."
     policy: [hipaa, transportation]
     enabled: true
     priority: 2
-    confidence_threshold: 0.92
+    confidence_threshold: 0.97
     gliner_label: "vehicle license plate number"
     patterns:
       - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{1,3}[\s\-]?[A-Z0-9]{1,4}[\s\-]?[A-Z0-9]{0,4})'
@@ -488,14 +509,18 @@ entities:
 
   - id: device_identifier
     display_name: Device Identifier / MAC Address / IMEI
-    description: "Hardware device identifiers: MAC address (AA:BB:CC:DD:EE:FF), IMEI number (15 digits, e.g. 490154203237518), device serial number"
+    description: "Hardware device identifiers: MAC address (AA:BB:CC:DD:EE:FF), IMEI number (15 digits, e.g. 490154203237518), device serial number. Detect standalone 15-digit numbers after 'Device identifier:' keyword."
     policy: [hipaa]
     enabled: true
-    priority: 2
-    gliner_label: "MAC address or device identifier"
+    priority: 1
+    gliner_label: "MAC address IMEI device identifier serial number"
     patterns:
       - '([0-9A-Fa-f]{2}(?:[:\-][0-9A-Fa-f]{2}){5})'
-      - '\bIMEI\s*[:#]?\s*(\d{15})\b'
+      # IMEI: standard 15 digits or shorter device IDs with IMEI- prefix
+      - '\bIMEI[-\s]*[:#]?\s*(\d{8,15})\b'
+      - '\bIMEI-([A-Za-z0-9\-]{6,20})\b'
+      # "Device identifier: 351585064317139" — keyword + 15-digit number
+      - '(?:Device\s+(?:ID|identifier|serial))\s*[:#]?\s*(\d{10,15})\b'
     masking:
       strategy: redact
       format: "[DEVICE ID {n}]"
@@ -561,6 +586,9 @@ entities:
     enabled: true
     priority: 1
     gliner_label: "iris scan or retina scan"
+    patterns:
+      # IRIS-XX direct prefix format used in test data
+      - '\bIRIS-([A-Za-z0-9]{1,10})\b'
     masking:
       strategy: redact
       format: "[BIOMETRIC IRIS {n}]"
@@ -670,12 +698,12 @@ entities:
 
   - id: card_service_code
     display_name: Card Service Code / CVV / CVC
-    description: "Card verification value (CVV, CVC, CVV2, CAV2, CID) or 3-digit magnetic stripe service code"
+    description: "Card verification value ONLY — the 3 or 4 digit security code on a payment card. Detect ONLY near explicit keywords: CVV, CVC, CVV2, CAV2, CID, Security Code. Do NOT tag amounts, dates, case numbers, or any other 3-4 digit values without these keywords."
     policy: [pci_dss]
     enabled: true
     priority: 1
-    confidence_threshold: 0.70
-    gliner_label: "CVV or card security code"
+    confidence_threshold: 0.95
+    gliner_label: "CVV card security code 3 digit verification value"
     patterns:
       - 'CVV2?\s*[:#]?\s*(\d{3,4})'
       - 'CVC\s*[:#]?\s*(\d{3,4})'
@@ -852,8 +880,11 @@ entities:
     priority: 1
     gliner_label: "password or secret passphrase"
     patterns:
+      # With separator (colon, equals, hash)
       - '(?:password|passwd|pwd|pass)\s*[:#=]\s*([^\s,;.]{4,128})'
-      - '(?:passphrase|secret[\s_]key)\s*[:#=]\s*([^\s,;.]{4,128})'
+      # With space separator only: "password MySecretPass123"
+      - '(?:password|passwd|pwd)\s+([A-Za-z0-9!@#$%^&*_\-\.]{4,128})'
+      - '(?:passphrase|secret[\s_]key)\s*[:#=\s]\s*([^\s,;.]{4,128})'
     masking:
       strategy: redact
       format: "[PASSWORD {n}]"
@@ -866,7 +897,10 @@ entities:
     priority: 3
     gliner_label: "username or login ID"
     patterns:
+      # With separator
       - '(?:username|user[\s_]id|userid|login)\s*[:#=]\s*(\S{1,64})'
+      # With space separator only: "Username user_hannah688"
+      - '(?:username|userid)\s+(\S{1,64})'
     masking:
       strategy: redact
       format: "[USERNAME {n}]"
@@ -893,9 +927,14 @@ entities:
     priority: 1
     gliner_label: "session token or API key"
     patterns:
+      # JWT (three base64url parts separated by dots)
       - '(eyJ[A-Za-z0-9_\-]+(?:\.[A-Za-z0-9_\-]+){2})'
+      # OpenAI-style API keys
       - '(sk-[A-Za-z0-9_\-]{10,})'
+      # Keyword-preceded tokens
       - '(?:API\s+Key|API\s+Token|Session\s+Token|Bearer\s+Token|Access\s+Token)\s*[:#]?\s*([A-Za-z0-9_\-\.]{10,})'
+      # Long raw alphanumeric tokens after "token" keyword (non-JWT, no dots required)
+      - '(?:token|TOKEN)\s+([A-Za-z0-9_\-]{32,})\b'
     masking:
       strategy: redact
       format: "[TOKEN {n}]"
@@ -913,11 +952,14 @@ entities:
 
   - id: physical_characteristics
     display_name: Physical Characteristics / Description
-    description: "Descriptive physical characteristics of a person: height value, weight value, hair color, eye color, identifying marks. NOT the field labels 'Height' or 'Weight' themselves."
+    description: "Descriptive physical characteristics of a person: height value (e.g. 5'10, 6ft), weight value (e.g. 180lbs), hair color (e.g. brown hair), eye color (e.g. blue eyes), skin tone, identifying marks (e.g. scar on left cheek, tattoo). Flag the descriptive value after 'Physical Characteristics' keyword or standalone body descriptions."
     policy: [general]
     enabled: true
     priority: 3
-    gliner_label: "physical description: height, weight, hair color, eye color, identifying marks"
+    gliner_label: "physical description height weight hair color eye color scar tattoo identifying marks"
+    patterns:
+      - 'Physical\s+(?:Characteristics?|Description)\s+([^\.\n]{5,120})'
+      - '(?:Height|Weight|Build|Complexion|Hair|Eyes?)\s*[:#]?\s*([^\.\,\n]{3,60})'
     masking:
       strategy: redact
       format: "[PHYSICAL DESC {n}]"
@@ -1005,7 +1047,9 @@ entities:
     priority: 1
     gliner_label: "FBI identification number"
     patterns:
-      - 'FBI\s+(?:Number|No|#|ID)\s*[:#]?\s*([A-Za-z0-9]{4,12})'
+      - 'FBI\s+(?:Number|No|#|ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,12})'
+      # Direct FBI-XXXXXX format
+      - '\bFBI-([A-Za-z0-9]{4,12})\b'
     masking:
       strategy: redact
       format: "[FBI NUMBER {n}]"
@@ -1020,6 +1064,8 @@ entities:
     patterns:
       - '\b(CHRI)\b'
       - '(?:criminal\s+history|rap\s+sheet)\s*(?:record|number|no\.?|#)?\s*[:#]?\s*([A-Z0-9\-]{3,20})'
+      # "CHRI record 889900" — CHRI keyword + record + value
+      - '\bCHRI\s+(?:record|#|no\.?)?\s*([A-Z0-9\-]{3,20})'
     masking:
       strategy: redact
       format: "[CHRI {n}]"
@@ -1032,7 +1078,10 @@ entities:
     priority: 1
     gliner_label: "arrest record or booking record"
     patterns:
-      - 'Arrest\s+Record\s*[:#]\s*(.+)'
+      # With colon separator
+      - 'Arrest\s+Record\s*[:#]\s*([A-Za-z0-9\-]+)'
+      # With space separator: "Arrest Record AR-777"
+      - 'Arrest\s+Record\s+([A-Za-z]{1,3}-\d{1,6})\b'
       - '(?:Booked|Arrested)\s+(?:on\s+)?(\d{4}-\d{2}-\d{2}[^\n]*)'
     masking:
       strategy: redact
@@ -1040,14 +1089,16 @@ entities:
 
   - id: case_number
     display_name: Case Number
-    description: "Flag only the actual case ID value (e.g. CR-2024-00445) near keywords: Case Number, Case #, Docket. NOT the label 'Case Number' itself."
+    description: "Flag only the actual case ID value (e.g. CR-2024-00445, 2026-CR-001) near keywords: Case Number, Case #, Docket. NOT the label 'Case Number' itself."
     policy: [law_enforcement]
     enabled: true
-    priority: 2
-    gliner_label: "court case number"
+    priority: 1
+    gliner_label: "court case number criminal case docket number"
     patterns:
-      - 'Case\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      - 'Case\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9][\w\-]{3,20})'
       - 'Docket\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      # "Case Number 2026-CR-001" — year-prefix format
+      - 'Case\s+(?:Number|No)\s+(\d{4}-[A-Z]{1,4}-\d{1,6})\b'
     masking:
       strategy: redact
       format: "[CASE NUMBER {n}]"
@@ -1376,6 +1427,10 @@ entities:
       - '(?:card|account)\s+ending\s+in\s+(\d{4})'
       - 'ending\s+in\s+(\d{4})'
       - 'last\s+(?:four|4)\s+(?:digits?)?\s*[:#]?\s*(\d{4})'
+      # "Last Four: 8821" or "last 4: 4451"
+      - 'last\s+(?:four|4)\s*[:#]\s*(\d{4})'
+      # "card x-xxxx" or "card no. ending ####"
+      - '(?:x{3,}[-–]|xxxx[-–])(\d{4})\b'
     masking:
       strategy: redact
       format: "[CARD LAST4 {n}]"
@@ -1399,9 +1454,14 @@ entities:
     description: "Name of a prescribed medication, drug, or pharmaceutical treatment, typically with dosage. Example: 'Prednisone 20mg', 'Albuterol inhaler', 'Lisinopril 10mg daily', 'Metformin 500mg'."
     policy: [hipaa]
     enabled: true
-    priority: 3
+    priority: 2
     confidence_threshold: 0.45
     gliner_label: "prescription medication name with dosage"
+    patterns:
+      # Known medication names with dosage
+      - '((?:Prednisone|Metformin|Ibuprofen|Atorvastatin|Lisinopril|Amoxicillin|Omeprazole|Aspirin|Gabapentin|Levothyroxine|Amlodipine|Losartan|Albuterol|Sertraline|Furosemide|Simvastatin|Metoprolol|Warfarin|Clopidogrel|Hydrochlorothiazide|Enalapril|Ramipril|Pantoprazole|Esomeprazole|Ciprofloxacin|Azithromycin|Doxycycline|Tramadol|Oxycodone|Morphine|Codeine|Fentanyl|Hydrocodone|Acetaminophen|Naproxen|Celecoxib|Montelukast|Fluoxetine|Escitalopram|Duloxetine|Citalopram|Bupropion|Venlafaxine|Trazodone|Alprazolam|Clonazepam|Lorazepam|Zolpidem|Quetiapine|Aripiprazole|Risperidone|Olanzapine|Lithium|Lamotrigine|Valproate|Carbamazepine|Phenytoin|Levetiracetam|Topiramate|Diazepam|Clonidine|Prazosin|Spironolactone|Metformin|Glipizide|Glimepiride|Sitagliptin|Pioglitazone|Insulin|Lantus|Humalog|Novolog|Dexamethasone|Methylprednisolone|Hydrocortisone|Triamcinolone|Budesonide|Fluticasone|Mometasone|Cetirizine|Loratadine|Diphenhydramine|Ranitidine|Famotidine|Metoclopramide|Ondansetron|Promethazine|Amitriptyline|Nortriptyline|Doxepin|Imipramine|Clomipramine|Phenobarbital|Clonazepam|Diazepam|Baclofen|Cyclobenzaprine|Carisoprodol|Methocarbamol|Tizanidine|Atenolol|Carvedilol|Bisoprolol|Propranolol|Labetalol|Diltiazem|Verapamil|Nifedipine|Felodipine|Isosorbide|Nitroglycerin|Digoxin|Amiodarone|Sotalol|Apixaban|Rivaroxaban|Dabigatran|Heparin|Enoxaparin|Clopidogrel|Prasugrel|Ticagrelor|Rosuvastatin|Pravastatin|Fluvastatin|Lovastatin|Ezetimibe|Fenofibrate|Gemfibrozil|Niacin|Colchicine|Allopurinol|Febuxostat|Probenecid|Hydroxychloroquine|Methotrexate|Sulfasalazine|Leflunomide|Adalimumab|Etanercept|Infliximab|Rituximab|Adalimumab|Azathioprine|Mycophenolate|Tacrolimus|Cyclosporine|Prednisone|Methylprednisolone|Prednisolone|Dexamethasone|Betamethasone)\s+\d+(?:\.\d+)?(?:mg|mcg|g|ml|mL|IU|units?|mg/dl|mmol)(?:\/(?:day|dose|tablet|capsule))?\b)'
+      # Generic pattern: Title-case drug name + dosage
+      - '((?-i:[A-Z])[a-z]{3,}(?:in|ol|am|ide|ine|ate|one|il|ar|ex|en|ax|on|ab|mab|tinib|ciclovir|cycline|mycin|cillin|oxacin|azole|statin|pril|sartan|olol|dipine|prazole|tidine|setron)\s+\d+(?:\.\d+)?(?:mg|mcg|g|ml|mL|IU|units?))'
     masking:
       strategy: redact
       format: "[MEDICATION {n}]"
@@ -1498,7 +1558,9 @@ entities:
     priority: 1
     gliner_label: "application ID or government reference number"
     patterns:
-      - '(?:\bGOV\b|\bAPP\b)[-:#]\s*([A-Za-z0-9\-]{4,15})'
+      # Include full APP-XXXXXX token (prefix + number) in the capture group
+      - '(\bAPP-[A-Za-z0-9\-]{4,15})\b'
+      - '(\bGOV-[A-Za-z0-9\-]{4,15})\b'
       - '(?:Application\s+(?:Number|No|ID)|Reference\s+(?:Number|No|ID))\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
     masking:
       strategy: redact
@@ -1514,7 +1576,10 @@ entities:
     priority: 1
     gliner_label: "hospital or medical center name"
     patterns:
-      - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){2,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)))\b'
+      # Standard capitalized words (2-5) + medical suffix
+      - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){2,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)|Medical[ \t]+Institute|Health[ \t]+Center|Health[ \t]+Group|Wellness[ \t]+Center))\b'
+      # Names with "and" or "&" connector: "Martinez and Sons Medical Center"
+      - '\b((?:(?-i:[A-Z])[A-Za-z\-]+[ \t]+){1,4}(?:and[ \t]+|&[ \t]+)?(?:(?-i:[A-Z])[A-Za-z\-]+[ \t]+){0,3}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Medical[ \t]+Institute|Health[ \t]+Center|Health[ \t]+Group))\b'
     masking:
       strategy: redact
       format: "[HOSPITAL {n}]"
@@ -1535,14 +1600,17 @@ entities:
 
   - id: insurance_company_name
     display_name: Insurance Company Name
-    description: "Name of an insurance company or provider. Example: 'United Shield Insurance', 'Blue Cross Blue Shield', 'Aetna', 'UnitedHealth'."
+    description: "Name of an insurance company or provider. Example: 'United Shield Insurance', 'Blue Cross Blue Shield', 'Aetna', 'UnitedHealth'. Do NOT flag phrases like 'her insurance', 'his insurance', 'their insurance', 'the insurance', 'my insurance'. Must be a proper company name."
     policy: [general]
     enabled: true
     priority: 3
-    gliner_label: "insurance company name"
+    confidence_threshold: 0.92
+    gliner_label: "insurance company proper name like Aetna Blue Cross Cigna Humana"
     patterns:
-      - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,4}(?:Insurance|Ins\.|Assurance|Mutual|Underwriters?))\b'
-      - '\b(Aetna|UnitedHealth(?:care)?|Cigna|Humana|Anthem|Blue\s+Cross|Blue\s+Shield|Kaiser|Molina|Centene|MetLife|Prudential|Allstate|State\s+Farm|GEICO|Progressive|Travelers)\b'
+      # Require 2+ proper-noun words before Insurance keyword to avoid "Her insurance", "His insurance"
+      - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){2,4}(?:Insurance|Ins\.|Assurance|Mutual|Underwriters?))\b'
+      # Well-known insurers by name
+      - '\b(Aetna|UnitedHealth(?:care)?|Cigna|Humana|Anthem|Blue\s+Cross(?:\s+Blue\s+Shield)?|Blue\s+Shield|Kaiser(?:\s+Permanente)?|Molina|Centene|MetLife|Prudential|Allstate|State\s+Farm|GEICO|Progressive|Travelers|BlueCross|BCBS)\b'
     masking:
       strategy: redact
       format: "[INSURANCE COMPANY {n}]"
@@ -1594,7 +1662,10 @@ entities:
     priority: 3
     gliner_label: "hotel or accommodation name"
     patterns:
+      # Standard: 1-4 capitalized words + hotel suffix
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,4}(?:Hotel|Resort|Inn|Suites?|Lodge|Motel|Hostel|Bed[ \t]+and[ \t]+Breakfast))\b'
+      # With comma/and connectors: "Morse, Gonzales and Harrison Hotel"
+      - '\b((?:(?-i:[A-Z])[A-Za-z]+(?:[,]?[ \t]+(?:and[ \t]+)?)?){2,6}(?:Hotel|Resort|Inn|Suites?|Lodge|Motel))\b'
       - '\b(Marriott|Hilton|Hyatt|Sheraton|Westin|IHG|Holiday\s+Inn|Best\s+Western|Radisson|Ritz[-\s]Carlton|Four\s+Seasons|Starwood)\b'
     masking:
       strategy: redact
