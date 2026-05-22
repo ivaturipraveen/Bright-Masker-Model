@@ -53,7 +53,7 @@ LABEL_MAP: dict[str, str] = _build_label_map()
 # ---------------------------------------------------------------------------
 
 def _phone() -> str:
-    fmt = random.choice(["parens", "dash", "dot", "intl", "ext"])
+    fmt = random.choice(["parens", "dash", "dot", "intl", "ext", "bare10"])
     if fmt == "parens":
         return f"({random.randint(200,999)}) {random.randint(200,999)}-{random.randint(1000,9999)}"
     elif fmt == "dash":
@@ -62,6 +62,9 @@ def _phone() -> str:
         return f"{random.randint(200,999)}.{random.randint(200,999)}.{random.randint(1000,9999)}"
     elif fmt == "intl":
         return f"+1-{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}"
+    elif fmt == "bare10":
+        # GAP-04: bare 10-digit number no separators
+        return f"{random.randint(2000000000, 9999999999)}"
     else:
         return f"{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}x{random.randint(100,999)}"
 
@@ -75,6 +78,9 @@ def _ssn() -> str:
     return f"{random.randint(100,799):03d}-{random.randint(10,99):02d}-{random.randint(1000,9999):04d}"
 
 def _credit_card() -> str:
+    if random.random() < 0.25:
+        # GAP-03: 8+4+4 format (Discover-style)
+        return f"{random.randint(60110000,60119999)} {random.randint(1000,9999)} {random.randint(1000,9999)}"
     return f"{random.randint(4000,4999)} {random.randint(1000,9999)} {random.randint(1000,9999)} {random.randint(1000,9999)}"
 
 def _cvv() -> str:
@@ -102,7 +108,14 @@ def _date_mmddyyyy() -> str:
         "%a, %d %b %Y",  # Thu, 21 May 2026
         "%d/%b/%Y",   # 21/MAY/2026 - handled via upper
         "%d_%b_%Y",   # 21_May_2026
+        "year_only",  # GAP-01: birth year only
+        "timestamp",  # GAP-02: YYYY-MM-DD HH:MM:SS
     ])
+    if fmt == "year_only":
+        return d.strftime("%Y")
+    if fmt == "timestamp":
+        h, m, s = random.randint(0,23), random.randint(0,59), random.randint(0,59)
+        return f"{d.strftime('%Y-%m-%d')} {h:02d}:{m:02d}:{s:02d}"
     result = d.strftime(fmt)
     if fmt == "%d/%b/%Y":
         result = result.upper()
@@ -127,7 +140,14 @@ def _date_clinical() -> str:
         "%a, %d %b %Y",  # Thu, 21 May 2026
         "%d/%b/%Y",   # 21/MAY/2026 - handled via upper
         "%d_%b_%Y",   # 21_May_2026
+        "year_only",  # GAP-01: year-only clinical event year
+        "timestamp",  # GAP-02: YYYY-MM-DD HH:MM:SS
     ])
+    if fmt == "year_only":
+        return d.strftime("%Y")
+    if fmt == "timestamp":
+        h, m, s = random.randint(0,23), random.randint(0,59), random.randint(0,59)
+        return f"{d.strftime('%Y-%m-%d')} {h:02d}:{m:02d}:{s:02d}"
     result = d.strftime(fmt)
     if fmt == "%d/%b/%Y":
         result = result.upper()
@@ -207,17 +227,35 @@ def _zipcode() -> str:
 
 def _gps() -> str:
     lat = round(random.uniform(24.0, 49.0), 6)
-    lon = round(random.uniform(-124.0, -66.0), 6)
-    return f"{lat}, {lon}"
+    lon = round(random.uniform(66.0, 124.0), 6)
+    if random.random() < 0.3:
+        # GAP-11: degree-symbol format
+        return f"{lat}°N, {lon}°W"
+    return f"{lat}, -{lon}"
 
 def _first_last() -> str:
+    if random.random() < 0.3:
+        # GAP-23: 30% middle initial format
+        mid = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        return f"{fake.first_name()} {mid}. {fake.last_name()}"
     return f"{fake.first_name()} {fake.last_name()}"
 
 def _street_address() -> str:
     streets = ["Main St", "Oak Ave", "Elm Blvd", "River Rd", "Park Lane",
                "Maple Drive", "Cedar Court", "Washington Blvd", "Pine Way",
                "Highland Ave", "Sunset Terrace", "Valley Rd", "Green St"]
-    return f"{random.randint(1,9999)} {random.choice(streets)}"
+    base = f"{random.randint(1,9999)} {random.choice(streets)}"
+    if random.random() < 0.3:
+        # GAP-22: Apt/Suite suffix variants
+        suffix = random.choice([
+            f"Apt {random.randint(1,999)}",
+            f"Suite {random.randint(100,999)}",
+            f"Ste {random.randint(100,999)}",
+            f"Unit {random.randint(1,99)}",
+            f"#{random.randint(1,999)}",
+        ])
+        return f"{base} {suffix}"
+    return base
 
 def _street_address_full() -> str:
     streets = ["Main St", "Oak Ave", "Elm Blvd", "River Rd", "Park Lane",
@@ -312,9 +350,26 @@ def _university() -> str:
                            "Metropolitan School of Medicine"])
 
 def _law_firm() -> str:
-    return random.choice(["Smith & Associates","Johnson & Williams LLP",
-                           "Parker & Davis Law Group","Mitchell & Clark Attorneys at Law",
-                           "Thompson & Reed LLP","Harrison Law Office","Grant & Associates LLP"])
+    return random.choice([
+        "Smith & Associates", "Johnson & Williams LLP",
+        "Parker & Davis Law Group", "Mitchell & Clark Attorneys at Law",
+        "Thompson & Reed LLP", "Harrison Law Office", "Grant & Associates LLP",
+        # GAP-17: Big Law firm names
+        "Skadden, Arps, Slate, Meagher & Flom LLP",
+        "Davis Polk & Wardwell LLP",
+        "Gibson Dunn & Crutcher LLP",
+        "Sullivan & Cromwell LLP",
+        "Wachtell, Lipton, Rosen & Katz",
+        "Kirkland & Ellis LLP",
+        "Latham & Watkins LLP",
+        "Jones Day",
+        "Debevoise & Plimpton LLP",
+        "Cleary Gottlieb Steen & Hamilton LLP",
+        "Cravath, Swaine & Moore LLP",
+        "Paul Weiss Rifkind Wharton & Garrison LLP",
+        "Simpson Thacher & Bartlett LLP",
+        "White & Case LLP",
+    ])
 
 def _court_name() -> str:
     return random.choice(["California Superior Court","US District Court","Family Court",
@@ -330,9 +385,15 @@ def _inmate_id() -> str:
     return str(random.randint(10000,999999))
 
 def _warrant_num() -> str:
+    if random.random() < 0.4:
+        # GAP-15: WRT- prefix format
+        return f"WRT-{random.randint(10000,9999999)}"
     return f"W{random.randint(2020,2024)}{random.randint(10000,99999)}"
 
 def _incident_num() -> str:
+    if random.random() < 0.4:
+        # GAP-20: INC-YYYY-NNN format
+        return f"INC-{random.randint(2020,2024)}-{random.randint(100,99999)}"
     return f"IR#{random.randint(2020,2024)}{random.randint(10000,99999)}"
 
 def _bart_emp_id() -> str:
@@ -345,12 +406,25 @@ def _drivers_license() -> str:
     return f"D{random.randint(100,999)}-{random.randint(100,999)}-{random.randint(1000,9999)}"
 
 def _state_id_num() -> str:
+    if random.random() < 0.4:
+        # GAP-09: SID-STATE-YYYYNNN format
+        return f"SID-{_state_abbr()}-{random.randint(10000000, 999999999)}"
     return f"ID{random.randint(100000,9999999)}"
 
 def _med_license() -> str:
+    r = random.random()
+    if r < 0.35:
+        # GAP-07: ML-STATE-NNNNNN state-infix format
+        return f"ML-{_state_abbr()}-{random.randint(100000,9999999)}"
+    if r < 0.65:
+        # ML-NNNNNN prefix format
+        return f"ML-{random.randint(100000,9999999)}"
     return f"ML{random.randint(100000,9999999)}"
 
 def _health_plan_id() -> str:
+    # GAP-08: Add INS- prefix with 25% weight
+    if random.random() < 0.25:
+        return f"INS-{random.randint(1000000,9999999)}"
     prefixes = ["UHC","BCBS","CIGNA","AETNA","HUMANA","KAISER"]
     return f"{random.choice(prefixes)}-{random.randint(1000000,9999999)}"
 
@@ -390,10 +464,17 @@ def _physical_desc() -> str:
     return f"{height}, {weight}, {hair}"
 
 def _medication() -> str:
-    return random.choice(["Metformin 500mg","Lisinopril 10mg","Atorvastatin 40mg",
-                           "Amlodipine 5mg","Omeprazole 20mg","Albuterol 90mcg",
-                           "Prednisone 20mg","Sertraline 50mg","Levothyroxine 100mcg",
-                           "Gabapentin 300mg","Amoxicillin 500mg","Metoprolol 25mg"])
+    return random.choice([
+        "Metformin 500mg", "Lisinopril 10mg", "Atorvastatin 40mg",
+        "Amlodipine 5mg", "Omeprazole 20mg", "Albuterol 90mcg",
+        "Prednisone 20mg", "Sertraline 50mg", "Levothyroxine 100mcg",
+        "Gabapentin 300mg", "Amoxicillin 500mg", "Metoprolol 25mg",
+        # GAP: insulin formulations
+        "Insulin glargine 100 units/mL", "Insulin aspart 100 units/mL",
+        "Insulin lispro 100 units/mL", "Basaglar 100 units/mL",
+        "Toujeo 300 units/mL", "Tresiba 100 units/mL",
+        "Lantus 100 units/mL", "Humalog 100 units/mL",
+    ])
 
 def _job_title() -> str:
     return fake.job()
@@ -403,6 +484,43 @@ def _employer() -> str:
 
 def _username() -> str:
     return fake.user_name()
+
+def _dna_str_locus() -> str:
+    # GAP-10: CODIS STR locus-allele format
+    loci = ["D3S1358","vWA","TH01","TPOX","CSF1PO","FGA","D7S820","D13S317",
+            "D16S539","D2S1338","D21S11","D18S51","D5S818","D8S1179","PentaE","PentaD","SE33"]
+    return f"{random.choice(loci)}-{random.randint(6,30)}"
+
+def _voiceprint_vp() -> str:
+    # GAP-13: VP-NNNNNN format
+    return f"VP-{random.randint(1000,9999999)}"
+
+def _ferpa_id() -> str:
+    # GAP-16: FERPA FER- and STUDENT_RECORDS_FERPA- formats
+    if random.random() < 0.5:
+        return f"FERPA FER-{random.randint(10000,9999999)}"
+    return f"STUDENT_RECORDS_FERPA-{random.randint(1000,9999999)}"
+
+def _cpo_order() -> str:
+    # GAP-24: CPO-YYYY-NNN format
+    return f"CPO-{random.randint(2018,2024)}-{random.randint(100,99999)}"
+
+def _driver_history_dh() -> str:
+    # GAP-19: DH-NNNNNN format
+    return f"DH-{random.randint(10000,9999999)}"
+
+def _confidential_ref() -> str:
+    # GAP-12: Confidential document reference
+    kind = random.choice(["memo","document","file","record","report"])
+    pfx = random.choice(["CONF","INT","SEC","PRIV"])
+    return f"Confidential {kind} {pfx}-{random.randint(1000,9999999)}"
+
+def _username_bare() -> str:
+    # GAP-21: user_xxx format
+    base = fake.user_name().replace("-","_").lower()[:15]
+    if not base.startswith("user_"):
+        base = "user_" + base
+    return base
 
 
 # ---------------------------------------------------------------------------
@@ -540,6 +658,9 @@ ENTITY_DEFS: dict[str, dict] = {
             "Employer based in {value}.",
             "Address: 123 Oak Ave, {value}, IL 60614",
             "Mailing from {value} region.",
+            "Residing in {value} TX.",
+            "Located in {value} CA.",
+            "Lives in {value} NY 10001.",
         ],
     },
 
@@ -610,6 +731,8 @@ ENTITY_DEFS: dict[str, dict] = {
             "The suspect's date of birth is {value}.",
             "Employee birth date: {value}",
             "Verified DOB: {value}",
+            "Year: {value}",
+            "Birth year: {value}",
         ],
     },
 
@@ -643,6 +766,9 @@ ENTITY_DEFS: dict[str, dict] = {
             "Since {value}",
             "Commercial license issued {value}",
             "Enrolled {value}.",
+            "Year: {value}",
+            "Effective year {value}.",
+            "Record timestamp: {value}",
         ],
     },
 
@@ -808,6 +934,8 @@ ENTITY_DEFS: dict[str, dict] = {
             "State medical license: {value}",
             "The provider holds license {value}.",
             "Board certificate: {value}",
+            "ML: {value}",
+            "Medical license on file: {value}",
         ],
     },
 
@@ -983,7 +1111,10 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "biometric_voiceprint": {
-        "generator": lambda: f"voice_template_{random.randint(1000,9999)}.dat",
+        "generator": lambda: random.choice([
+            f"voice_template_{random.randint(1000,9999)}.dat",
+            _voiceprint_vp(),
+        ]),
         "templates": [
             "Voiceprint identifier: {value}",
             "Voice recognition template: {value}",
@@ -997,6 +1128,8 @@ ENTITY_DEFS: dict[str, dict] = {
             "Voice authentication token: {value}",
             "Speaker recognition file: {value}",
             "Voice ID: {value}",
+            "Voiceprint No: {value}",
+            "VP reference: {value}",
         ],
     },
 
@@ -1019,7 +1152,10 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "biometric_dna": {
-        "generator": lambda: f"DNA_profile_{random.randint(10000,99999)}",
+        "generator": lambda: random.choice([
+            f"DNA_profile_{random.randint(10000,99999)}",
+            _dna_str_locus(),
+        ]),
         "templates": [
             "DNA profile: {value}",
             "Genetic data reference: {value}",
@@ -1033,6 +1169,8 @@ ENTITY_DEFS: dict[str, dict] = {
             "DNA biometric: {value}",
             "Subject DNA: {value}",
             "DNA analysis record: {value}",
+            "STR locus allele: {value}",
+            "CODIS locus result: {value}",
         ],
     },
 
@@ -1247,6 +1385,8 @@ ENTITY_DEFS: dict[str, dict] = {
             "Federal routing: {value}",
             "Routing transit: {value}",
             "ABA transit number: {value}",
+            "routing {value}",
+            "RTN {value}",
         ],
     },
 
@@ -1415,7 +1555,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "username": {
-        "generator": _username,
+        "generator": lambda: random.choice([_username(), _username_bare()]),
         "templates": [
             "username: {value}",
             "Username: {value}",
@@ -1429,11 +1569,16 @@ ENTITY_DEFS: dict[str, dict] = {
             "User login: {value}",
             "System user: {value}",
             "Network username: {value}",
+            "Logged in as {value}.",
+            "Access granted to {value}.",
         ],
     },
 
     "confidential": {
-        "generator": lambda: random.choice(["CONFIDENTIAL","TOP SECRET","RESTRICTED","SENSITIVE PII"]),
+        "generator": lambda: random.choice([
+            "CONFIDENTIAL", "TOP SECRET", "RESTRICTED", "SENSITIVE PII",
+            _confidential_ref(),
+        ]),
         "templates": [
             "{value} — do not distribute.",
             "Marked as {value}.",
@@ -1579,7 +1724,10 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "student_records_ferpa": {
-        "generator": lambda: f"GPA {round(random.uniform(1.5,4.0),2)}, enrolled in {random.randint(12,18)} credit hours",
+        "generator": lambda: random.choice([
+            f"GPA {round(random.uniform(1.5,4.0),2)}, enrolled in {random.randint(12,18)} credit hours",
+            _ferpa_id(),
+        ]),
         "templates": [
             "Student record: {value}",
             "Academic transcript: {value}",
@@ -1593,6 +1741,8 @@ ENTITY_DEFS: dict[str, dict] = {
             "Academic information: {value}",
             "Education record: {value}",
             "University record: {value}",
+            "FERPA ID: {value}",
+            "Student records FERPA: {value}",
         ],
     },
 
@@ -1977,7 +2127,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "warrant_data": {
-        "generator": lambda: f"W-{random.randint(2018,2024)}-{random.randint(10000,99999)}",
+        "generator": _warrant_num,
         "templates": [
             "Warrant number: {value}",
             "Active warrant: {value}",
@@ -1995,7 +2145,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "incident_report": {
-        "generator": lambda: f"IR-{random.randint(2018,2024)}-{random.randint(10000,99999)}",
+        "generator": _incident_num,
         "templates": [
             "Incident report: {value}",
             "Case report: {value}",
@@ -2067,7 +2217,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "sex_offender_report": {
-        "generator": lambda: f"SO-{random.randint(10000,999999)}",
+        "generator": lambda: f"SOR-{random.randint(10000,999999)}",
         "templates": [
             "Sex offender registration: {value}",
             "SORA record: {value}",
@@ -2085,7 +2235,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "protection_orders": {
-        "generator": lambda: f"PO-{random.randint(2020,2024)}-{random.randint(10000,99999)}",
+        "generator": _cpo_order,
         "templates": [
             "Restraining order: {value}",
             "Protection order: {value}",
@@ -2193,7 +2343,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "parole_record": {
-        "generator": lambda: f"PAR-{random.randint(10000,999999)}",
+        "generator": lambda: f"PR-{random.randint(10000,999999)}",
         "templates": [
             "Parole record: {value}",
             "Parole number: {value}",
@@ -2321,7 +2471,10 @@ ENTITY_DEFS: dict[str, dict] = {
     # ── Transportation ───────────────────────────────────────────────────────
 
     "driver_history": {
-        "generator": lambda: f"DMV-{random.randint(100000,9999999)}",
+        "generator": lambda: random.choice([
+            f"DMV-{random.randint(100000,9999999)}",
+            _driver_history_dh(),
+        ]),
         "templates": [
             "Driving record: {value}",
             "Driver history: {value}",
