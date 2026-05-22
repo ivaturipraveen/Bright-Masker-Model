@@ -129,6 +129,8 @@ entities:
     gliner_label: "physician or doctor name"
     patterns:
       - '((?:Dr\.|Doctor)\s+(?-i:[A-Z])[a-zA-Z]+(?:\s+(?-i:[A-Z])[a-zA-Z]+){1,2})'
+      # "Evelyn May MD" — physician without Dr./Doctor prefix
+      - '\b((?-i:[A-Z])[a-z]+(?:\s+(?-i:[A-Z])[a-z]+){0,2})\s+MD\.?\b'
     masking:
       strategy: redact
       format: "[DOCTOR {n}]"
@@ -144,6 +146,8 @@ entities:
     gliner_label: "street address with house number"
     patterns:
       - '(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Circles|Terrace|Terr|Highway|Hwy|Parkway|Pkwy|Squares?|Extensions?|Camp|Shoal|Trail|Trace|Roads?|Islands?|Route|Viaduct|Gardens?|Summit|Brook|Plains?|Points?|Center|Alley|Causeway|Prairie|Ports?|Neck|Wall|Coves?|Crescent|Station|Union|Via|Plaza|Tunnel|Springs?|Bend|Creek|Glen|Hill|Hills|Heights|Ridge|Run|Path|Pass|Pike|Row|Walk|Crossing|Landing|Loop|Meadow|Park|Overpass|Bypass|Corridor|Connector|Approach|Access|Drive|Branch|Close|Gate|Green|Grove|Hollow|Knoll|Lake|Manor|Mill|Mount|Mountain|Orchard|Overlook|Pond|Quarter|Ranch|River|Shore|Spur|Terrace|View|Village|Vista|Wood|Yard)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
+      # Standalone room / suite / apartment / building number (keyword required)
+      - '(?:Room|Suite|Ste|Apt|Apartment|Unit|Building|Bldg)\s*(?:Number|No|#)?\s*[:#]?\s*(\d{1,6})\b'
     masking:
       strategy: redact
       format: "[ADDRESS {n}]"
@@ -243,6 +247,9 @@ entities:
       - '(?:scheduled|planned|set|confirmed)\s+for\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
       # Date after keyword with colon: "Clinical Date: 04/15/2025" or "Ref Date 02/02/2026"
       - '(?:Clinical|Ref(?:erence)?|Issue|Expir(?:y|ation)?|Effective|Start|End|Close|Open|Service|Visit|Procedure|Exam|Lab)\s+Date\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
+      # Month-name clinical dates: "Admission Date: March 2, 2025"
+      - '(?:Admission|Discharge|Surgery|Follow[- ]?up(?:\s+Appointment)?)\s+Date\s*[:#]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})'
+      - '(?:Admission|Discharge|Surgery|Follow[- ]?up(?:\s+Appointment)?)\s+Date\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -286,6 +293,7 @@ entities:
     patterns:
       - '(?:FAX|Fax)\s*(?:Number|No|#)?\s*[:#]?\s*(\+?[\d\s\-\(\)\.]{9,18})'
       - '(?:FAX|Fax)\s*[:#]\s*(\+?[\d\s\-\(\)\.]{9,18})'
+      - '(?:Fax\s+Contact\s+Number|Official\s+Fax\s+ID|Fax\s+Extension\s+Number)\s*[:#]?\s*(\+?[\d\s\-\(\)\.]{9,22}(?:\s+ext\s+\d+)?)'
     masking:
       strategy: redact
       format: "[FAX NUMBER {n}]"
@@ -333,8 +341,13 @@ entities:
     confidence_threshold: 0.90
     gliner_label: "medical record number MRN patient chart number"
     patterns:
-      - '(?:MRN|Medical\s+Record\s+(?:Number|No))\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
-      - 'Patient\s+ID\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - '(?:MRN|Medical\s+Record\s+(?:Number|No))\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      - 'Patient\s+ID\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      # Hospital / clinical record ID families (label + value)
+      - '(?:Visit\s+ID|Lab(?:oratory)?\s+Sample\s+ID|Specimen\s+ID|Radiology\s+Study\s+ID|Radiology\s+Report\s+ID|Radiology\s+Image\s+ID|Blood\s+Test\s+ID|CT\s+Scan\s+File\s+ID|Electronic\s+Prescription\s+ID|Prescription\s+Number|Laboratory\s+Accession\s+Number|Hospital\s+Record\s+Number|Clinical\s+Record\s+ID|Electronic\s+Health\s+Record\s+ID|Patient\s+Record\s+Number|Healthcare\s+Record\s+ID|Medical\s+File\s+Number|Treatment\s+Record\s+Number|Inpatient\s+Record\s+ID|Outpatient\s+Record\s+Number|Patient\s+Chart\s+Number|Medical\s+History\s+Record\s+ID|Doctor\s+Record\s+Number|Care\s+Management\s+Record\s+ID|Clinical\s+Documentation\s+Number|Health\s+Information\s+Record\s+Number|Patient\s+Visit\s+Record\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      # Stable medical ID prefixes (full token)
+      - '\b(VIS|LAB|SMP|RAD|BLD|IMG|HRN|EHR|EMR|RX|CT|DRN|CMR|CDN|HIR|PVR|HCR|CRI|MFN|TRN|IPR|OPR|PCN|MHR|PMR)-[A-Za-z0-9\-]{4,20}\b'
+      - '\bLAB-ACCN-[A-Za-z0-9\-]{4,20}\b'
     masking:
       strategy: redact
       format: "[MRN {n}]"
@@ -358,6 +371,8 @@ entities:
       - 'Member\s+(?:ID|Number|No)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{4,20})'
       - 'Group\s+(?:Number|No|ID)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{4,20})'
       - 'Subscriber\s+(?:ID|Number|No)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{4,20})'
+      - '(?:Medicare\s+Number|Medicaid\s+ID|Beneficiary\s+Registration\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      - '\b(MED|MCD|BRN|HPB|HPN|MBN|PBID|IBN|HCB|SBN|GHB|HSB|IEB|PBA|HAB|FHB)-[A-Za-z0-9\-]{4,20}\b'
     masking:
       strategy: redact
       format: "[INSURANCE ID {n}]"
@@ -387,9 +402,14 @@ entities:
     gliner_label: "billing number"
     patterns:
       - 'BILLING\s*NO\.?\s*[:#]?\s*(\d{4,12})'
-      - 'Billing\s+(?:Number|No)\s*[:#]?\s*(\d{4,12})'
+      - 'Billing\s+(?:Number|No|Code|Statement\s+No)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
       - 'Bill\s+No\s*[:#]?\s*(\d{4,12})'
       - 'billing\s+account\s*[:#]?\s*([A-Z]{1,4}-[\d]{4,12})\b'
+      - '(?:Invoice\s+Billing\s+Number|Customer\s+Billing\s+ID|Monthly\s+Billing\s+Number|Utility\s+Billing\s+Number|Hospital\s+Billing\s+Number|Telecom\s+Billing\s+Number|Payment\s+Billing\s+Number|Subscription\s+Billing\s+Number|Mobile\s+Billing\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      - '\b(?:INV-)?BILL-\d{4,12}\b'
+      - '\bHB-\d{4}-\d{4}\b'
+      - '\b(?:MBN|UBN|PBN|BS|BRN|SUB|TAX-BN|SBR|MOB)-[A-Za-z0-9\-]{4,20}\b'
+      - '\bBC\d{4,12}\b'
     masking:
       strategy: redact
       format: "[BILLING NO {n}]"
@@ -409,6 +429,8 @@ entities:
       - 'Certificate\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       # ML-XXXXXX direct prefix format
       - '\bML-([A-Za-z0-9]{4,12})\b'
+      - '(?:Practitioner\s+License\s+ID|Medical\s+Board\s+Registration\s+Number|Physician\s+Registration\s+ID|Telemedicine\s+Practitioner\s+License|Resident\s+Doctor\s+License\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - '\b(?:PLI|MBR|PLN|SML|HPL|CLN|SLN|HPR|MCN|PRI|MCL|PML|HPI|SPL|DRC|NML|PMC|TPL|RDL)-[A-Za-z0-9\-]{4,15}\b'
     masking:
       strategy: redact
       format: "[MED LICENSE {n}]"
@@ -421,7 +443,9 @@ entities:
     priority: 1
     gliner_label: "DEA registration number"
     patterns:
-      - '\bDEA\s*(?:Number|No|#|Registration)?\s*[:#]?\s*([A-Za-z]{2}\d{7})\b'
+      - '\bDEA\s+(?:(?:Registration|Identifier|Authorization|Compliance|Prescribing)\s+)?(?:Number|No|#)?\s*[:#]?\s*([A-Za-z]{2}\d{7})\b'
+      - '(?:PRESCRIBER\s+DEA\s+ID|Medical\s+Practice\s+DEA\s+ID|Pharmacy\s+DEA\s+Verification\s+Number|DEA\s+Controlled\s+Drug\s+Authorization)\s*[:#]?\s*([A-Za-z]{2}\d{7})\b'
+      - '(?:The\s+)?DEA\s+(?:number\s+is\s+)?([A-Za-z]{2}\d{7})\b'
     masking:
       strategy: redact
       format: "[DEA NUMBER {n}]"
@@ -456,6 +480,8 @@ entities:
       # "Passport: S84593961" — colon format without Number/No keyword
       - 'Passport\s*:\s*([A-Za-z][A-Za-z0-9]{5,10})'
       - 'Passport\s*:\s*(\d{9})'
+      - '(?:Passport\s+Identification\s+Number|Government\s+Passport\s+Number|Citizen\s+Passport\s+ID|Diplomatic\s+Passport\s+Number|Official\s+Passport\s+ID|Machine\s+Readable\s+Passport\s+Number|Biometric\s+Passport\s+Number|Temporary\s+Passport\s+ID|Electronic\s+Passport\s+Number|National\s+Passport\s+Registration\s+Number|Overseas\s+Passport\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - '\b(?:PID|GP|CPI|FP|DP|OPI|MRP|BP|TP|EP|NPR|IP|OPN|CPN|STP|INT)-[A-Za-z0-9\-]{4,15}\b'
     masking:
       strategy: redact
       format: "[PASSPORT {n}]"
@@ -471,6 +497,10 @@ entities:
     patterns:
       - "(Driver's?\\s+License\\s*[:#]?\\s*[A-Za-z0-9\\-]{6,18})"
       - '(\bDL[-\s]*[A-Za-z0-9][A-Za-z0-9\-]{4,17})\b'
+      - '(?:Learner\s+Permit\s+Number|Driving\s+Permit\s+ID|International\s+Driving\s+Permit\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{6,18})'
+      - 'DL#\s*([A-Za-z0-9\-]{6,18})'
+      - 'LICENSE[-\s]*ID\s*[:#]?\s*([A-Za-z0-9\-]{6,18})'
+      - '\b(?:LIC|DRV|MVL|SDL|CDL|LP|OL|DP|VOL|LID|TDL|SIL|DMV|DCN|RL|IDP)-[A-Za-z0-9\-]{4,18}\b'
     masking:
       strategy: redact
       format: "[DRIVERS LICENSE {n}]"
@@ -485,7 +515,7 @@ entities:
     priority: 2
     gliner_label: "vehicle identification number VIN"
     patterns:
-      - '(?:VIN|Vehicle\s+Identification\s+Number)\s*[:#]?\s*([A-HJ-NPR-Z0-9]{17})\b'
+      - '(?:VIN|Vehicle\s+Identification\s+Number)\s*[:#]?\s*([A-HJ-NPR-Z0-9]{8,17})\b'
       - '\b([A-HJ-NPR-Z0-9]{17})\b'
     masking:
       strategy: redact
@@ -520,7 +550,9 @@ entities:
       - '\bIMEI[-\s]*[:#]?\s*(\d{8,15})\b'
       - '\bIMEI-([A-Za-z0-9\-]{6,20})\b'
       # "Device identifier: 351585064317139" — keyword + 15-digit number
-      - '(?:Device\s+(?:ID|identifier|serial))\s*[:#]?\s*(\d{10,15})\b'
+      - '(?:Device\s+(?:ID|identifier|serial|Registration\s+Number|Tracking\s+Number))\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      - '(?:Cardiac\s+Implant\s+Device\s+Serial\s+Number|Pacemaker\s+Model\s+Number|Device\s+Tracking\s+Number|Patient\s+Monitoring\s+Device\s+ID|Wearable\s+Health\s+Device\s+Serial|Unique\s+Device\s+Identifier|Hardware\s+Identifier|Endpoint\s+Device\s+ID|Electronic\s+Device\s+Identifier|Asset\s+Device\s+Number|IoT\s+Device\s+Identifier|Mobile\s+Device\s+ID|Computer\s+Device\s+Number|Tracking\s+Device\s+ID|Sensor\s+Device\s+Identifier|Network\s+Device\s+Identifier|Device\s+Serial\s+Identifier|Embedded\s+Device\s+ID|Digital\s+Device\s+Identifier|Authentication\s+Device\s+ID|Enterprise\s+Device\s+Identifier|Cloud\s+Device\s+Registration\s+ID|Secure\s+Endpoint\s+Device\s+ID|Virtual\s+Device\s+Identifier|Remote\s+Device\s+Authentication\s+ID|Industrial\s+Device\s+Tracking\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      - '\b(?:DEV|DVC|UDI|HW|TERM|END|EDI|ADN|IOT|MD|CDN|TDI|SDI|DRN|NDI|DSI|EBD|DDI|ADI|IMPL|DTN|PMD|WH|PM|DEVICE|CDR|SED|VDI|RDA|IDT)-[A-Za-z0-9\-]{4,20}\b'
     masking:
       strategy: redact
       format: "[DEVICE ID {n}]"
@@ -537,6 +569,8 @@ entities:
     gliner_label: "URL with personal information"
     patterns:
       - '(https?://\S+)'
+      - '(?:https?://)?(?:www\.)?([a-z0-9][-a-z0-9.]*healthrecords\.com)\b'
+      - '(?:https?://)?(?:www\.)?([a-z0-9][-a-z0-9.]*(?:health|hospital|medical|clinic|patient)[a-z0-9.-]*\.(?:com|org|net))\b'
     masking:
       strategy: redact
       format: "[URL {n}]"
@@ -551,6 +585,11 @@ entities:
     priority: 1
     gliner_label: "IP address"
     presidio_type: IP_ADDRESS
+    patterns:
+      - '(?:Device\s+IP\s+Address|IP\s+Address)\s*[:#]?\s*((?:\d{1,3}\.){3}\d{1,3})'
+      - '(?:Device\s+IP\s+Address|IP\s+Address)\s*[:#]?\s*((?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4})'
+      - '(?:Device\s+IP\s+Address|IP\s+Address)\s*[:#]?\s*(fe80::[0-9a-fA-F:]+)'
+      - '(?:Device\s+IP\s+Address|IP\s+Address)\s*[:#]?\s*(::1)\b'
     masking:
       strategy: redact
       format: "[IP ADDRESS {n}]"
@@ -564,6 +603,11 @@ entities:
     enabled: true
     priority: 1
     gliner_label: "facial recognition or face scan data"
+    patterns:
+      - '(?:Facial\s+Recognition\s+ID|Face\s+Recognition\s+ID|Face\s+Scan\s+ID|Facial\s+Authentication\s+ID|Face\s+Template\s+ID|Facial\s+Verification\s+Code|Face\s+Mapping\s+Reference|Face\s+Recognition\s+Profile|Facial\s+Identity\s+Number|Facial\s+Detection\s+Record|Face\s+Authentication\s+Token)\s*[:#]?\s*([A-Za-z0-9\-]{4,25})'
+      - '\b(?:FACE|FRT|FAUTH|FP|FGD|FRP|FIN|FDR|FAT|FBC|BFR|FVC|FMR|FSC|BFH|FSR|AIFM)-[A-Za-z0-9\-]{4,20}\b'
+      - '\bFACE-SCAN-[A-Za-z0-9\-]{4,20}\b'
+      - '\bPhoto-\d{1,6}\b'
     masking:
       strategy: redact
       format: "[BIOMETRIC FACE {n}]"
@@ -575,6 +619,10 @@ entities:
     enabled: true
     priority: 1
     gliner_label: "voiceprint or voice recognition data"
+    patterns:
+      - '(?:Voiceprint\s+ID|Biometric\s+Voiceprint|Voice\s+Authentication\s+ID|Speaker\s+Recognition\s+ID|Voice\s+Biometric\s+Template|Voice\s+Signature\s+ID|Registered\s+Voiceprint\s+Number|Voice\s+Match\s+ID|Audio\s+Biometric\s+ID|Voice\s+Scan\s+Identifier|Voice\s+Recognition\s+Profile\s+ID|Caller\s+Voiceprint\s+ID|Digital\s+Voice\s+Signature|Speech\s+Biometric\s+ID|Voice\s+Identity\s+Number|Voice\s+Enrollment\s+ID|Voice\s+Pattern\s+Reference|Secure\s+Voice\s+ID|Voice\s+Verification\s+Number|Call\s+Center\s+Voiceprint\s+Number|Banking\s+Voice\s+Verification\s+ID|AI\s+Voice\s+Biometrics\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      - '\bVOICE-BIO-[A-Za-z0-9\-]{4,20}\b'
+      - '(?:Voiceprint|VOICEPRINT|Voice\s+Auth)\s*(?:ID|No|#)?\s*[:#]?\s*([A-Z]{2,5}-\d{4,12})'
     masking:
       strategy: redact
       format: "[BIOMETRIC VOICE {n}]"
@@ -589,6 +637,12 @@ entities:
     patterns:
       # IRIS-XX direct prefix format used in test data
       - '\bIRIS-([A-Za-z0-9]{1,10})\b'
+      - '(?:Iris\s+Scan\s+ID|Iris\s+Pattern\s+Code|Retina/Iris\s+Match|Iris\s+Verification\s+Token|Iris\s+Enrollment\s+ID|Iris\s+Biometric\s+Hash|Iris\s+Capture\s+Reference|Iris\s+Recognition\s+Sequence|Left\s+Iris\s+Template|Right\s+Iris\s+Template|Iris\s+Authentication\s+Key|Iris\s+Scan\s+Record|Iris\s+Data\s+Signature|IR\s+Scan\s+Ref|Secure\s+Iris\s+Token|Iris\s+Vector\s+Code|Ocular\s+Recognition\s+ID|Iris\s+Match\s+Confidence\s+ID|Biometric\s+Iris\s+UUID|Encrypted\s+Iris\s+Key|Iris\s+Retina\s+Signature)\s*[:#]?\s*([A-Za-z0-9\-#.]{4,40})'
+      - '\b(?:IR|IAK|IDS|IVC|OCR-IR|MC|EIK|IRS|LT|RT|SIT)-[A-Za-z0-9\-]{4,20}\b'
+      - 'iris\.auth\.token\.(\d{4,12})'
+      - 'irisCaptureRef=([A-Za-z0-9\-]{4,20})'
+      - '\bIRISSCAN_\d{4,12}\b'
+      - '\biris-template-[A-Za-z0-9\-]{4,15}\b'
     masking:
       strategy: redact
       format: "[BIOMETRIC IRIS {n}]"
@@ -600,6 +654,11 @@ entities:
     enabled: true
     priority: 1
     gliner_label: "DNA profile or genetic information"
+    patterns:
+      - '(?:DNA\s+Sequence|DNA\s+Sample\s+ID|Genetic\s+Marker|Genome\s+Sequence|DNA\s+Identifier|DNA\s+Record|DNA\s+Code|Genetic\s+Sequence|DNA\s+Data|DNA\s+Reference|DNA\s+Pattern|Human\s+DNA|Biometric\s+Genetic\s+ID|DNA\s+Hash|Genetic\s+Signature|Forensic\s+DNA\s+ID|DNA\s+Registration\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{4,30})'
+      - '(?:DNA\s+Sequence)\s*[:#]?\s*([ATCG]{8,40})'
+      - '\b(?:DNA|FDNA|GEN|DNAREC|DNC|REF-DNA|BGID|GS|DRN|H-DNA)-[A-Za-z0-9\-]{4,20}\b'
+      - '\bSHA-DNA-[A-Za-z0-9\-]{4,15}\b'
     masking:
       strategy: redact
       format: "[BIOMETRIC DNA {n}]"
@@ -611,6 +670,9 @@ entities:
     enabled: true
     priority: 1
     gliner_label: "fingerprint or palm print data"
+    patterns:
+      - '(?:Digital\s+Fingerprint\s+Number|Fingerprint\s+ID|FP\s+Auth\s+No)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - '\b(?:FP|FSN|BFP|FTI|FSI|FRN|FAI|DFN|FVC|LFP|FRG|FM|FEI|SFT|PFR|BSI|FCN|FFN|FPA)-[A-Za-z0-9\-]{4,15}\b'
     masking:
       strategy: redact
       format: "[FINGERPRINT {n}]"
@@ -635,6 +697,8 @@ entities:
       - '^([A-Z][A-Z &.]{5,}\s+MEDICAL\s+CENTER)$'
       - '^([A-Z][A-Z &.]{5,}\s+(?:PATHOLOGY|DIAGNOSTIC|RADIOLOGY)\s+(?:ASSOCIATES|CLINIC|CENTER))$'
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){1,4}(?:Memorial(?:[ \t]+Hospital)?|Medical[ \t]+Center|General[ \t]+Hospital|Health[ \t]+System|University[ \t]+Hospital))\b'
+      # Mixed-case org suffixes: "Google Inc."
+      - '\b((?:(?-i:[A-Z])[A-Za-z0-9&]+)(?:\s+(?-i:[A-Z])[A-Za-z0-9&]+){0,3}\s+(?:Inc\.?|LLC\.?|Corp\.?|Corporation|Ltd\.?|Co\.?))\b'
     masking:
       strategy: redact
       format: "[COMPANY {n}]"
@@ -781,6 +845,10 @@ entities:
     priority: 1
     gliner_label: "bank account number"
     presidio_type: US_BANK_NUMBER
+    patterns:
+      - '(?:ACC(?:OUNT)?\s*(?:NO|NUMBER|#)|A\/C#?|Bank\s+account\s+number)\s*[:#]?\s*([\d\- ]{8,22})'
+      - '(?:Checking|Savings)\s+Account\s*[:#]?\s*([\d\- ]{8,22})'
+      - '(?:Account\s+Number)\s*[:#]?\s*([\d\- ]{8,22})'
     masking:
       strategy: redact
       format: "[BANK ACCOUNT {n}]"
@@ -794,7 +862,10 @@ entities:
     gliner_label: "bank routing number"
     patterns:
       - 'Routing\s+(?:Number|No)\s*[:#]?\s*(\d{9})'
-      - 'ABA\s+(?:Number|No)\s*[:#]?\s*(\d{9})'
+      - 'ABA\s*(?:Number|No|#)?\s*[:#]?\s*(\d{9})'
+      - 'RTN\s*[:#]?\s*(\d{9})'
+      - 'Bank\s+Transit\s+Number\s*[:#]?\s*(\d{9})'
+      - 'Customer\s+provided\s+RTN\s+(\d{9})'
     masking:
       strategy: redact
       format: "[ROUTING NUMBER {n}]"
@@ -863,6 +934,7 @@ entities:
     gliner_label: "transaction ID"
     patterns:
       - '(?:Transaction\s+(?:ID|No)|TXN)\s*[:#]?\s*([A-Za-z0-9\-]{4,30})\b'
+      - '(?:Payment\s+Authorization\s+ID)\s*[:#]?\s*(PAY-[A-Za-z0-9\-]{4,20})\b'
     masking:
       strategy: redact
       format: "[TRANSACTION ID {n}]"
@@ -935,6 +1007,9 @@ entities:
       - '(?:API\s+Key|API\s+Token|Session\s+Token|Bearer\s+Token|Access\s+Token)\s*[:#]?\s*([A-Za-z0-9_\-\.]{10,})'
       # Long raw alphanumeric tokens after "token" keyword (non-JWT, no dots required)
       - '(?:token|TOKEN)\s+([A-Za-z0-9_\-]{32,})\b'
+      - '(?:Hospital\s+WiFi\s+Session\s+ID|Telemedicine\s+Session\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      - '\bWIFI-\d{4,15}\b'
+      - '(?:Telemedicine\s+Session\s+ID)\s*[:#]?\s*(TEL-\d{4,15})'
     masking:
       strategy: redact
       format: "[TOKEN {n}]"
@@ -1016,6 +1091,9 @@ entities:
     enabled: true
     priority: 2
     gliner_label: "student grades, transcript, or enrollment record"
+    patterns:
+      - '\bFER-\d{2,8}\b'
+      - '(?:FERPA|Student\s+Record)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
     masking:
       strategy: redact
       format: "[STUDENT RECORD {n}]"
@@ -1112,6 +1190,7 @@ entities:
     gliner_label: "arrest warrant or search warrant number"
     patterns:
       - '(?:warrant\s+(?:number|no\.?|#)|arrest\s+warrant\s+#?)\s*[:#]?\s*([A-Z0-9\-\/]{4,20})'
+      - '(?:warrant|Warrant\s+(?:Number|No|#)|arrest\s+warrant)\s*[:#]?\s*(W-\d{3,8})\b'
     masking:
       strategy: redact
       format: "[WARRANT {n}]"
@@ -1126,6 +1205,7 @@ entities:
     patterns:
       - '(?:incident\s+report|IR)\s*#\s*([A-Z0-9\-]{4,20})'
       - '(?:report\s+(?:number|no\.?|#))\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '\bINC-\d{2,8}\b'
     masking:
       strategy: redact
       format: "[INCIDENT REPORT {n}]"
@@ -1462,6 +1542,9 @@ entities:
       - '((?:Prednisone|Metformin|Ibuprofen|Atorvastatin|Lisinopril|Amoxicillin|Omeprazole|Aspirin|Gabapentin|Levothyroxine|Amlodipine|Losartan|Albuterol|Sertraline|Furosemide|Simvastatin|Metoprolol|Warfarin|Clopidogrel|Hydrochlorothiazide|Enalapril|Ramipril|Pantoprazole|Esomeprazole|Ciprofloxacin|Azithromycin|Doxycycline|Tramadol|Oxycodone|Morphine|Codeine|Fentanyl|Hydrocodone|Acetaminophen|Naproxen|Celecoxib|Montelukast|Fluoxetine|Escitalopram|Duloxetine|Citalopram|Bupropion|Venlafaxine|Trazodone|Alprazolam|Clonazepam|Lorazepam|Zolpidem|Quetiapine|Aripiprazole|Risperidone|Olanzapine|Lithium|Lamotrigine|Valproate|Carbamazepine|Phenytoin|Levetiracetam|Topiramate|Diazepam|Clonidine|Prazosin|Spironolactone|Metformin|Glipizide|Glimepiride|Sitagliptin|Pioglitazone|Insulin|Lantus|Humalog|Novolog|Dexamethasone|Methylprednisolone|Hydrocortisone|Triamcinolone|Budesonide|Fluticasone|Mometasone|Cetirizine|Loratadine|Diphenhydramine|Ranitidine|Famotidine|Metoclopramide|Ondansetron|Promethazine|Amitriptyline|Nortriptyline|Doxepin|Imipramine|Clomipramine|Phenobarbital|Clonazepam|Diazepam|Baclofen|Cyclobenzaprine|Carisoprodol|Methocarbamol|Tizanidine|Atenolol|Carvedilol|Bisoprolol|Propranolol|Labetalol|Diltiazem|Verapamil|Nifedipine|Felodipine|Isosorbide|Nitroglycerin|Digoxin|Amiodarone|Sotalol|Apixaban|Rivaroxaban|Dabigatran|Heparin|Enoxaparin|Clopidogrel|Prasugrel|Ticagrelor|Rosuvastatin|Pravastatin|Fluvastatin|Lovastatin|Ezetimibe|Fenofibrate|Gemfibrozil|Niacin|Colchicine|Allopurinol|Febuxostat|Probenecid|Hydroxychloroquine|Methotrexate|Sulfasalazine|Leflunomide|Adalimumab|Etanercept|Infliximab|Rituximab|Adalimumab|Azathioprine|Mycophenolate|Tacrolimus|Cyclosporine|Prednisone|Methylprednisolone|Prednisolone|Dexamethasone|Betamethasone)\s+\d+(?:\.\d+)?(?:mg|mcg|g|ml|mL|IU|units?|mg/dl|mmol)(?:\/(?:day|dose|tablet|capsule))?\b)'
       # Generic pattern: Title-case drug name + dosage
       - '((?-i:[A-Z])[a-z]{3,}(?:in|ol|am|ide|ine|ate|one|il|ar|ex|en|ax|on|ab|mab|tinib|ciclovir|cycline|mycin|cillin|oxacin|azole|statin|pril|sartan|olol|dipine|prazole|tidine|setron)\s+\d+(?:\.\d+)?(?:mg|mcg|g|ml|mL|IU|units?))'
+      # Formulation without dosage: "Albuterol inhaler"
+      - '\b(Albuterol\s+inhaler)\b'
+      - '\b((?-i:[A-Z])[a-z]{4,})\s+(?:inhaler|tablet|capsule|solution|suspension|cream|ointment|patch|spray|drops)\b'
     masking:
       strategy: redact
       format: "[MEDICATION {n}]"
@@ -1562,6 +1645,8 @@ entities:
       - '(\bAPP-[A-Za-z0-9\-]{4,15})\b'
       - '(\bGOV-[A-Za-z0-9\-]{4,15})\b'
       - '(?:Application\s+(?:Number|No|ID)|Reference\s+(?:Number|No|ID))\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - '(?:Clinical\s+Trial\s+Participant\s+ID|Parking\s+Permit\s+(?:ID|Number))\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - '\bPP-\d{4,12}\b'
     masking:
       strategy: redact
       format: "[APPLICATION ID {n}]"
@@ -1580,6 +1665,9 @@ entities:
       - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){2,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)|Medical[ \t]+Institute|Health[ \t]+Center|Health[ \t]+Group|Wellness[ \t]+Center))\b'
       # Names with "and" or "&" connector: "Martinez and Sons Medical Center"
       - '\b((?:(?-i:[A-Z])[A-Za-z\-]+[ \t]+){1,4}(?:and[ \t]+|&[ \t]+)?(?:(?-i:[A-Z])[A-Za-z\-]+[ \t]+){0,3}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Medical[ \t]+Institute|Health[ \t]+Center|Health[ \t]+Group))\b'
+      # "Women's Health Clinic: Grace Women's Clinic"
+      - '(?:Clinic|Center)\s*:\s*((?:(?-i:[A-Z])[\w'']+(?:\s+(?-i:[A-Z])[\w'']+){1,6})\s+Clinic)'
+      - '(?:REHAB\s+CENTER-ID|Emergency\s+case\s+transferred\s+to|Therapy\s+sessions\s+ongoing\s+at|Dental\s+records\s+updated\s+from)\s*[:#]?\s*((?:(?-i:[A-Z])[A-Za-z'']+(?:\s+(?-i:[A-Z])[A-Za-z'']+){1,5})\s+(?:Center|Clinic|Hospital))'
     masking:
       strategy: redact
       format: "[HOSPITAL {n}]"
