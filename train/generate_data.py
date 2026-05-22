@@ -37,12 +37,33 @@ YAML_PATH = ROOT / "entities_config.yaml"
 DEFAULT_OUT = ROOT / "train" / "data" / "pii_train.json"
 
 
+def _build_label_map() -> dict[str, str]:
+    """Build entity_id -> gliner_label mapping from YAML config."""
+    try:
+        cfg = yaml.safe_load(open(YAML_PATH, encoding="utf-8"))
+        return {e["id"]: e.get("gliner_label", e["id"]) for e in cfg.get("entities", [])}
+    except Exception:
+        return {}
+
+LABEL_MAP: dict[str, str] = _build_label_map()
+
+
 # ---------------------------------------------------------------------------
 # Value generators
 # ---------------------------------------------------------------------------
 
 def _phone() -> str:
-    return f"({random.randint(200,999)}) {random.randint(200,999)}-{random.randint(1000,9999)}"
+    fmt = random.choice(["parens", "dash", "dot", "intl", "ext"])
+    if fmt == "parens":
+        return f"({random.randint(200,999)}) {random.randint(200,999)}-{random.randint(1000,9999)}"
+    elif fmt == "dash":
+        return f"{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}"
+    elif fmt == "dot":
+        return f"{random.randint(200,999)}.{random.randint(200,999)}.{random.randint(1000,9999)}"
+    elif fmt == "intl":
+        return f"+1-{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}"
+    else:
+        return f"{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}x{random.randint(100,999)}"
 
 def _phone2() -> str:
     return f"{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}"
@@ -64,11 +85,56 @@ def _card_exp() -> str:
 
 def _date_mmddyyyy() -> str:
     d = fake.date_of_birth(minimum_age=1, maximum_age=90)
-    return d.strftime(random.choice(["%m/%d/%Y", "%m-%d-%Y"]))
+    fmt = random.choice([
+        "%m/%d/%Y",   # 05/21/2026
+        "%m-%d-%Y",   # 05-21-2026
+        "%d/%m/%Y",   # 21/05/2026
+        "%d-%m-%Y",   # 21-05-2026
+        "%d.%m.%Y",   # 21.05.2026
+        "%Y-%m-%d",   # 2026-05-21
+        "%Y/%m/%d",   # 2026/05/21
+        "%Y_%m_%d",   # 2026_05_21
+        "%B %d, %Y",  # May 21, 2026
+        "%d %B %Y",   # 21 May 2026
+        "%d %b %Y",   # 21 May 2026 (abbrev)
+        "%b %d, %Y",  # May 21, 2026 (abbrev)
+        "%A, %d %B %Y",  # Thursday, 21 May 2026
+        "%a, %d %b %Y",  # Thu, 21 May 2026
+        "%d/%b/%Y",   # 21/MAY/2026 - handled via upper
+        "%d_%b_%Y",   # 21_May_2026
+    ])
+    result = d.strftime(fmt)
+    if fmt == "%d/%b/%Y":
+        result = result.upper()
+    return result
 
 def _date_clinical() -> str:
     d = fake.date_between(start_date="-5y", end_date="today")
-    return d.strftime(random.choice(["%m/%d/%Y", "%m-%d-%Y"]))
+    fmt = random.choice([
+        "%m/%d/%Y",   # 05/21/2026
+        "%m-%d-%Y",   # 05-21-2026
+        "%d/%m/%Y",   # 21/05/2026
+        "%d-%m-%Y",   # 21-05-2026
+        "%d.%m.%Y",   # 21.05.2026
+        "%Y-%m-%d",   # 2026-05-21
+        "%Y/%m/%d",   # 2026/05/21
+        "%Y_%m_%d",   # 2026_05_21
+        "%B %d, %Y",  # May 21, 2026
+        "%d %B %Y",   # 21 May 2026
+        "%d %b %Y",   # 21 May 2026 (abbrev)
+        "%b %d, %Y",  # May 21, 2026 (abbrev)
+        "%A, %d %B %Y",  # Thursday, 21 May 2026
+        "%a, %d %b %Y",  # Thu, 21 May 2026
+        "%d/%b/%Y",   # 21/MAY/2026 - handled via upper
+        "%d_%b_%Y",   # 21_May_2026
+    ])
+    result = d.strftime(fmt)
+    if fmt == "%d/%b/%Y":
+        result = result.upper()
+    return result
+
+def _year_only() -> str:
+    return str(random.randint(2010, 2025))
 
 def _ip() -> str:
     return fake.ipv4_private()
@@ -83,6 +149,13 @@ def _mrn_value() -> str:
     return str(random.randint(1000000, 9999999))
 
 def _npi() -> str:
+    digits = str(random.randint(1000000000, 9999999999))
+    # 30% chance of NPI- prefix format (since this is a real test failure)
+    if random.random() < 0.3:
+        return f"NPI-{digits}"
+    return digits
+
+def _npi_plain() -> str:
     return str(random.randint(1000000000, 9999999999))
 
 def _dea() -> str:
@@ -146,6 +219,16 @@ def _street_address() -> str:
                "Highland Ave", "Sunset Terrace", "Valley Rd", "Green St"]
     return f"{random.randint(1,9999)} {random.choice(streets)}"
 
+def _street_address_full() -> str:
+    streets = ["Main St", "Oak Ave", "Elm Blvd", "River Rd", "Park Lane",
+               "Maple Drive", "Cedar Court", "Washington Blvd", "Pine Way",
+               "Highland Ave", "Sunset Terrace", "Valley Rd", "Green St",
+               "Hampton Squares", "Kramer Springs", "Johnson Rd", "Lincoln Ave"]
+    city = fake.city()
+    state = _state_abbr()
+    zipcode = _zipcode()
+    return f"{random.randint(1,9999)} {random.choice(streets)}, {city}, {state} {zipcode}"
+
 def _city() -> str:
     return fake.city()
 
@@ -173,6 +256,19 @@ def _insurance_co() -> str:
 
 def _case_number() -> str:
     return f"CR-{random.randint(2020,2024)}-{random.randint(1000,99999):05d}"
+
+def _case_number_alphanumeric() -> str:
+    prefixes = ["CASE", "CR", "CV", "CF", "DK"]
+    return f"{random.choice(prefixes)}-{random.randint(2020,2025)}-{random.randint(1000,99999):05d}"
+
+def _phone_dotted() -> str:
+    return f"{random.randint(200,999)}.{random.randint(200,999)}.{random.randint(1000,9999)}"
+
+def _phone_with_ext() -> str:
+    return f"{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}x{random.randint(100,9999)}"
+
+def _npi_with_prefix() -> str:
+    return f"NPI-{random.randint(1000000000, 9999999999)}"
 
 def _amount() -> str:
     return f"${random.randint(100,99999):,}.{random.randint(0,99):02d}"
@@ -419,6 +515,10 @@ ENTITY_DEFS: dict[str, dict] = {
             "Report was generated at location {value}.",
             "Parcel delivered to {value}.",
             "Registered address: {value}",
+            "Address: {value}, Chicago, IL 60614",
+            "The patient at {value}, Los Angeles, CA 90001.",
+            "Home: {value}, Houston, TX 77001.",
+            "Mailing: {value}, New York, NY 10001.",
         ],
     },
 
@@ -532,6 +632,17 @@ ENTITY_DEFS: dict[str, dict] = {
             "Treatment date: {value}",
             "Lab drawn on {value}.",
             "Authorization effective: {value}",
+            "Surgery Date: {value}",
+            "Follow-up appointment: {value}",
+            "Prescription Date: {value}",
+            "Date of Service: {value}",
+            "Clinical Date: {value}",
+            "Date: {value}",
+            "Effective {value}",
+            "As of {value}",
+            "Since {value}",
+            "Commercial license issued {value}",
+            "Enrolled {value}.",
         ],
     },
 
@@ -733,6 +844,7 @@ ENTITY_DEFS: dict[str, dict] = {
             "Group NPI: {value}",
             "Physician NPI: {value}",
             "NPI registered: {value}",
+            "Provider {value} on file.",
         ],
     },
 
@@ -2523,6 +2635,247 @@ HARD_NEGATIVES: list[str] = [
 
 
 # ---------------------------------------------------------------------------
+# Multi-occurrence and disambiguation training data
+# ---------------------------------------------------------------------------
+
+# Multi-occurrence templates: {v1} and {v2} are two different values of the same entity.
+# This teaches the model to find ALL occurrences, not just the first.
+MULTI_ENTITY_TEMPLATES: dict[str, list[str]] = {
+    "clinical_date": [
+        "Patient DOB: {v1}. Procedure scheduled for {v2}.",
+        "Admission Date: {v1}. Discharge Date: {v2}.",
+        "Lab drawn on {v1}. Results received {v2}.",
+        "Treatment started {v1}, follow-up on {v2}.",
+        "Enrolled {v1}. Terminated {v2}.",
+        "Service date {v1}. Billed on {v2}.",
+    ],
+    "date_of_birth": [
+        "Patient DOB: {v1}. Spouse DOB: {v2}.",
+        "Primary insured DOB {v1}, dependent DOB {v2}.",
+    ],
+    "person_name": [
+        "Patient {v1} was seen by Dr. {v2}.",
+        "Claimant {v1}. Emergency contact: {v2}.",
+        "Referring provider: {v1}. Treating physician: {v2}.",
+        "Insured: {v1}. Beneficiary: {v2}.",
+        "Arrested: {v1}. Victim: {v2}.",
+    ],
+    "phone_number": [
+        "Home phone: {v1}. Work phone: {v2}.",
+        "Patient: {v1}. Emergency contact: {v2}.",
+        "Primary: {v1}. Alternate: {v2}.",
+    ],
+    "medication_name": [
+        "Patient takes {v1} and {v2} daily.",
+        "Prescribed {v1}. Also on {v2}.",
+        "Current medications: {v1}, {v2}.",
+        "Rx 1: {v1}. Rx 2: {v2}.",
+    ],
+    "case_number": [
+        "Case Number: {v1}. Related case: {v2}.",
+        "Primary case {v1}; consolidated with {v2}.",
+    ],
+    "ip_address": [
+        "Source IP: {v1}. Destination IP: {v2}.",
+        "Login from {v1}. Last session: {v2}.",
+    ],
+}
+
+
+# Templates with two different-entity types — teaches model to distinguish similar-looking values.
+DISAMBIGUATION_TEMPLATES: list[dict] = [
+    # Case number next to license plate — prevent case# -> [LICENSE PLATE]
+    {
+        "text_template": "Case Number: {case_num}. Vehicle license plate: {plate}.",
+        "entities": [
+            ("case_num", "case_number", _case_number),
+            ("plate", "license_plate", _license_plate),
+        ],
+    },
+    # NPI next to phone — prevent NPI -> [PHONE NUMBER]
+    {
+        "text_template": "NPI: {npi}. Phone: {phone}.",
+        "entities": [
+            ("npi", "npi_number", _npi_plain),
+            ("phone", "phone_number", _phone),
+        ],
+    },
+    # Hospital next to Insurance company — prevent hospital -> [INSURANCE COMPANY]
+    {
+        "text_template": "Facility: {hospital}. Insurance carrier: {insurer}.",
+        "entities": [
+            ("hospital", "hospital_name", _hospital),
+            ("insurer", "insurance_company_name", _insurance_co),
+        ],
+    },
+    {
+        "text_template": "Patient admitted to {hospital}. Claim filed with {insurer}.",
+        "entities": [
+            ("hospital", "hospital_name", _hospital),
+            ("insurer", "insurance_company_name", _insurance_co),
+        ],
+    },
+    # IP address next to GPS — prevent IP -> [GPS]
+    {
+        "text_template": "Device IP Address: {ip}. GPS coordinates: {gps}.",
+        "entities": [
+            ("ip", "ip_address", _ip),
+            ("gps", "precise_geolocation", _gps),
+        ],
+    },
+    # Routing number next to transaction ID — prevent routing -> [TRANSACTION ID]
+    {
+        "text_template": "Routing Number: {routing}. Transaction ID: {txn}.",
+        "entities": [
+            ("routing", "bank_routing_number", _routing),
+            ("txn", "transaction_id", _transaction_id),
+        ],
+    },
+    # Bank account next to routing — together in financial records
+    {
+        "text_template": "Account Number: {account}. Routing Number: {routing}.",
+        "entities": [
+            ("account", "bank_account_number", _bank_account),
+            ("routing", "bank_routing_number", _routing),
+        ],
+    },
+    # Address with city+state
+    {
+        "text_template": "Patient resides at {addr}, {city}, {state} {zipcode}.",
+        "entities": [
+            ("addr", "street_address", _street_address),
+            ("city", "city_name", _city),
+            ("state", "us_state", _state_abbr),
+            ("zipcode", "zipcode", _zipcode),
+        ],
+    },
+    {
+        "text_template": "Home address: {addr}, {city}, {state} {zipcode}. Phone: {phone}.",
+        "entities": [
+            ("addr", "street_address", _street_address),
+            ("city", "city_name", _city),
+            ("state", "us_state", _state_abbr),
+            ("zipcode", "zipcode", _zipcode),
+            ("phone", "phone_number", _phone),
+        ],
+    },
+    # Date with second date — teach model to find both
+    {
+        "text_template": "DOB: {dob}. Procedure Date: {proc}.",
+        "entities": [
+            ("dob", "date_of_birth", _date_mmddyyyy),
+            ("proc", "clinical_date", _date_clinical),
+        ],
+    },
+    {
+        "text_template": "Admission Date: {admit}. Discharge Date: {discharge}.",
+        "entities": [
+            ("admit", "clinical_date", _date_clinical),
+            ("discharge", "clinical_date", _date_clinical),
+        ],
+    },
+    # NPI with prefix — teach model the NPI- prefix format
+    {
+        "text_template": "Provider NPI: {npi}. Phone: {phone}.",
+        "entities": [
+            ("npi", "npi_number", _npi_with_prefix),
+            ("phone", "phone_number", _phone),
+        ],
+    },
+    # Case number with alphanumeric format vs plate
+    {
+        "text_template": "Court case {case_num}. Plate number: {plate}.",
+        "entities": [
+            ("case_num", "case_number", _case_number_alphanumeric),
+            ("plate", "license_plate", _license_plate),
+        ],
+    },
+]
+
+
+def generate_multi_occurrence_examples(n_per_template: int = 200) -> list[dict]:
+    """Generate examples where the same entity appears twice in one sentence.
+
+    Teaches the model to find ALL occurrences, not just the first.
+    """
+    examples: list[dict] = []
+    for entity_id, tmpl_list in MULTI_ENTITY_TEMPLATES.items():
+        label = LABEL_MAP.get(entity_id, entity_id)
+        defn = ENTITY_DEFS.get(entity_id)
+        if defn is None:
+            continue
+        generator = defn["generator"]
+        for tmpl in tmpl_list:
+            for _ in range(n_per_template):
+                try:
+                    v1 = generator()
+                    v2 = generator()
+                    # Ensure they're different (avoid duplicate-token edge case)
+                    if v1 == v2:
+                        v2 = generator()
+                    text = tmpl.replace("{v1}", v1).replace("{v2}", v2)
+                except Exception:
+                    continue
+                tokens = text.split()
+                ner: list[list] = []
+                for val in (v1, v2):
+                    val_tokens = val.split()
+                    for i in range(len(tokens) - len(val_tokens) + 1):
+                        if tokens[i: i + len(val_tokens)] == val_tokens:
+                            # Check not already covered
+                            occupied = {idx for span in ner for idx in range(span[0], span[1] + 1)}
+                            pos = set(range(i, i + len(val_tokens)))
+                            if not pos & occupied:
+                                ner.append([i, i + len(val_tokens) - 1, label])
+                            break
+                if ner:
+                    examples.append({"tokenized_text": tokens, "ner": ner})
+    return examples
+
+
+def generate_disambiguation_examples(n_per_template: int = 200) -> list[dict]:
+    """Generate examples with multiple co-occurring entities to teach disambiguation."""
+    examples: list[dict] = []
+    for tmpl in DISAMBIGUATION_TEMPLATES:
+        for _ in range(n_per_template):
+            # Generate values for each entity slot
+            values: dict[str, str] = {}
+            for slot_name, _entity_id, gen_fn in tmpl["entities"]:
+                try:
+                    values[slot_name] = gen_fn()
+                except Exception:
+                    values[slot_name] = ""
+
+            text = tmpl["text_template"]
+            for slot_name, val in values.items():
+                text = text.replace("{" + slot_name + "}", val)
+
+            tokens = text.split()
+            ner: list[list] = []
+            occupied: set[int] = set()
+
+            for slot_name, entity_id, _gen_fn in tmpl["entities"]:
+                val = values.get(slot_name, "")
+                if not val:
+                    continue
+                label = LABEL_MAP.get(entity_id, entity_id)
+                if not label:
+                    continue
+                val_tokens = val.split()
+                for i in range(len(tokens) - len(val_tokens) + 1):
+                    if tokens[i: i + len(val_tokens)] == val_tokens:
+                        pos = set(range(i, i + len(val_tokens)))
+                        if not pos & occupied:
+                            ner.append([i, i + len(val_tokens) - 1, label])
+                            occupied |= pos
+                        break
+
+            if ner:
+                examples.append({"tokenized_text": tokens, "ner": ner})
+    return examples
+
+
+# ---------------------------------------------------------------------------
 # GLiNER example builder
 # ---------------------------------------------------------------------------
 
@@ -2853,6 +3206,17 @@ def generate(
     # Multi-entity documents
     multi = generate_multi_entity_documents(ENTITY_DEFS, gliner_label_map, n=10000, rng=rng)
     all_examples.extend(multi)
+    print(f"  Added {len(multi):,} multi-entity document examples")
+
+    # Multi-occurrence examples (same entity twice in one sentence)
+    multi_occ = generate_multi_occurrence_examples(n_per_template=200)
+    all_examples.extend(multi_occ)
+    print(f"  Added {len(multi_occ):,} multi-occurrence examples")
+
+    # Disambiguation examples (teach model to distinguish similar-looking entities)
+    disambiguation = generate_disambiguation_examples(n_per_template=300)
+    all_examples.extend(disambiguation)
+    print(f"  Added {len(disambiguation):,} disambiguation examples")
 
     rng.shuffle(all_examples)
 
@@ -2861,13 +3225,15 @@ def generate(
         json.dump(all_examples, f, indent=2, ensure_ascii=False)
 
     total = len(all_examples)
-    single = total - len(HARD_NEGATIVES) - len(multi)
+    single = total - len(HARD_NEGATIVES) - len(multi) - len(multi_occ) - len(disambiguation)
     print(f"\nGenerated {total:,} training examples")
-    print(f"  Single-entity:  {single:,}")
-    print(f"  Hard negatives: {len(HARD_NEGATIVES):,}")
-    print(f"  Multi-entity:   {len(multi):,}")
-    print(f"  Saved to: {out_path}")
-    print("\nEntity coverage:")
+    print(f"  Single-entity:    {single:,}")
+    print(f"  Hard negatives:   {len(HARD_NEGATIVES):,}")
+    print(f"  Multi-entity:     {len(multi):,}")
+    print(f"  Multi-occurrence: {len(multi_occ):,}")
+    print(f"  Disambiguation:   {len(disambiguation):,}")
+    print(f"  Saved to: {out_path}\n")
+    print("Entity coverage:")
     covered = sum(1 for c in entity_counts.values() if c >= samples_per_entity * 0.8)
     print(f"  {covered}/{len(entity_counts)} entities at >=80% target")
     for eid, cnt in sorted(entity_counts.items()):

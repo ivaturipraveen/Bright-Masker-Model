@@ -161,8 +161,12 @@ entities:
     confidence_threshold: 0.72
     gliner_label: "city or town in a personal address"
     patterns:
-      - ',\s*([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2}),\s*[A-Z]{2}\s+\d{5}'
-      - '(?:in|of|at|near|from)\s+((?-i:[A-Z])[a-z]+(?:\s+(?-i:[A-Z])[a-z]+){0,2}),\s*(?-i:[A-Z]{2})(?:\s+\d{5})?'
+      # Standard: "Chicago, IL 60614"
+      - ',\s*([A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
+      # "in Louisville NJ" or "residing in Memphis TN"
+      - '(?:in|of|at|near|from|residing\s+in|lives?\s+in|located\s+in)\s+([A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),?\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
+      # After address: "123 Main St, Louisville, NJ 07001"
+      - '\d+\s+\w+(?:\s+\w+){0,4},\s+([A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
     masking:
       strategy: redact
       format: "[LOCATION {n}]"
@@ -176,6 +180,8 @@ entities:
     gliner_label: "US state abbreviation in address"
     patterns:
       - '(?:,\s*)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)(?=\s+\d{5})'
+      # "City, ST" without zip
+      - '(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}),\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
     masking:
       strategy: redact
       format: "[STATE {n}]"
@@ -200,6 +206,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 2
+    confidence_threshold: 0.88
     gliner_label: "GPS coordinates or precise geolocation"
     patterns:
       - '((?:-?\d{1,3}\.\d{4,8})\s*,\s*(?:-?\d{1,3}\.\d{4,8}))'
@@ -224,6 +231,23 @@ entities:
       - 'born\s+on\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
       - 'born\s+on\s+(\d{4}-\d{2}-\d{2})'
       - '(?:born|dob|date\s+of\s+birth)\s*[:#]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})'
+      # DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+      - '(?:Date|DATE|date)\s*[:#]?\s*(\d{1,2}[./\-]\d{1,2}[./\-]\d{4})'
+      # ISO 2026-05-21
+      - '(?:Date|DATE|date)\s*[:#]?\s*(\d{4}-\d{2}-\d{2})'
+      # "21 May 2026", "21st May 2026", "May 21, 2026", "May 21st, 2026"
+      - '(\d{1,2}(?:st|nd|rd|th)?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4})'
+      - '((?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{2,4})'
+      # "Thursday, 21 May 2026", "Thu, 21 May 2026"
+      - '(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4})'
+      # Underscore formats: 2026_05_21, 21_May_2026
+      - '(\d{4}_\d{2}_\d{2})'
+      - '(\d{2}_(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_\d{4})'
+      # "21/MAY/2026" uppercase month
+      - '(\d{1,2}/(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/\d{4})'
+      # Standalone 4-digit year after medical keyword
+      - '(?:issued|year|since|from|until|through|as\s+of|effective|enrollment|graduated|employed|convicted|sentenced|born\s+in)\s+(\b20\d{2}\b)'
+      - '(?:commercial\s+license|driver.s\s+license|certificate|degree|permit)\s+(?:issued\s+)?(\b(?:19|20)\d{2}\b)'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -250,6 +274,23 @@ entities:
       # Month-name clinical dates: "Admission Date: March 2, 2025"
       - '(?:Admission|Discharge|Surgery|Follow[- ]?up(?:\s+Appointment)?)\s+Date\s*[:#]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})'
       - '(?:Admission|Discharge|Surgery|Follow[- ]?up(?:\s+Appointment)?)\s+Date\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
+      # DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+      - '(?:Date|DATE|date)\s*[:#]?\s*(\d{1,2}[./\-]\d{1,2}[./\-]\d{4})'
+      # ISO 2026-05-21
+      - '(?:Date|DATE|date)\s*[:#]?\s*(\d{4}-\d{2}-\d{2})'
+      # "21 May 2026", "21st May 2026", "May 21, 2026", "May 21st, 2026"
+      - '(\d{1,2}(?:st|nd|rd|th)?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4})'
+      - '((?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{2,4})'
+      # "Thursday, 21 May 2026", "Thu, 21 May 2026"
+      - '(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4})'
+      # Underscore formats: 2026_05_21, 21_May_2026
+      - '(\d{4}_\d{2}_\d{2})'
+      - '(\d{2}_(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_\d{4})'
+      # "21/MAY/2026" uppercase month
+      - '(\d{1,2}/(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/\d{4})'
+      # Standalone 4-digit year after medical keyword
+      - '(?:issued|year|since|from|until|through|as\s+of|effective|enrollment|graduated|employed|convicted|sentenced|born\s+in)\s+(\b20\d{2}\b)'
+      - '(?:commercial\s+license|driver.s\s+license|certificate|degree|permit)\s+(?:issued\s+)?(\b(?:19|20)\d{2}\b)'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -460,8 +501,8 @@ entities:
     patterns:
       - '\bNPI\s*[-:#]?\s*(\d{10})\b'
       - 'National\s+Provider\s+Identifier\s*[:#]?\s*(\d{10})'
-      # "NPI of provider: NPI-1822873088"
-      - '\bNPI-(\d{10})\b'
+      # "NPI of provider: NPI-1822873088" — capture full token including prefix
+      - '(\bNPI-\d{10})\b'
     masking:
       strategy: redact
       format: "[NPI {n}]"
@@ -583,6 +624,7 @@ entities:
     policy: [hipaa]
     enabled: true
     priority: 1
+    confidence_threshold: 0.90
     gliner_label: "IP address"
     presidio_type: IP_ADDRESS
     patterns:
@@ -590,6 +632,8 @@ entities:
       - '(?:Device\s+IP\s+Address|IP\s+Address)\s*[:#]?\s*((?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4})'
       - '(?:Device\s+IP\s+Address|IP\s+Address)\s*[:#]?\s*(fe80::[0-9a-fA-F:]+)'
       - '(?:Device\s+IP\s+Address|IP\s+Address)\s*[:#]?\s*(::1)\b'
+      # Standalone IPv4 — high priority to beat GPS mislabeling
+      - '\b((?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))\b'
     masking:
       strategy: redact
       format: "[IP ADDRESS {n}]"
@@ -731,6 +775,10 @@ entities:
     presidio_type: CREDIT_CARD
     patterns:
       - '\b(\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4})\b'
+      # Spaced 8+4+4 format: "60119289 7284 5401" or "37829812 8318 0036"
+      - '\b(\d{8}\s+\d{4}\s+\d{4})\b'
+      # Also catch standard with dashes in all combinations
+      - '\b(\d{4}[-\s]\d{6}[-\s]\d{5})\b'
     masking:
       strategy: redact
       format: "[CARD NUMBER {n}]"
@@ -1177,6 +1225,10 @@ entities:
       - 'Docket\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
       # "Case Number 2026-CR-001" — year-prefix format
       - 'Case\s+(?:Number|No)\s+(\d{4}-[A-Z]{1,4}-\d{1,6})\b'
+      # "CASE-398..." direct prefix format
+      - '\b(CASE-[A-Za-z0-9\-]{3,20})\b'
+      # "2024-CR-00445" year prefix
+      - '\b(\d{4}-(?:CR|CV|CF|MC|DR|JV|CJ|PC|SC|CC|DC|FC|GC|HC|IC|KC|LC|NC|OC|RC|TC|WC)-\d{1,6})\b'
     masking:
       strategy: redact
       format: "[CASE NUMBER {n}]"
