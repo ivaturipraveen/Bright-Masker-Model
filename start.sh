@@ -25,9 +25,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 VENV="$ROOT/.venv"
+LOG_FILE="$ROOT/train.log"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-SAMPLES=2000
+SAMPLES=3000
 DEVICE_ARG=""
 EPOCHS_ARG=""
 BASE_MODEL="urchade/gliner_large-v2.1"
@@ -51,6 +52,25 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# ── tmux self-relaunch (keeps training alive after SSH disconnect) ─────────────
+SESSION="pii-train"
+if [ -z "${TMUX:-}" ] && [ -z "${NO_TMUX:-}" ]; then
+  if ! command -v tmux &>/dev/null; then
+    apt-get install -y -qq tmux 2>/dev/null || true
+  fi
+  if command -v tmux &>/dev/null; then
+    tmux kill-session -t "$SESSION" 2>/dev/null || true
+    tmux new-session -d -s "$SESSION" \
+      "bash $0 $* 2>&1 | tee \"$LOG_FILE\""
+    echo ""
+    echo "  Training launched in tmux session '$SESSION'"
+    echo "  Attach : tmux attach -t $SESSION"
+    echo "  Log    : tail -f $LOG_FILE"
+    echo ""
+    exit 0
+  fi
+fi
+
 echo ""
 echo "============================================================"
 echo "  GLiNER PII Training Pipeline"
@@ -68,7 +88,7 @@ if [ -d "$VENV" ]; then
 else
   # Find best available Python
   SYS_PYTHON=""
-  for py in python3.11 python3.10 python3.9 python3; do
+  for py in python3.12 python3.11 python3.10 python3.9 python3; do
     if command -v "$py" &>/dev/null; then
       SYS_PYTHON="$py"
       break
@@ -97,7 +117,7 @@ echo "[2/5] Installing training dependencies…"
   "faker>=24.0" \
   "gliner>=0.2" \
   "transformers>=4.40" \
-  "accelerate>=0.26.0"
+  "accelerate>=1.1.0"
 
 # Verify CUDA is visible
 echo ""
