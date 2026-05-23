@@ -13,6 +13,14 @@ _SOURCE_ORDER = {"pattern": 0, "ner": 1, "llm": 2}
 _DATE_RE = re.compile(r'^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$')
 _TRAILING_LOWERCASE_RE = re.compile(r'(\s+[a-z]\w*)+$')
 
+# Law enforcement record entities that should never be purely alphabetic text.
+# GLiNER sometimes tags person names in criminal-context sentences as these types.
+_LAW_ENF_RECORD_ENTITY_IDS = frozenset({
+    "wanted_person_report", "missing_person_report", "gang_terrorist_member",
+    "foreign_fugitives", "identity_theft_victims", "sex_offender_report",
+    "supervised_release", "probation_record", "parole_record",
+})
+
 # Known medical/lab terms that Presidio/spaCy NER incorrectly tags as PERSON
 _PERSON_NAME_BLOCKLIST = frozenset({
     "lipid profile", "complete blood count", "comprehensive metabolic panel",
@@ -58,6 +66,13 @@ class SpanMerger:
             if span.entity_id == "physician_name" and span.source == "ner":
                 if not any(p in span.text for p in ("Dr.", "Doctor", "Dr ")):
                     log.debug("span_rejected_physician_no_prefix", text=span.text)
+                    continue
+            # Law enforcement record entities must not be pure alphabetic text (person names).
+            # GLiNER tags names in criminal-context sentences as these record types.
+            if span.source == "ner" and span.entity_id in _LAW_ENF_RECORD_ENTITY_IDS:
+                if all(c.isalpha() or c in " .'-" for c in span.text):
+                    log.debug("span_rejected_law_enf_alpha_only",
+                              entity_id=span.entity_id, text=span.text)
                     continue
             # Known lab/medical terms misclassified as person names by Presidio/spaCy
             if span.entity_id == "person_name" and span.text.lower() in _PERSON_NAME_BLOCKLIST:
@@ -144,6 +159,13 @@ class SpanMerger:
         if b.entity_id in self._NUMERIC_ENTITY_IDS and is_alpha_only(b.text):
             return a
 
+        # Pattern layer always beats NER/LLM — patterns are precision-crafted
+        # for structured codes and more trustworthy than the neural model.
+        sa = _SOURCE_ORDER.get(a.source, 99)
+        sb = _SOURCE_ORDER.get(b.source, 99)
+        if sa != sb:
+            return a if sa < sb else b
+
         if a.confidence != b.confidence:
             return a if a.confidence > b.confidence else b
 
@@ -153,11 +175,6 @@ class SpanMerger:
         pb = priority_b.priority if priority_b else 5
         if pa != pb:
             return a if pa < pb else b
-
-        sa = _SOURCE_ORDER.get(a.source, 99)
-        sb = _SOURCE_ORDER.get(b.source, 99)
-        if sa != sb:
-            return a if sa <= sb else b
 
         # Final tiebreaker: prefer the longer span so containing spans (e.g., a full URL)
         # are not discarded in favour of a short substring (e.g., an extracted token).
