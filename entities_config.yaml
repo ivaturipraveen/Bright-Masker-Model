@@ -161,14 +161,14 @@ entities:
     confidence_threshold: 0.72
     gliner_label: "city or town in a personal address"
     patterns:
-      # Standard: "Chicago, IL 60614"
-      - ',\s*([A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
-      # "in Louisville NJ" or "residing in Memphis TN"
-      - '(?:in|of|at|near|from|residing\s+in|lives?\s+in|located\s+in)\s+([A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),?\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
+      # Standard: "Chicago, IL 60614"  (also handles "St. Louis, MO")
+      - ',\s*((?:St\.\s+)?[A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
+      # "in Louisville NJ" or "residing in St. Louis MO"
+      - '(?:in|of|at|near|from|residing\s+in|lives?\s+in|located\s+in)\s+((?:St\.\s+)?[A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),?\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
       # After address: "123 Main St, Louisville, NJ 07001"
-      - '\d+\s+\w+(?:\s+\w+){0,4},\s+([A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
-      # City without leading comma: "Springfield IL" or "Memphis TN 38104" (GAP-05)
-      - '(?:,\s*)?([A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2})\s+(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
+      - '\d+\s+\w+(?:\s+\w+){0,4},\s+((?:St\.\s+)?[A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
+      # City without leading comma: "Springfield IL" or "St. Louis MO 63101" (GAP-05)
+      - '(?:,\s*)?((?:St\.\s+)?[A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2})\s+(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
     masking:
       strategy: redact
       format: "[LOCATION {n}]"
@@ -271,6 +271,9 @@ entities:
       - '(?:on\s+)(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
       - '(?:recorded|noted|documented|entered|logged)\s+as\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
       - '(?:scheduled|planned|set|confirmed)\s+for\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
+      # "dated MM/DD/YYYY" — signature date in legal/clinical documents
+      - '(?:dated|signed)\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})\b'
+      - '(?:dated|signed)\s+(\d{4}-\d{2}-\d{2})\b'
       # Date after keyword with colon: "Clinical Date: 04/15/2025" or "Ref Date 02/02/2026"
       - '(?:Clinical|Ref(?:erence)?|Issue|Expir(?:y|ation)?|Effective|Start|End|Close|Open|Service|Visit|Procedure|Exam|Lab)\s+Date\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
       # Month-name clinical dates: "Admission Date: March 2, 2025"
@@ -1759,10 +1762,10 @@ entities:
     priority: 1
     gliner_label: "hospital or medical center name"
     patterns:
-      # Standard capitalized words (2-5) + medical suffix
-      - '\b((?:(?-i:[A-Z])[A-Za-z]+[ \t]+){2,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)|Medical[ \t]+Institute|Health[ \t]+Center|Health[ \t]+Group|Wellness[ \t]+Center))\b'
+      # Standard capitalized words (2-5) + medical suffix (handles "St. Mary's Hospital")
+      - '\b((?:St\.[ \t]+)?(?:(?-i:[A-Z])[A-Za-z'']+[ \t]+){1,5}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Diagnostics?[ \t]+(?:Lab(?:oratory)?|Center)|Radiology[ \t]+(?:Center|Associates)|Medical[ \t]+Institute|Health[ \t]+Center|Health[ \t]+Group|Wellness[ \t]+Center|Oncology[ \t]+Center|Cancer[ \t]+Center|Surgery[ \t]+Center))\b'
       # Names with "and" or "&" connector: "Martinez and Sons Medical Center"
-      - '\b((?:(?-i:[A-Z])[A-Za-z\-]+[ \t]+){1,4}(?:and[ \t]+|&[ \t]+)?(?:(?-i:[A-Z])[A-Za-z\-]+[ \t]+){0,3}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Medical[ \t]+Institute|Health[ \t]+Center|Health[ \t]+Group))\b'
+      - '\b((?:St\.[ \t]+)?(?:(?-i:[A-Z])[A-Za-z''\-]+[ \t]+){1,4}(?:and[ \t]+|&[ \t]+)?(?:(?-i:[A-Z])[A-Za-z''\-]+[ \t]+){0,3}(?:Medical[ \t]+Center|Hospital|Health[ \t]+System|Clinic|Medical[ \t]+Group|Healthcare|Medical[ \t]+Institute|Health[ \t]+Center|Health[ \t]+Group|Oncology[ \t]+Center))\b'
       # "Women's Health Clinic: Grace Women's Clinic"
       - '(?:Clinic|Center)\s*:\s*((?:(?-i:[A-Z])[\w'']+(?:\s+(?-i:[A-Z])[\w'']+){1,6})\s+Clinic)'
       - '(?:REHAB\s+CENTER-ID|Emergency\s+case\s+transferred\s+to|Therapy\s+sessions\s+ongoing\s+at|Dental\s+records\s+updated\s+from)\s*[:#]?\s*((?:(?-i:[A-Z])[A-Za-z'']+(?:\s+(?-i:[A-Z])[A-Za-z'']+){1,5})\s+(?:Center|Clinic|Hospital))'
