@@ -13,12 +13,15 @@ _SOURCE_ORDER = {"pattern": 0, "ner": 1, "llm": 2}
 _DATE_RE = re.compile(r'^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$')
 _TRAILING_LOWERCASE_RE = re.compile(r'(\s+[a-z]\w*)+$')
 
-# Law enforcement record entities that should never be purely alphabetic text.
-# GLiNER sometimes tags person names in criminal-context sentences as these types.
-_LAW_ENF_RECORD_ENTITY_IDS = frozenset({
+# Record/ID entity types that should never be purely alphabetic text.
+# GLiNER tags person names as these types when surrounding words provide context
+# (e.g. "suspects" → wanted_person_report, "patients" → medical_record_number).
+_ALPHA_REJECT_ENTITY_IDS = frozenset({
     "wanted_person_report", "missing_person_report", "gang_terrorist_member",
     "foreign_fugitives", "identity_theft_victims", "sex_offender_report",
     "supervised_release", "probation_record", "parole_record",
+    "medical_record_number", "billing_number", "health_plan_beneficiary_number",
+    "insurance_policy_number",
 })
 
 # Known medical/lab terms that Presidio/spaCy NER incorrectly tags as PERSON
@@ -67,11 +70,11 @@ class SpanMerger:
                 if not any(p in span.text for p in ("Dr.", "Doctor", "Dr ")):
                     log.debug("span_rejected_physician_no_prefix", text=span.text)
                     continue
-            # Law enforcement record entities must not be pure alphabetic text (person names).
-            # GLiNER tags names in criminal-context sentences as these record types.
-            if span.source == "ner" and span.entity_id in _LAW_ENF_RECORD_ENTITY_IDS:
+            # Record/ID entities must not be pure alphabetic text (person names).
+            # GLiNER tags names in context sentences as record types.
+            if span.source == "ner" and span.entity_id in _ALPHA_REJECT_ENTITY_IDS:
                 if all(c.isalpha() or c in " .'-" for c in span.text):
-                    log.debug("span_rejected_law_enf_alpha_only",
+                    log.debug("span_rejected_alpha_only_record_id",
                               entity_id=span.entity_id, text=span.text)
                     continue
             # Known lab/medical terms misclassified as person names by Presidio/spaCy
