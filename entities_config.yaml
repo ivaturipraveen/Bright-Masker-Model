@@ -276,9 +276,9 @@ entities:
       - '(?:dated|signed)\s+(\d{4}-\d{2}-\d{2})\b'
       # Date after keyword with colon: "Clinical Date: 04/15/2025" or "Ref Date 02/02/2026"
       - '(?:Clinical|Ref(?:erence)?|Issue|Expir(?:y|ation)?|Effective|Start|End|Close|Open|Service|Visit|Procedure|Exam|Lab)\s+Date\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
-      # Month-name clinical dates: "Admission Date: March 2, 2025"
-      - '(?:Admission|Discharge|Surgery|Follow[- ]?up(?:\s+Appointment)?)\s+Date\s*[:#]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})'
-      - '(?:Admission|Discharge|Surgery|Follow[- ]?up(?:\s+Appointment)?)\s+Date\s*[:#]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
+      # Month-name clinical dates — capture FULL phrase so span beats standalone date_of_birth match
+      - '((?:Admission|Discharge|Surgery|Follow[- ]?up(?:\s+Appointment)?)\s+Date\s*[:#]?\s*[A-Za-z]+\s+\d{1,2},?\s+\d{4})'
+      - '((?:Admission|Discharge|Surgery|Follow[- ]?up(?:\s+Appointment)?)\s+Date\s*[:#]?\s*\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4})'
       # DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
       - '(?:Date|DATE|date)\s*[:#]?\s*(\d{1,2}[./\-]\d{1,2}[./\-]\d{4})'
       # ISO 2026-05-21
