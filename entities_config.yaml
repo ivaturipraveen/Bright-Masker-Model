@@ -146,6 +146,8 @@ entities:
     gliner_label: "street address with house number"
     patterns:
       - '(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Circles|Terrace|Terr|Highway|Hwy|Parkway|Pkwy|Squares?|Extensions?|Camp|Shoal|Trail|Trace|Roads?|Islands?|Route|Viaduct|Gardens?|Summit|Brook|Plains?|Points?|Center|Alley|Causeway|Prairie|Ports?|Neck|Wall|Coves?|Crescent|Station|Union|Via|Plaza|Tunnel|Springs?|Bend|Creek|Glen|Hill|Hills|Heights|Ridge|Run|Path|Pass|Pike|Row|Walk|Crossing|Landing|Loop|Meadow|Park|Overpass|Bypass|Corridor|Connector|Approach|Access|Drive|Branch|Close|Gate|Green|Grove|Hollow|Knoll|Lake|Manor|Mill|Mount|Mountain|Orchard|Overlook|Pond|Quarter|Ranch|River|Shore|Spur|Terrace|View|Village|Vista|Wood|Yard)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
+      # Forensic / law-enforcement context: "collected at 8435 Fillmore Road", "found at 123 Main St"
+      - '(?:collected\s+at|found\s+at|scene\s+at|located\s+at|crime\s+scene\s+at|residence\s+at|address\s+of)\s+(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Road|Street|Avenue|Boulevard|Drive|Court|Way|Lane|Terrace|Path|Circle|Place|Rd|St|Ave|Blvd|Dr|Ct|Ln|Pl|Terr|Cir|Hwy|Pkwy)\b\.?)'
       # Standalone room / suite / apartment / building number (keyword required)
       - '(?:Room|Suite|Ste|Apt|Apartment|Unit|Building|Bldg)\s*(?:Number|No|#)?\s*[:#]?\s*(\d{1,6})\b'
     masking:
@@ -311,7 +313,13 @@ entities:
       # Month-year format: "November 2024", "March 2025" (employment / academic / financial context)
       - '\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:19|20)\d{2})\b'
       # Bare year in employment / academic context: "in 2024", "from 2018 to 2024"
-      - '(?:in|from|since|during|until|through|for)\s+(\b(?:19|20)\d{2}\b)'
+      - '(?:in|from|to|since|during|until|through|for)\s+(\b(?:19|20)\d{2}\b)'
+      # "since / as of / to / through / effective" + full MM/DD/YYYY date
+      - '(?:since|as\s+of|effective|through|incarcerated\s+since)\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
+      # Check-in / Check-out with colon separator: "Check-in: 07/22/2025"
+      - '(?:check[-\s]in|check[-\s]out)\s*[:#]\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
+      # Bare MM/DD/YYYY — catches dates in parentheses, standalone, or after unlisted keywords
+      - '(?<![A-Za-z0-9/\-])(\b(?:0?[1-9]|1[0-2])[/\-](?:0?[1-9]|[12]\d|3[01])[/\-](?:19|20)\d{2})\b'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -546,7 +554,7 @@ entities:
       - 'Passport\s*:\s*([A-Za-z][A-Za-z0-9]{5,10})'
       - 'Passport\s*:\s*(\d{9})'
       - '(?:Passport\s+Identification\s+Number|Government\s+Passport\s+Number|Citizen\s+Passport\s+ID|Diplomatic\s+Passport\s+Number|Official\s+Passport\s+ID|Machine\s+Readable\s+Passport\s+Number|Biometric\s+Passport\s+Number|Temporary\s+Passport\s+ID|Electronic\s+Passport\s+Number|National\s+Passport\s+Registration\s+Number|Overseas\s+Passport\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
-      - '\b(?:PID|GP|CPI|FP|DP|OPI|MRP|BP|TP|EP|NPR|IP|OPN|CPN|STP|INT)-[A-Za-z0-9\-]{4,15}\b'
+      - '\b(?:PID|GP|CPI|DP|OPI|MRP|BP|TP|EP|NPR|IP|OPN|CPN|STP|INT)-[A-Za-z0-9\-]{4,15}\b'
       # Bare "Passport VALUE." without Number/No keyword (GAP-14)
       - '\bPassport\s+([A-Za-z][0-9]{7,8})\b'
     masking:
@@ -979,6 +987,8 @@ entities:
     gliner_label: "SWIFT BIC code"
     patterns:
       - '\b(?:SWIFT|BIC)\b\s*(?:Code)?\s*[:#]?\s*([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b'
+      # "SWIFT code is BOFAUS8RI", "BIC is CHASUS33" — keyword before code without standard separator
+      - '(?:SWIFT|BIC)\s+(?:code\s+)?(?:is\s+)?([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b'
     masking:
       strategy: redact
       format: "[SWIFT {n}]"
@@ -1065,6 +1075,8 @@ entities:
       - '\b(user_[a-z][a-z0-9_]{2,30})\b'
       # "portal username email is X" or "username email is X" test data format
       - '(?:portal\s+username|username\s+email)\s+is\s+([a-zA-Z0-9][a-zA-Z0-9._@-]{2,64})\b'
+      # "System account: sarah_m", "Account name: l.davis", "Login name: mary.j99"
+      - '(?:system\s+account|account\s+name|login\s+(?:name|id)|staff\s+account|user\s+account)\s*[:#=]\s*([a-zA-Z0-9][a-zA-Z0-9._@\-]{1,40})\b'
     masking:
       strategy: redact
       format: "[USERNAME {n}]"
@@ -1101,6 +1113,9 @@ entities:
       - '(?:API\s+Key|API\s+Token|Session\s+Token|Bearer\s+Token|Access\s+Token)\s*[:#]?\s*([A-Za-z0-9_\-\.]{10,})'
       # Long raw alphanumeric tokens after "token" keyword (non-JWT, no dots required)
       - '(?:token|TOKEN)\s+([A-Za-z0-9_\-]{32,})\b'
+      # "JWT Token: JWT-7766" — short JWT reference IDs (not full 3-part JWT)
+      - '(?:JWT\s+Token|JWT\s+Key|Auth\s+Token)\s*[:#=]?\s*(JWT-[A-Za-z0-9_\-\.]{2,40})\b'
+      - '\b(JWT-[A-Za-z0-9_\-]{2,20})\b'
       - '(?:Hospital\s+WiFi\s+Session\s+ID|Telemedicine\s+Session\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
       - '\bWIFI-\d{4,15}\b'
       - '(?:Telemedicine\s+Session\s+ID)\s*[:#]?\s*(TEL-\d{4,15})'
@@ -1182,6 +1197,11 @@ entities:
     enabled: true
     priority: 3
     gliner_label: "performance review rating or appraisal"
+    patterns:
+      # "rating: 5/5", "score: 4/5", "grade: 90/100", "performance: 4/4"
+      - '(?:rating|score|grade|performance|evaluation|appraisal|result)\s*[:#=]?\s*(\d{1,3}/\d{1,3})\b'
+      # "5 out of 5", "4 out of 5 stars"
+      - '(\d{1,3}\s+out\s+of\s+\d{1,3})(?:\s+stars?)?\b'
     masking:
       strategy: redact
       format: "[PERFORMANCE EVAL {n}]"
@@ -1289,6 +1309,8 @@ entities:
       - '\b(CASE-[A-Za-z0-9\-]{3,20})\b'
       # "2024-CR-00445" year prefix
       - '\b(\d{4}-(?:CR|CV|CF|MC|DR|JV|CJ|PC|SC|CC|DC|FC|GC|HC|IC|KC|LC|NC|OC|RC|TC|WC)-\d{1,6})\b'
+      # "Board Resolution 2025-001", "Reference No. 2024-123", "Doc No 2025-0042"
+      - '(?:Board\s+Resolution|Resolution|Reference\s+(?:No\.?|Number)|Doc(?:ument)?\s+(?:No\.?|Number|#)|Ref\s+No\.?)\s*[:#]?\s*(\d{4}-\d{3,8})\b'
     masking:
       strategy: redact
       format: "[CASE NUMBER {n}]"
@@ -1305,6 +1327,8 @@ entities:
       - '(?:warrant|Warrant\s+(?:Number|No|#)|arrest\s+warrant)\s*[:#]?\s*(W-\d{3,8})\b'
       # WRT-NNNNNN bare prefix format (GAP-15)
       - '\b(WRT-\d{4,10})\b'
+      # "Tracking: W-776" — warrant/case tracking reference
+      - '(?:Tracking|Case\s+Ref|Reference)\s*[:#]\s*(W-\d{3,8})\b'
     masking:
       strategy: redact
       format: "[WARRANT {n}]"
