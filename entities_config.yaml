@@ -300,6 +300,18 @@ entities:
       - '(?:\bYear\b|\bYEAR\b)\s*[:#=]?\s*(\b(?:19|20)\d{2}\b)'
       # Timestamp format "YYYY-MM-DD HH:MM:SS" (GAP-02)
       - '(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\b'
+      # Travel / booking date contexts: "depart 07/22/2025", "return 01/02/2026"
+      - '(?:depart(?:ing|s|ed)?|return(?:ing|s|ed)?|arrival|arrive[sd]?|check[-\s]in|check[-\s]out|travel(?:ing)?|flies?|flying)\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
+      # Login / access log timestamps: "logged in ... at 01/06/2026"
+      - '(?:logged\s+in|accessed|connected|signed\s+in)(?:\s+\S+){0,5}?\s+at\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
+      # Filed / submitted / processed / compiled without existing keyword
+      - '(?:filed|compiled\s+report|report\s+compiled|refund|payment\s+sent|renewed|reinstated|activated|started|ended|expired)\s+(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
+      # Quarter-year format: "Q3 2024", "Q1 2025"
+      - '\b(Q[1-4]\s+(?:19|20)\d{2})\b'
+      # Month-year format: "November 2024", "March 2025" (employment / academic / financial context)
+      - '\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:19|20)\d{2})\b'
+      # Bare year in employment / academic context: "in 2024", "from 2018 to 2024"
+      - '(?:in|from|since|during|until|through|for)\s+(\b(?:19|20)\d{2}\b)'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -498,6 +510,7 @@ entities:
       - '\bDEA\s+(?:(?:Registration|Identifier|Authorization|Compliance|Prescribing)\s+)?(?:Number|No|#)?\s*[:#]?\s*([A-Za-z]{2}\d{7})\b'
       - '(?:PRESCRIBER\s+DEA\s+ID|Medical\s+Practice\s+DEA\s+ID|Pharmacy\s+DEA\s+Verification\s+Number|DEA\s+Controlled\s+Drug\s+Authorization)\s*[:#]?\s*([A-Za-z]{2}\d{7})\b'
       - '(?:The\s+)?DEA\s+(?:number\s+is\s+)?([A-Za-z]{2}\d{7})\b'
+      - '([A-Za-z]{2}\d{7})\s+for\s+dea\s+number'
     masking:
       strategy: redact
       format: "[DEA NUMBER {n}]"
@@ -569,7 +582,8 @@ entities:
     priority: 2
     gliner_label: "vehicle identification number VIN"
     patterns:
-      - '(?:VIN|Vehicle\s+Identification\s+Number)\s*[:#]?\s*([A-HJ-NPR-Z0-9]{8,17})\b'
+      - '(?:Vehicle\s+)?VIN\s*[:#]?\s*([A-HJ-NPR-Z0-9]{17})\b'
+      - '(?:Vehicle\s+Identification\s+Number)\s*[:#]?\s*([A-HJ-NPR-Z0-9]{8,17})\b'
       - '\b([A-HJ-NPR-Z0-9]{17})\b'
     masking:
       strategy: redact
@@ -584,7 +598,9 @@ entities:
     confidence_threshold: 0.97
     gliner_label: "vehicle license plate number"
     patterns:
-      - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{1,3}[\s\-]?[A-Z0-9]{1,4}[\s\-]?[A-Z0-9]{0,4})'
+      - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{1,3}[\s\-][A-Z0-9]{2,4}(?:[\s\-][A-Z0-9]{1,4})?)'
+      - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z]{2}-\d{3,6})'
+      - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{5,8})'
     masking:
       strategy: redact
       format: "[LICENSE PLATE {n}]"
@@ -870,6 +886,7 @@ entities:
     patterns:
       - '\bPIN\s+Block\s*[:#]?\s*([A-Fa-f0-9]{16,})\b'
       - '\bPIN\s*[:#]\s*(\d{4,6})\b'
+      - '\bPIN\s+(\d{4,6})\b'
     masking:
       strategy: redact
       format: "[CARD PIN {n}]"
@@ -882,7 +899,9 @@ entities:
     priority: 1
     gliner_label: "card transaction cryptogram ARQC"
     patterns:
-      - '(?:ARQC|TC\b|AAC|Cryptogram|Dynamic\s+Auth(?:entication)?(?:\s+Value)?)\s*[:#]?\s*([A-Fa-f0-9]{8,16})\b'
+      - '\bARQC[-:#]?\s*([A-Za-z0-9]{2,16})\b'
+      - '\bTC-(\d{2,10})\b'
+      - '(?:AAC|Cryptogram|Dynamic\s+Auth(?:entication)?(?:\s+Value)?)\s*[-:#]?\s*([A-Fa-f0-9]{4,16})\b'
     masking:
       strategy: redact
       format: "[CRYPTOGRAM {n}]"
@@ -975,6 +994,7 @@ entities:
     gliner_label: "merchant ID MID"
     patterns:
       - '((?:Merchant\s+ID|MID)\s*[-:#]?\s*[A-Za-z0-9][A-Za-z0-9\-]{2,19})\b'
+      - '\b(MID-[A-Za-z0-9]{2,12})\b'
     masking:
       strategy: redact
       format: "[MERCHANT ID {n}]"
@@ -988,6 +1008,7 @@ entities:
     gliner_label: "terminal ID TID"
     patterns:
       - '((?:Terminal\s+ID|TID)\s*[-:#]?\s*[A-Za-z0-9][A-Za-z0-9\-]{2,19})\b'
+      - '\b(TID-[A-Za-z0-9]{2,12})\b'
     masking:
       strategy: redact
       format: "[TERMINAL ID {n}]"
@@ -1042,6 +1063,8 @@ entities:
       - '(?:username|userid)\s+(\S{1,64})'
       # Bare user_xxx pattern without keyword (GAP-21)
       - '\b(user_[a-z][a-z0-9_]{2,30})\b'
+      # "portal username email is X" or "username email is X" test data format
+      - '(?:portal\s+username|username\s+email)\s+is\s+([a-zA-Z0-9][a-zA-Z0-9._@-]{2,64})\b'
     masking:
       strategy: redact
       format: "[USERNAME {n}]"
@@ -1106,6 +1129,10 @@ entities:
     patterns:
       - 'Physical\s+(?:Characteristics?|Description)\s+([^\.\n]{5,120})'
       - '(?:Height|Weight|Build|Complexion|Hair|Eyes?)\s*[:#]?\s*([^\.\,\n]{3,60})'
+      - '\b((?:tattoo|birthmark|scar|mole)\s+(?:of\s+(?:a\s+)?|on\s+(?:the\s+)?)?[a-z][a-z\s]{2,50})\b'
+      - '\b((?:hazel|blue|brown|green|gray|grey|amber|violet)\s+eyes)\b'
+      - '\b((?:short|long|curly|straight|wavy|dark|light)\s+(?:black|brown|blonde|blond|red|gray|grey|auburn|white)\s+hair)\b'
+      - '\b((?:short|long|curly|straight|wavy)\s+(?:black|brown|blonde|blond|red|gray|grey|auburn|white|dark|light)\s+hair)\b'
     masking:
       strategy: redact
       format: "[PHYSICAL DESC {n}]"
@@ -1140,6 +1167,10 @@ entities:
     enabled: true
     priority: 3
     gliner_label: "employer name, job title, or work history"
+    patterns:
+      - '(?:worked|employed|hired|serving)\s+as\s+([A-Z][A-Za-z\s]{2,40}?)(?=\s+at\s|\s+in\s|\s+from\s|\s+since\s|[,\.])'
+      - '(?:employment\s+history\s+is\s+worked\s+as\s+)([A-Z][A-Za-z\s]{2,40}?)(?=\s+at\s|\s+in\s|[,\.])'
+      - '(?:job\s+title|position|role)\s*[:#=]?\s*([A-Z][A-Za-z\s]{2,40}?)(?=[,\.\n]|$)'
     masking:
       strategy: redact
       format: "[EMPLOYMENT HISTORY {n}]"
@@ -1331,7 +1362,9 @@ entities:
     priority: 1
     gliner_label: "wanted person or fugitive record"
     patterns:
-      - '(?:wanted\s+person|NCIC\s+wanted|fugitive)\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:wanted\s+person|NCIC\s+wanted|fugitive)\s*(?:bulletin|report|#|number)?\s*[:#]?\s*(WP-\d{4,10})'
+      - '(?:wanted\s+person|NCIC\s+wanted|fugitive)\s*(?:bulletin|report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '\b(WP-\d{4,10})\b'
     masking:
       strategy: redact
       format: "[WANTED PERSON {n}]"
@@ -1344,7 +1377,9 @@ entities:
     priority: 1
     gliner_label: "sex offender registration record"
     patterns:
+      - '(?:sex\s+offender|SORA|registered\s+offender)\s*(?:registration|#|number)?\s*[:#]?\s*(SOR-\d{4,8})'
       - '(?:sex\s+offender|SORA|registered\s+offender)\s*(?:registration|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '\b(SOR-\d{4,8})\b'
     masking:
       strategy: redact
       format: "[SEX OFFENDER {n}]"
@@ -1385,7 +1420,8 @@ entities:
     priority: 1
     gliner_label: "identity theft victim report"
     patterns:
-      - '(?:identity\s+theft|ID\s+theft\s+victim)\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:identity\s+theft|ID\s+theft\s+victim)\s*(?:victim\s+record|report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '\b(ITV-[\d\-]{4,12})\b'
     masking:
       strategy: redact
       format: "[ID THEFT VICTIM {n}]"
@@ -1399,6 +1435,7 @@ entities:
     gliner_label: "gang membership or terrorist watchlist"
     patterns:
       - '(?:gang\s+member(?:ship)?|terrorist\s+watchlist|watchlist\s+(?:entry|record))\s*(?:#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '\b(GTM-[\d\-]{4,12})\b'
     masking:
       strategy: redact
       format: "[GANG TERRORIST {n}]"
@@ -1411,7 +1448,10 @@ entities:
     priority: 2
     gliner_label: "supervised release or post-conviction supervision"
     patterns:
-      - '(?:supervised\s+release|supervision\s+record)\s*(?:#|number|no\.?)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:supervised\s+release|supervision\s+record|community\s+supervision)\s*(?:file|#|number|no\.?)?\s*[:#]?\s*(SR-\d{4,10})'
+      - '(?:supervised\s+release|supervision\s+record|community\s+supervision)\s*(?:file|#|number|no\.?)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '\b(SR-\d{4,10})\b'
+      - '\b(CS-\d{4,8})\b'
     masking:
       strategy: redact
       format: "[SUPERVISED RELEASE {n}]"
@@ -1424,7 +1464,8 @@ entities:
     priority: 2
     gliner_label: "probation record or probation number"
     patterns:
-      - '(?:probation\s+(?:number|no\.?|#)|probation\s+record)\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:probation\s+(?:number|no\.?|#|file)|probation\s+record)\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '\b(PR-\d{4,8})\b'
     masking:
       strategy: redact
       format: "[PROBATION {n}]"
@@ -1437,7 +1478,8 @@ entities:
     priority: 2
     gliner_label: "parole record or parole number"
     patterns:
-      - '(?:parole\s+(?:number|no\.?|#)|parole\s+record)\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:parole\s+(?:number|no\.?|#|file)|parole\s+record)\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '\b(PAR-\d{4,8})\b'
     masking:
       strategy: redact
       format: "[PAROLE {n}]"
@@ -1451,8 +1493,7 @@ entities:
     gliner_label: "stolen vehicle report"
     patterns:
       - '(?:stolen\s+vehicle|stolen\s+car|NCIC\s+stolen)\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
-      # SV- bare prefix (GAP-18)
-      - '\b(SV-\d{4,10})\b'
+      - '\b(SV-[\d\-]{4,14})\b'
     masking:
       strategy: redact
       format: "[STOLEN VEHICLE {n}]"
@@ -1466,8 +1507,7 @@ entities:
     gliner_label: "stolen firearm or stolen gun report"
     patterns:
       - '(?:stolen\s+(?:gun|firearm)|NCIC\s+firearm)\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
-      # SG- bare prefix (GAP-18)
-      - '\b(SG-\d{4,10})\b'
+      - '\b(SG-[\d\-]{4,14})\b'
     masking:
       strategy: redact
       format: "[STOLEN GUNS {n}]"
@@ -1481,8 +1521,8 @@ entities:
     gliner_label: "stolen license plate"
     patterns:
       - '(?:stolen\s+(?:plate|license\s+plate))\s*(?:#|number)?\s*[:#]?\s*([A-Z0-9\-]{3,10})'
-      # SPL- bare prefix (GAP-18)
-      - '\b(SPL-\d{3,8})\b'
+      - '\b(SPL-[\d\-]{3,12})\b'
+      - '\b(SLP-[\d\-]{4,12})\b'
     masking:
       strategy: redact
       format: "[STOLEN PLATE {n}]"
@@ -1496,8 +1536,7 @@ entities:
     gliner_label: "stolen boat or vessel report"
     patterns:
       - '(?:stolen\s+(?:boat|vessel|watercraft))\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
-      # SB- bare prefix (GAP-18)
-      - '\b(SB-\d{4,10})\b'
+      - '\b(SB-[\d\-]{4,14})\b'
     masking:
       strategy: redact
       format: "[STOLEN BOAT {n}]"
@@ -1511,8 +1550,7 @@ entities:
     gliner_label: "stolen financial securities report"
     patterns:
       - '(?:stolen\s+(?:securities|bonds|stocks))\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
-      # SS- bare prefix (GAP-18)
-      - '\b(SS-\d{4,10})\b'
+      - '\b(SS-[\d\-]{4,14})\b'
     masking:
       strategy: redact
       format: "[STOLEN SECURITIES {n}]"
@@ -1526,8 +1564,7 @@ entities:
     gliner_label: "stolen property or stolen articles report"
     patterns:
       - '(?:stolen\s+(?:property|articles|goods))\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
-      # SA- bare prefix (GAP-18)
-      - '\b(SA-\d{4,10})\b'
+      - '\b(SA-[\d\-]{4,14})\b'
     masking:
       strategy: redact
       format: "[STOLEN ARTICLES {n}]"
@@ -1579,7 +1616,8 @@ entities:
     gliner_label: "financial dollar amount"
     patterns:
       - '(\$\s*[\d,]+(?:\.\d{1,2})?)\b'
-      - '((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)\s+(?:USD|EUR|GBP|CAD|AUD)\b'
+      - '((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)\s+(?:USD|EUR|GBP|CAD|AUD|INR|JPY|CNY|CHF|MXN|BRL)\b'
+      - '([₹€£¥₩฿]\s*[\d,]+(?:\.\d{1,2})?)\b'
     masking:
       strategy: redact
       format: "[AMOUNT {n}]"
@@ -1691,6 +1729,7 @@ entities:
       - '(\bTAX[-\s]ID[-:#=\s]\s*[A-Za-z0-9][A-Za-z0-9\-]{3,14})\b'
       - '(Tax\s+(?:Identification|ID)\s+(?:Number|No)\s*[-:#=]\s*[A-Za-z0-9][A-Za-z0-9\-]{3,14})'
       - '\b(\d{2}-\d{7})\b'
+      - '\b(TAX_ID_NUMBER-\d{4,10})\b'
     masking:
       strategy: redact
       format: "[TAX ID {n}]"
