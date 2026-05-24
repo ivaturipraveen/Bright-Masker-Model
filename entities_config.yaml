@@ -145,7 +145,7 @@ entities:
     priority: 2
     gliner_label: "street address with house number"
     patterns:
-      - '(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Circles|Terrace|Terr|Highway|Hwy|Parkway|Pkwy|Squares?|Extensions?|Camp|Shoal|Trail|Trace|Roads?|Islands?|Route|Viaduct|Gardens?|Summit|Brook|Plains?|Points?|Center|Alley|Causeway|Prairie|Ports?|Neck|Wall|Coves?|Crescent|Station|Union|Via|Plaza|Tunnel|Springs?|Bend|Creek|Glen|Hill|Hills|Heights|Ridge|Run|Path|Pass|Pike|Row|Walk|Crossing|Landing|Loop|Meadow|Park|Overpass|Bypass|Corridor|Connector|Approach|Access|Drive|Branch|Close|Gate|Green|Grove|Hollow|Knoll|Lake|Manor|Mill|Mount|Mountain|Orchard|Overlook|Pond|Quarter|Ranch|River|Shore|Spur|Terrace|View|Village|Vista|Wood|Yard)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
+      - '(\d{1,6}[ \t]+(?:[A-Za-z0-9\'-]+[ \t]+){1,4}(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Circles|Terrace|Terr|Highway|Hwy|Parkway|Pkwy|Squares?|Extensions?|Camp|Shoal|Trail|Trace|Roads?|Islands?|Route|Viaduct|Gardens?|Summit|Brook|Plains?|Points?|Center|Alley|Causeway|Prairie|Ports?|Neck|Wall|Coves?|Crescent|Station|Union|Via|Plaza|Tunnel|Springs?|Bend|Creek|Glen|Hill|Hills|Heights|Ridge|Run|Path|Pass|Pike|Row|Walk|Crossing|Landing|Loop|Meadow|Park|Overpass|Bypass|Corridor|Connector|Approach|Access|Drive|Branch|Close|Gate|Green|Grove|Hollow|Knoll|Lake|Manor|Mill|Mount|Mountain|Orchard|Overlook|Pond|Quarter|Ranch|River|Shore|Spur|Terrace|View|Village|Vista|Wood|Yard)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
       # Forensic / law-enforcement context: "collected at 8435 Fillmore Road", "found at 123 Main St"
       - '(?:collected\s+at|found\s+at|scene\s+at|located\s+at|crime\s+scene\s+at|residence\s+at|address\s+of)\s+(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Road|Street|Avenue|Boulevard|Drive|Court|Way|Lane|Terrace|Path|Circle|Place|Rd|St|Ave|Blvd|Dr|Ct|Ln|Pl|Terr|Cir|Hwy|Pkwy)\b\.?)'
       # Standalone room / suite / apartment / building number (keyword required)
@@ -606,7 +606,8 @@ entities:
     confidence_threshold: 0.97
     gliner_label: "vehicle license plate number"
     patterns:
-      - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{1,3}[\s\-][A-Z0-9]{2,4}(?:[\s\-][A-Z0-9]{1,4})?)'
+      - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{1,3}[\s\-][A-Z0-9]{2,4})\b'
+      - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{1,3}[\s\-][A-Z0-9]{2,4}[\s\-][A-Z0-9]{1,4})\b'
       - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z]{2}-\d{3,6})'
       - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{5,8})'
     masking:
@@ -863,6 +864,7 @@ entities:
       - 'CAV2?\s*[:#]?\s*(\d{3,4})'
       - 'CID\s*[:#]?\s*(\d{3,4})'
       - 'Security\s+Code\s*[:#]?\s*(\d{3,4})'
+      - 'Card\s+Service\s+Code\s*[:#]?\s*(\d{3})'
     masking:
       strategy: redact
       format: "[CVV {n}]"
@@ -877,7 +879,7 @@ entities:
     priority: 1
     gliner_label: "card magnetic stripe track data"
     patterns:
-      - '(%B\d{13,19}\^[^\^]{1,26}\^\d{4}[^\?]*\?)'
+      - '(%B[\d\.]{6,19}\^[^\^]{1,26}\^\d{4}[^\?]*\?)'
       - '(;\d{13,19}=\d{4}[^?]*\?)'
     masking:
       strategy: redact
@@ -907,8 +909,8 @@ entities:
     priority: 1
     gliner_label: "card transaction cryptogram ARQC"
     patterns:
-      - '\bARQC[-:#]?\s*([A-Za-z0-9]{2,16})\b'
-      - '\bTC-(\d{2,10})\b'
+      - '(\bARQC[-:#]?\s*[A-Za-z0-9]{2,16})\b'
+      - '\b(TC-\d{2,10})\b'
       - '(?:AAC|Cryptogram|Dynamic\s+Auth(?:entication)?(?:\s+Value)?)\s*[-:#]?\s*([A-Fa-f0-9]{4,16})\b'
     masking:
       strategy: redact
@@ -1003,7 +1005,7 @@ entities:
     priority: 2
     gliner_label: "merchant ID MID"
     patterns:
-      - '((?:Merchant\s+ID|MID)\s*[-:#]?\s*[A-Za-z0-9][A-Za-z0-9\-]{2,19})\b'
+      - '(?:Merchant\s+ID|Merchant)\s*[:#]?\s*(MID-[A-Za-z0-9]{2,12})\b'
       - '\b(MID-[A-Za-z0-9]{2,12})\b'
     masking:
       strategy: redact
@@ -1017,7 +1019,7 @@ entities:
     priority: 2
     gliner_label: "terminal ID TID"
     patterns:
-      - '((?:Terminal\s+ID|TID)\s*[-:#]?\s*[A-Za-z0-9][A-Za-z0-9\-]{2,19})\b'
+      - '(?:Terminal\s+ID|Terminal)\s*[:#]?\s*(TID-[A-Za-z0-9]{2,12})\b'
       - '\b(TID-[A-Za-z0-9]{2,12})\b'
     masking:
       strategy: redact
@@ -1323,8 +1325,8 @@ entities:
     priority: 1
     gliner_label: "arrest warrant or search warrant number"
     patterns:
-      - '(?:warrant\s+(?:number|no\.?|#)|arrest\s+warrant\s+#?)\s*[:#]?\s*([A-Z0-9\-\/]{4,20})'
-      - '(?:warrant|Warrant\s+(?:Number|No|#)|arrest\s+warrant)\s*[:#]?\s*(W-\d{3,8})\b'
+      - '(?:warrant\s+(?:number|no\.?|#)|Warrant\s+Data|arrest\s+warrant\s+#?)\s*[:#]?\s*([A-Z0-9\-\/]{4,20})'
+      - '(?:warrant|Warrant\s+(?:Number|No|#|Data)|arrest\s+warrant)\s*[:#=]?\s*(W-\d{3,8})\b'
       # WRT-NNNNNN bare prefix format (GAP-15)
       - '\b(WRT-\d{4,10})\b'
       # "Tracking: W-776" — warrant/case tracking reference
@@ -1559,7 +1561,7 @@ entities:
     priority: 1
     gliner_label: "stolen boat or vessel report"
     patterns:
-      - '(?:stolen\s+(?:boat|vessel|watercraft))\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:stolen\s+(?:boat|vessel|watercraft))\s*(?:reg(?:istration)?|report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(SB-[\d\-]{4,14})\b'
     masking:
       strategy: redact
