@@ -75,6 +75,9 @@ class PatternLayer:
                     display_name=entity_cfg.display_name,
                     confidence=float(result.score),
                     source="pattern",
+                    # Presidio doesn't expose match width separately; treat
+                    # it as having no extra keyword anchor beyond the value.
+                    match_length=result.end - result.start,
                 )
             )
         return spans
@@ -98,6 +101,14 @@ class PatternLayer:
                             value = m.group()
                         if not value:
                             continue
+                        # match_length records the FULL match (m.start..m.end)
+                        # — when the pattern is keyword-anchored
+                        # ("Insurance Policy: A12345678"), the full match
+                        # is wider than the captured value. The span merger
+                        # uses this width as a specificity tiebreaker so
+                        # keyword-anchored patterns dominate bare-format
+                        # patterns that happen to capture the same value.
+                        full_width = m.end() - m.start()
                         spans.append(DetectedSpan(
                             text=value,
                             start=start,
@@ -106,6 +117,7 @@ class PatternLayer:
                             display_name=entity_cfg.display_name,
                             confidence=1.0,
                             source="pattern",
+                            match_length=full_width,
                         ))
                 except re.error as exc:
                     log.warning("custom_pattern_error",

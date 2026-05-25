@@ -269,6 +269,10 @@ class NerLayer:
                 display_name=entity_cfg.display_name,
                 confidence=float(ent["score"]),
                 source="ner",
+                # NER detections have no keyword anchor — match_length
+                # equals the value width. Keyword-anchored pattern
+                # matches will outrank these via the merger tiebreaker.
+                match_length=ent["end"] - ent["start"],
             ))
 
         return spans

@@ -233,11 +233,204 @@ def _gps() -> str:
         return f"{lat}°N, {lon}°W"
     return f"{lat}, -{lon}"
 
+# ---------------------------------------------------------------------------
+# Multicultural name pools — curated to teach the NER model open-vocabulary
+# coverage across major naming traditions. Faker's locale support is
+# inconsistent for some scripts, so we ship hand-picked exemplars.
+# ---------------------------------------------------------------------------
+
+KOREAN_NAMES: list[str] = [
+    "Kim Min Soo", "Park Ji Hye", "Lee Jae Hwan", "Choi Yu Jin",
+    "Jung Min Ho", "Kang Soo Yeon", "Yoon Sang Hyun", "Han Bo Reum",
+    "Cho Min Ji", "Im Tae Yang", "Shin Hye Won", "Oh Joon Ho",
+    "Kim Seo Yeon", "Park Do Hyun", "Lee Eun Jung", "Choi Hyun Woo",
+    "Jang Mi Rae", "Hwang Sung Jin", "Bae Suzy", "Ryu Jun Yeol",
+    "Son Ye Jin", "Hyun Bin", "Gong Yoo", "Bae Doona", "Kim Tae Hee",
+]
+
+CHINESE_NAMES: list[str] = [
+    "Wei Zhang", "Li Chen", "Wang Fang", "Liu Yang", "Zhou Hao",
+    "Sun Mei", "Xu Bing", "Lin Hua", "Yang Tao", "He Lei",
+    "Huang Min", "Zhao Lan", "Xie Ming", "Tang Wei", "Cao Jun",
+    "Zhu Lin", "Deng Yan", "Feng Xiao", "Pan Li", "Luo Jing",
+    "Chen Wei Ming", "Zhang Xue Lian", "Wang Zi Hao", "Li Mei Ling",
+    "Xi Jinping", "Yao Ming", "Lang Lang", "Li Na",
+]
+
+INDIAN_NAMES: list[str] = [
+    "Ananya Reddy", "Rohan Sharma", "Priya Patel", "Arjun Singh",
+    "Kavya Iyer", "Vikram Mehta", "Aditi Kumar", "Rahul Gupta",
+    "Sneha Rao", "Aryan Verma", "Meera Nair", "Karan Malhotra",
+    "Riya Joshi", "Siddharth Banerjee", "Tanvi Desai", "Aniket Bhat",
+    "Pooja Krishnan", "Aakash Agarwal", "Ishaan Chowdhury",
+    "Divya Pillai", "Manav Saxena", "Nisha Bose", "Ritu Tiwari",
+    "Sandeep Yadav", "Kiran Bedi", "Raj Kapoor", "Mukesh Ambani",
+]
+
+JAPANESE_NAMES: list[str] = [
+    "Sakura Tanaka", "Yuki Sato", "Hiroshi Suzuki", "Aiko Watanabe",
+    "Kenji Yamamoto", "Yumi Nakamura", "Takashi Kobayashi",
+    "Misaki Ito", "Daiki Kato", "Hanako Yoshida", "Ren Mori",
+    "Akira Hayashi", "Mei Saito", "Riku Inoue", "Naoko Kimura",
+    "Sho Matsumoto", "Asuka Ono", "Haruto Takahashi", "Yuna Miyazaki",
+    "Shinzo Abe", "Haruki Murakami", "Hayao Miyazaki",
+]
+
+HISPANIC_NAMES: list[str] = [
+    "Maria Garcia", "Juan Carlos Rodriguez", "Sofia Martinez",
+    "Carlos Hernandez", "Isabella Lopez", "Diego Gonzalez",
+    "Camila Perez", "Mateo Sanchez", "Valentina Ramirez",
+    "Lucas Torres", "Alejandro Flores", "Lucia Rivera",
+    "Sebastian Gomez", "Mariana Diaz", "Gabriel Ruiz",
+    "Penelope Cruz", "Lionel Messi", "Frida Kahlo",
+]
+
+ARABIC_NAMES: list[str] = [
+    "Mohammed Al-Saud", "Fatima Hassan", "Ahmed Ali", "Layla Khan",
+    "Omar Abbas", "Aisha Rahman", "Yusuf Ibrahim", "Zara Mahmood",
+    "Khalid Bin Salman", "Noor Al-Zahra", "Hassan Al-Maktoum",
+    "Mariam El-Sayed", "Tariq Aziz", "Yasmin Saleh",
+]
+
+RUSSIAN_NAMES: list[str] = [
+    "Vladimir Petrov", "Anastasia Ivanova", "Dmitri Sokolov",
+    "Ekaterina Smirnova", "Sergei Volkov", "Olga Kuznetsova",
+    "Mikhail Popov", "Natalia Vasilyeva", "Alexei Lebedev",
+    "Tatyana Morozova", "Igor Novikov", "Yuri Pavlov",
+]
+
+EUROPEAN_NAMES: list[str] = [
+    "Sophie Dubois", "Pierre Lefevre", "Hans Müller", "Greta Schmidt",
+    "Giuseppe Rossi", "Elena Bianchi", "Antonio Ferreira",
+    "Beatriz Silva", "Lars Eriksson", "Astrid Hansen", "Jan Kowalski",
+    "Hanna Nowak", "Ana Sofia Nogueira",
+]
+
+NICKNAMES_POOL: list[str] = [
+    "Kate", "Bob", "Liz", "Tom", "Sam", "Joe", "Pat", "Mike",
+    "Sue", "Beth", "Dan", "Jim", "Ben", "Tim", "Jen", "Will",
+    "Chris", "Rob", "Steve", "Andy", "Maddie", "Cathy", "Ginny",
+]
+
+NAME_SUFFIXES: list[str] = ["Jr.", "Sr.", "II", "III", "IV", "PhD", "Esq."]
+
+GENEALOGY_PREFIXES: list[str] = ["S/o", "D/o", "W/o", "C/o"]
+
+
+def _intl_name() -> str:
+    """Pick from a curated multicultural name pool."""
+    pool = random.choice([
+        KOREAN_NAMES, CHINESE_NAMES, INDIAN_NAMES, JAPANESE_NAMES,
+        HISPANIC_NAMES, ARABIC_NAMES, RUSSIAN_NAMES, EUROPEAN_NAMES,
+    ])
+    return random.choice(pool)
+
+
+def _name_two_initials_surname() -> str:
+    """Return name like 'K. W. Smith' (two initials + surname)."""
+    a = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    b = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    return f"{a}. {b}. {fake.last_name()}"
+
+
+def _name_with_middle_initial() -> str:
+    """Return name like 'Kate W. Smith' or 'Alex M. Johnson'."""
+    mid = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    return f"{fake.first_name()} {mid}. {fake.last_name()}"
+
+
+def _name_with_initial_first_and_middle() -> str:
+    """Return name like 'K. Kate W.' (initial first + name + initial last)."""
+    a = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    b = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    return f"{a}. {fake.first_name()} {b}."
+
+
+def _name_with_nickname() -> str:
+    """Return name like 'Katherine \"Kate\" Doe'."""
+    full = fake.first_name()
+    nick = random.choice(NICKNAMES_POOL)
+    return f'{full} "{nick}" {fake.last_name()}'
+
+
+def _name_with_suffix() -> str:
+    """Return name like 'Alex Johnson Jr.' or 'John Smith III'."""
+    return f"{fake.first_name()} {fake.last_name()} {random.choice(NAME_SUFFIXES)}"
+
+
+def _name_with_genealogy_prefix() -> str:
+    """Return name like 'S/o Robert Smith' (Indian-style filiation marker)."""
+    return f"{random.choice(GENEALOGY_PREFIXES)} {fake.first_name()} {fake.last_name()}"
+
+
+def _name_all_caps() -> str:
+    """Return all-caps name like 'KATE SMITH' or single-token 'KATE'."""
+    if random.random() < 0.4:
+        return random.choice(NICKNAMES_POOL).upper()
+    return f"{fake.first_name().upper()} {fake.last_name().upper()}"
+
+
+def _name_single_token() -> str:
+    """Return a single-token name (just first name or just nickname)."""
+    if random.random() < 0.5:
+        return fake.first_name()
+    return random.choice(NICKNAMES_POOL)
+
+
+def _name_initial_plus_first() -> str:
+    """Return name like 'K Kate' (single uppercase letter + first name)."""
+    initial = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    return f"{initial} {random.choice(NICKNAMES_POOL)}"
+
+
 def _first_last() -> str:
-    if random.random() < 0.3:
-        # GAP-23: 30% middle initial format
-        mid = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-        return f"{fake.first_name()} {mid}. {fake.last_name()}"
+    """Multi-form, multi-cultural name generator.
+
+    Distribution is calibrated to roughly mirror real-world naming variation
+    in clinical/financial documents: standard Western names dominate but
+    edge cases (initials, nicknames, multicultural, all-caps, suffixes) get
+    enough representation for the NER model to generalize.
+    """
+    form = random.choices(
+        [
+            "faker_basic",          # Mike Smith
+            "faker_with_middle",    # Mike S. Smith
+            "intl",                 # Wei Zhang / Sakura Tanaka / Ananya Reddy / Kim Min Soo
+            "two_initials_surname", # K. W. Smith
+            "initial_first_middle", # K. Kate W.
+            "nickname_quoted",      # Katherine "Kate" Doe
+            "with_suffix",          # Alex Johnson Jr.
+            "all_caps",             # KATE SMITH or KATE
+            "single_token",         # Kate
+            "initial_plus_first",   # K Kate
+            "genealogy_prefix",     # S/o Robert Smith
+        ],
+        weights=[28, 14, 18, 6, 5, 5, 4, 5, 6, 5, 4],
+        k=1,
+    )[0]
+
+    if form == "faker_basic":
+        return f"{fake.first_name()} {fake.last_name()}"
+    if form == "faker_with_middle":
+        return _name_with_middle_initial()
+    if form == "intl":
+        return _intl_name()
+    if form == "two_initials_surname":
+        return _name_two_initials_surname()
+    if form == "initial_first_middle":
+        return _name_with_initial_first_and_middle()
+    if form == "nickname_quoted":
+        return _name_with_nickname()
+    if form == "with_suffix":
+        return _name_with_suffix()
+    if form == "all_caps":
+        return _name_all_caps()
+    if form == "single_token":
+        return _name_single_token()
+    if form == "initial_plus_first":
+        return _name_initial_plus_first()
+    if form == "genealogy_prefix":
+        return _name_with_genealogy_prefix()
     return f"{fake.first_name()} {fake.last_name()}"
 
 def _street_address() -> str:
@@ -273,14 +466,269 @@ def _city() -> str:
 def _email() -> str:
     return fake.email()
 
+# ────────────────────────────────────────────────────────────────────────────
+# Organization-name pool — Group B (second batch)
+# ────────────────────────────────────────────────────────────────────────────
+# A diverse pool of company / nonprofit / government / research / startup
+# organization names. Covers the production failure modes:
+#   • Multi-word adjective-style names (Bright Future Solutions, Quantum AI Labs)
+#   • Industry-suffix variants (Inc., LLC, Ltd., Corp., GmbH, S.A., Pvt Ltd)
+#   • Foundation / charity (Helping Hands Foundation)
+#   • Government bodies (Department of Public Services)
+#   • International / ANZ / EU / APAC examples
+#   • Real-world brands (OpenAI Technologies, Tata Consultancy Services)
+#   • Acronym / initialism variants (HH Foundation, NGI Solutions, Apex Inc.)
+
+_ORG_PREFIXES = [
+    "Bright", "Global", "NextGen", "Visionary", "Apex", "Quantum", "Pinnacle",
+    "Horizon", "Future", "Helping Hands", "Department of", "Bureau of",
+    "Ministry of", "National", "International", "Metro", "Urban", "Pacific",
+    "Atlantic", "Premier", "Prime", "Titan", "Stellar", "Phoenix", "Vertex",
+    "Catalyst", "Innovate", "Synergy", "Vanguard", "Crestline", "Aurora",
+    "Lumina", "Beacon", "Summit", "Pillar", "Cascade", "Velocity",
+    "Northstar", "Silverline", "Goldline", "Frontier", "Compass", "Origin",
+    "Polaris", "Constellation", "Sterling", "Ironclad", "Ascend", "Elevate",
+    "United", "Allied", "Coastal", "Highland", "Lakeshore", "Riverstone",
+    "Sapphire", "Emerald", "Sunset", "Daybreak", "Eastline", "Westfield",
+    "Trustline", "Heritage", "Legacy", "Insight", "Foresight",
+    # Real / well-known brands (helps the model recognise common patterns)
+    "OpenAI", "Tata", "Infosys", "Wipro", "Cognizant", "Accenture", "Capgemini",
+    "Microsoft", "Salesforce", "Oracle", "Adobe", "IBM", "Intel", "Cisco",
+    "World Health", "United Nations", "Red Cross", "Amnesty",
+]
+
+_ORG_MID = [
+    "Future", "Tech", "Technologies", "Systems", "AI", "Data", "Cloud",
+    "Digital", "Software", "Hardware", "Capital", "Holdings", "Ventures",
+    "Energy", "Logistics", "Health", "BioPharma", "Pharma", "Diagnostics",
+    "Robotics", "Analytics", "Networks", "Solutions", "Communications",
+    "Media", "Broadcasting", "Research", "Manufacturing", "Logistics",
+    "Transit", "Public", "Civil", "Workforce", "Labour", "Education",
+    "Science", "Mobility", "Aerospace", "Marine", "Mining", "Construction",
+    "Insurance", "Banking", "Financial", "Investment", "Equity", "Wealth",
+    "Studio", "Innovation", "Advisory", "Global", "Strategic",
+    # Organization-type adjectives the user examples lean on
+    "Consulting", "Retail", "Transportation", "Media", "Research", "Startup",
+    "Manufacturing", "Government", "Nonprofit", "Education", "Quantum",
+]
+
+# Suffixes alone aren't an org name — they MUST follow at least one prefix
+# (and usually a mid-segment too). Distribution-weighted to mirror reality.
+_ORG_SUFFIXES = [
+    "Inc.", "Inc", "LLC", "LLC.", "Ltd.", "Ltd", "Co.", "Corp.",
+    "Corporation", "Holdings", "Group", "Group LLC", "Holdings Inc.",
+    "Global Inc.", "International Ltd.", "Pvt Ltd", "Pvt. Ltd.", "Private Limited",
+    "PLC", "P.C.", "LLP", "Partners", "Partners LLP",
+    "GmbH", "AG", "S.A.", "S.A. de C.V.", "B.V.", "N.V.", "Pty Ltd",
+    "Foundation", "Trust", "Council", "Society", "Association", "Alliance",
+    "Consortium", "Institute", "Labs", "Studios", "Ventures",
+    "Department", "Ministry", "Bureau", "Agency", "Authority", "Commission",
+    "Network", "Networks", "Services", "Systems", "Solutions", "Technologies",
+]
+
+# Curated real-world examples — used 15 % of the time so the model anchors
+# its understanding of organization shape against well-known brands.
+_ORG_KNOWN: list[str] = [
+    "OpenAI Technologies", "Bright Future Solutions", "Global Tech Systems",
+    "NextGen Innovations", "National Research Institute", "Apex Holdings Inc.",
+    "Helping Hands Foundation", "Department of Public Services",
+    "Quantum AI Labs", "Visionary Apps Studio", "Prime Advisory Group",
+    "Urban Market Retailers", "Metro Transit Authority",
+    "Titan Manufacturing Co.", "Horizon Broadcasting Network",
+    "Future Science Consortium", "United Nations", "World Health Organization",
+    "Tata Consultancy Services", "Infosys Limited", "Wipro Technologies",
+    "Cognizant Technology Solutions", "Accenture plc", "Capgemini SE",
+    "Microsoft Corporation", "Oracle Corporation", "Salesforce, Inc.",
+    "Adobe Systems Incorporated", "International Business Machines",
+    "Intel Corporation", "Cisco Systems, Inc.", "Pfizer Inc.",
+    "Johnson & Johnson", "Mayo Clinic Foundation", "Cleveland Clinic Foundation",
+    "American Red Cross", "Doctors Without Borders", "Bill & Melinda Gates Foundation",
+    "International Monetary Fund", "Federal Reserve Bank",
+    "Bay Area Rapid Transit", "Federal Bureau of Investigation",
+    "Centers for Disease Control", "Department of Veterans Affairs",
+    "European Central Bank", "United Way Worldwide", "UNICEF",
+    "Federal Aviation Administration", "Department of Defense",
+]
+
+# Acronym / initialism organization names (e.g. "HH Foundation", "NGI Solutions",
+# "MTA Transit", "NRI Institute", "Apex Inc.", "QAILabs"). The user examples
+# included these short forms, so we generate them as a distinct shape so the
+# NER model learns to recognise abbreviated org names too.
+_ORG_ACRONYM_SUFFIXES = [
+    "Solutions", "Institute", "Foundation", "Inc.", "LLC", "Group",
+    "Holdings", "Agency", "Transit", "Labs", "Foundation", "Services",
+    "Networks", "Authority", "Council", "Society", "Foundation", "Studio",
+]
+
+
 def _company() -> str:
+    """Generate a diverse organization name.
+
+    Distribution:
+      • 15 % real-world / curated examples (anchors well-known shapes)
+      • 25 % prefix + suffix      ("Apex Holdings", "Bright Foundation")
+      • 25 % prefix + mid + suffix ("Bright Future Solutions",
+                                     "Quantum AI Labs",
+                                     "Department of Public Services")
+      • 15 % acronym + suffix       ("NGI Solutions", "HH Foundation")
+      • 10 % "<Prefix> & <Prefix>" / "<Prefix>-<Mid>"   (compound brands)
+      •  5 % Faker fallback         (random plausible org for variety)
+      •  5 % "<X> of <Region>"      ("Department of Public Services",
+                                     "Bureau of Workforce Statistics")
+    """
+    form = random.choices(
+        ["known", "prefix_suffix", "prefix_mid_suffix",
+         "acronym_suffix", "compound", "of_phrase", "faker"],
+        weights=[15, 25, 25, 15, 10, 5, 5],
+        k=1,
+    )[0]
+
+    if form == "known":
+        return random.choice(_ORG_KNOWN)
+
+    if form == "prefix_suffix":
+        return f"{random.choice(_ORG_PREFIXES)} {random.choice(_ORG_SUFFIXES)}"
+
+    if form == "prefix_mid_suffix":
+        # 50 % chance to drop the suffix (e.g. "Bright Future Solutions"
+        # already feels complete without "Inc.").
+        prefix = random.choice(_ORG_PREFIXES)
+        mid = random.choice(_ORG_MID)
+        if random.random() < 0.5:
+            return f"{prefix} {mid} {random.choice(_ORG_SUFFIXES)}"
+        # Two-mid form: "Bright Future Tech Solutions"
+        if random.random() < 0.4:
+            mid2 = random.choice(_ORG_MID)
+            if mid2 != mid:
+                return f"{prefix} {mid} {mid2}"
+        return f"{prefix} {mid} {random.choice(['Solutions', 'Systems', 'Labs', 'Studio', 'Studios', 'Group', 'Network', 'Services', 'Holdings', 'Innovations', 'Consortium', 'Institute', 'Authority'])}"
+
+    if form == "acronym_suffix":
+        # Build a 2-3 letter acronym from a phrase.
+        n_letters = random.choice([2, 3, 3, 4])
+        acronym = "".join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                          for _ in range(n_letters))
+        return f"{acronym} {random.choice(_ORG_ACRONYM_SUFFIXES)}"
+
+    if form == "compound":
+        # "Smith & Johnson Holdings", "Brown-Carter Group"
+        a = random.choice(_ORG_PREFIXES)
+        b = random.choice(_ORG_PREFIXES)
+        joiner = random.choice([" & ", "-", " and "])
+        return f"{a}{joiner}{b} {random.choice(_ORG_SUFFIXES)}"
+
+    if form == "of_phrase":
+        head = random.choice([
+            "Department", "Bureau", "Ministry", "Agency", "Office",
+            "Council", "Commission", "Authority", "Institute", "Society",
+        ])
+        topic = random.choice([
+            "Public Services", "Workforce Statistics", "Civil Aviation",
+            "Health and Human Services", "Transportation", "Education",
+            "Veterans Affairs", "Public Safety", "Foreign Affairs",
+            "Internal Revenue", "Energy", "Commerce", "Labor",
+            "Children and Families", "Consumer Protection",
+            "Environmental Protection", "Health and Wellness",
+            "Industrial Relations", "Trade and Industry",
+        ])
+        return f"{head} of {topic}"
+
     return fake.company()
 
+
+_HOSPITAL_GENERIC_ADJ = [
+    "Regional", "Community", "General", "Central", "Pacific", "Northern",
+    "Valley", "Riverside", "University", "Metropolitan", "Lakeside",
+    "St. Mary's", "St. Joseph", "Holy Cross", "Mercy", "Sacred Heart",
+    "Saint Luke's", "Memorial", "Eastside", "Westside", "Southside",
+]
+
+_HOSPITAL_GENERIC_NOUN = [
+    "Medical Center", "Hospital", "Health System", "Memorial Hospital",
+    "Healthcare", "Medical Group", "Medical Pavilion",
+]
+
+# Specialty / niche facility taxonomy — the failing samples in production
+# clustered here (women's clinics, rehab, dental, trauma, urgent care, etc.).
+_HOSPITAL_SPECIALTY_TEMPLATES = [
+    # Trauma / emergency centers
+    ("{adj} Trauma Center", ["Metro", "Citywide", "Riverside", "Pacific",
+                              "University", "Regional", "Northern", "St. Vincent's"]),
+    ("Level {n} Trauma Center", ["1", "2", "3", "I", "II", "III", "IV"]),
+    # Rehabilitation / recovery
+    ("{adj} Rehab Center", ["Restore", "Recovery", "Phoenix", "New Hope",
+                              "Sunrise", "Renew", "Bridge", "Pathways"]),
+    ("{adj} Rehabilitation Hospital", ["Premier", "Lakeside", "Hilltop",
+                                          "Coastal", "Mountain View", "Magnolia"]),
+    ("{adj} Physical Therapy Center", ["AthletiCare", "Motion", "Active Life",
+                                          "ProRehab", "Velocity"]),
+    # Dental / Oral
+    ("{adj} Dental Center", ["BrightSmile", "Pearl", "GentleCare",
+                               "Family", "Aspen", "Smile Studio"]),
+    ("{adj} Dental Clinic", ["Sunshine", "Healthy Teeth", "Crystal",
+                               "Premier", "Cornerstone"]),
+    ("{adj} Oral Surgery Center", ["Atlantic", "Summit", "Pioneer", "Capital"]),
+    # Women's / OB-GYN / fertility
+    ("{adj} Women's Clinic", ["Grace", "Hope", "Lotus", "Wellness",
+                                "Bayside", "Harmony", "Serenity"]),
+    ("{adj} Women's Health Center", ["Aurora", "Crescent", "Maple",
+                                        "Northstar", "Evergreen"]),
+    ("{adj} OB-GYN Associates", ["Spring Valley", "Riverstone", "Coastal",
+                                   "Garden State", "Magnolia"]),
+    ("{adj} Fertility Clinic", ["Dawn", "New Beginnings", "Genesis",
+                                  "Bloom", "First Steps"]),
+    # Mental / behavioral health
+    ("{adj} Behavioral Health Center", ["Cornerstone", "Beacon", "Clearview",
+                                           "Cedar", "Tranquil", "Mindful Path"]),
+    ("{adj} Mental Health Clinic", ["Compass", "Anchor", "Pinecrest",
+                                      "Riverbend", "Quiet Waters"]),
+    ("{adj} Psychiatric Hospital", ["Sunrise", "Crestview", "Greenfield",
+                                       "Hilltop", "Forest Glen"]),
+    # Urgent care / walk-in
+    ("{adj} Urgent Care", ["FastMed", "QuickCare", "PremierCare",
+                             "MinuteMed", "EZ-Health", "RapidCare"]),
+    ("{adj} Walk-In Clinic", ["Sunrise", "Cornerstone", "Anytime",
+                                "Citywide", "Lakeside"]),
+    # Surgical / specialty
+    ("{adj} Surgical Center", ["Apex", "Vanguard", "Premier", "Pinnacle",
+                                  "MedStar", "Crossroads"]),
+    ("{adj} Cardiac Center", ["Heart Stream", "Cardio Plus", "VitalHeart",
+                                 "Pulse", "BeatCare"]),
+    ("{adj} Cancer Center", ["Hope", "Beacon", "Magnolia", "Horizon",
+                                "Wellspring", "Cornerstone Oncology"]),
+    ("{adj} Eye Institute", ["Vision", "ClearSight", "Crystal",
+                                "EyeCare", "OptiVision"]),
+    ("{adj} Orthopedic Hospital", ["BoneCare", "Sterling", "Joint Health",
+                                       "Apex", "Premier"]),
+    ("{adj} Children's Hospital", ["Rainbow", "Little Stars", "Sunshine",
+                                       "Hopeful Hearts", "Bumblebee"]),
+    # Diagnostic / imaging
+    ("{adj} Diagnostic Center", ["Insight", "Clarity", "Apex",
+                                    "Beacon", "Premier"]),
+    ("{adj} Imaging Center", ["Crystal", "Clear View", "Premier",
+                                "Pinnacle", "Apex"]),
+    # Hospice / Long-term
+    ("{adj} Hospice", ["Peaceful Path", "Compassionate Care", "Serenity",
+                          "Twilight", "Restful Haven"]),
+    ("{adj} Skilled Nursing Facility", ["Maplewood", "Pinecrest",
+                                            "Oakwood", "Brookhaven"]),
+    # Animal / Veterinary (some PII flows mention vet records when caregiver overlaps)
+    ("{adj} Veterinary Hospital", ["PetCare", "Companion", "Animal Health",
+                                       "Furry Friends"]),
+]
+
+
 def _hospital() -> str:
-    adj = ["Regional","Community","General","Central","Pacific","Northern",
-           "Valley","Riverside","University","Metropolitan","Lakeside"]
-    noun = ["Medical Center","Hospital","Health System","Memorial Hospital","Healthcare"]
-    return f"{random.choice(adj)} {random.choice(noun)}"
+    """Generate a hospital / medical-facility name with broad taxonomy coverage.
+
+    Distribution: 55% generic hospital ('General Hospital'), 45% specialty
+    facility ('Grace Women's Clinic', 'BrightSmile Dental Center', etc.).
+    """
+    if random.random() < 0.55:
+        return f"{random.choice(_HOSPITAL_GENERIC_ADJ)} {random.choice(_HOSPITAL_GENERIC_NOUN)}"
+
+    template, adj_pool = random.choice(_HOSPITAL_SPECIALTY_TEMPLATES)
+    return template.format(adj=random.choice(adj_pool), n=random.choice(adj_pool))
 
 def _bank_name() -> str:
     return random.choice(["First National Bank","City Savings Bank","Heritage Credit Union",
@@ -463,18 +911,143 @@ def _physical_desc() -> str:
     hair = random.choice(["brown hair","black hair","blonde hair","red hair","gray hair"])
     return f"{height}, {weight}, {hair}"
 
+# Generic-name medications (active ingredient) — used in clinical notes
+_GENERIC_DRUGS = [
+    "Metformin", "Lisinopril", "Atorvastatin", "Amlodipine", "Omeprazole",
+    "Albuterol", "Prednisone", "Sertraline", "Levothyroxine", "Gabapentin",
+    "Amoxicillin", "Metoprolol", "Ibuprofen", "Acetaminophen", "Aspirin",
+    "Cetirizine", "Loratadine", "Fluoxetine", "Citalopram", "Escitalopram",
+    "Hydrochlorothiazide", "Losartan", "Valsartan", "Simvastatin",
+    "Rosuvastatin", "Pantoprazole", "Esomeprazole", "Ranitidine",
+    "Famotidine", "Ondansetron", "Tramadol", "Hydrocodone", "Oxycodone",
+    "Codeine", "Morphine", "Diazepam", "Lorazepam", "Alprazolam",
+    "Clonazepam", "Zolpidem", "Trazodone", "Bupropion", "Venlafaxine",
+    "Duloxetine", "Mirtazapine", "Quetiapine", "Risperidone", "Aripiprazole",
+    "Olanzapine", "Lamotrigine", "Topiramate", "Levetiracetam",
+    "Doxycycline", "Azithromycin", "Ciprofloxacin", "Levofloxacin",
+    "Cephalexin", "Clindamycin", "Trimethoprim", "Sulfamethoxazole",
+    "Glimepiride", "Glipizide", "Sitagliptin", "Empagliflozin",
+    "Dapagliflozin", "Liraglutide", "Semaglutide", "Naproxen", "Heparin",
+    "Warfarin", "Apixaban", "Rivaroxaban", "Clopidogrel", "Furosemide",
+    "Spironolactone", "Carvedilol", "Bisoprolol", "Diltiazem", "Verapamil",
+    "Tamsulosin", "Finasteride", "Sildenafil", "Tadalafil", "Tacrolimus",
+    "Methotrexate", "Adalimumab", "Etanercept", "Infliximab",
+]
+
+# Common consumer brand names — what patients actually call their meds
+_BRAND_DRUGS = [
+    "Tylenol", "Tylenol Extra Strength", "Advil", "Motrin", "Aleve",
+    "Excedrin", "Bayer Aspirin", "Benadryl", "Claritin", "Zyrtec",
+    "Allegra", "Mucinex", "Robitussin", "Sudafed", "DayQuil",
+    "NyQuil", "Pepto-Bismol", "Imodium", "Tums", "Rolaids", "Zantac",
+    "Augmentin", "Lipitor", "Crestor", "Zocor", "Synthroid",
+    "Levaquin", "Cipro", "Bactrim", "Z-Pak", "Amoxil", "Keflex",
+    "Prozac", "Zoloft", "Lexapro", "Celexa", "Effexor", "Paxil",
+    "Wellbutrin", "Cymbalta", "Abilify", "Seroquel", "Risperdal",
+    "Xanax", "Ativan", "Klonopin", "Valium", "Ambien", "Lunesta",
+    "Norco", "Vicodin", "Percocet", "OxyContin", "Suboxone",
+    "Adderall", "Ritalin", "Concerta", "Vyvanse", "Strattera",
+    "Ventolin Inhaler", "ProAir", "Symbicort", "Advair Diskus",
+    "Spiriva", "Flonase", "Nasonex", "Singulair", "Flovent",
+    "Lantus", "Humalog", "Novolog", "Levemir", "Tresiba",
+    "Toujeo", "Basaglar", "Trulicity", "Ozempic", "Victoza",
+    "Mounjaro", "Wegovy", "Jardiance", "Farxiga", "Invokana",
+    "Januvia", "Glucophage", "Eliquis", "Xarelto", "Pradaxa",
+    "Plavix", "Coumadin", "Lasix", "Aldactone", "Lopressor",
+    "Toprol XL", "Tenormin", "Norvasc", "Cardizem", "Inderal",
+    "Cozaar", "Diovan", "Benicar", "Lotensin", "Zestril",
+    "Lipitor 20mg", "Crestor 10mg", "Synthroid 50mcg",
+    # India-specific common brands (the failing examples included these)
+    "Crocin", "Crocin 650", "Panadol", "Disprin", "Combiflam",
+    "Dolo 650", "Pantop", "Pan 40", "Ecosprin", "Voveran",
+]
+
+_DRUG_DOSAGES = [
+    "5mg", "10mg", "20mg", "25mg", "40mg", "50mg", "75mg",
+    "100mg", "150mg", "200mg", "250mg", "300mg", "400mg",
+    "500mg", "650mg", "750mg", "1000mg",
+    "5 mg", "10 mg", "20 mg", "100 mg", "200 mg", "250 mg",
+    "500 mg", "650 mg",
+    # Uppercase MG variant ("Ibuprofen 200 MG Tablet" — user example)
+    "200 MG", "250 MG", "500 MG", "650 MG", "1000 MG",
+    "25mcg", "50mcg", "75mcg", "100mcg", "150mcg",
+    "100 units/mL", "300 units/mL",
+    # Volumetric forms ("Insulin Injection 10ml" — user example)
+    "10ml", "30ml", "50ml", "100ml", "200ml", "5 ml", "10 ml",
+    "30 ml", "100 ml",
+]
+
+_DRUG_FORMS = [
+    "Tablet", "Tablets", "Capsule", "Capsules", "Injection",
+    "Inhaler", "Suspension", "Syrup", "Solution", "Spray",
+    "Cream", "Ointment", "Patch", "Drops", "Powder",
+    "ER", "XR", "SR", "CR", "DR",
+]
+
+# Pharmaceutical salt / form descriptors used in branded preparations.
+# Real examples: "Albuterol Sulfate Inhaler", "Losartan Potassium 50mg",
+# "Metoprolol Succinate", "Hydroxyzine Hydrochloride".
+_DRUG_SALTS = [
+    "Sulfate", "Potassium", "Sodium", "Hydrochloride", "HCl", "Succinate",
+    "Tartrate", "Maleate", "Fumarate", "Citrate", "Mesylate", "Acetate",
+    "Phosphate", "Calcium", "Bromide",
+]
+
+
 def _medication() -> str:
-    return random.choice([
-        "Metformin 500mg", "Lisinopril 10mg", "Atorvastatin 40mg",
-        "Amlodipine 5mg", "Omeprazole 20mg", "Albuterol 90mcg",
-        "Prednisone 20mg", "Sertraline 50mg", "Levothyroxine 100mcg",
-        "Gabapentin 300mg", "Amoxicillin 500mg", "Metoprolol 25mg",
-        # GAP: insulin formulations
-        "Insulin glargine 100 units/mL", "Insulin aspart 100 units/mL",
-        "Insulin lispro 100 units/mL", "Basaglar 100 units/mL",
-        "Toujeo 300 units/mL", "Tresiba 100 units/mL",
-        "Lantus 100 units/mL", "Humalog 100 units/mL",
-    ])
+    """Generate a medication name with diverse forms.
+
+    Distribution:
+      • 22 % generic name alone           ("Metformin")
+      • 18 % generic + dose                ("Metformin 500mg")
+      • 18 % brand alone                   ("Tylenol", "Crocin 650")
+      • 14 % brand + dose                  ("Lipitor 20mg")
+      •  8 % generic + dose + form         ("Amoxicillin 250mg Capsule")
+      •  6 % brand + form                  ("Ventolin Inhaler")
+      •  6 % generic + salt                ("Losartan Potassium")
+      •  5 % generic + salt + dose         ("Losartan Potassium 50mg")
+      •  3 % generic + salt + form         ("Albuterol Sulfate Inhaler")
+    """
+    form = random.choices(
+        [
+            "generic", "generic_dose", "brand", "brand_dose",
+            "generic_dose_form", "brand_form", "generic_salt",
+            "generic_salt_dose", "generic_salt_form",
+        ],
+        weights=[22, 18, 18, 14, 8, 6, 6, 5, 3],
+        k=1,
+    )[0]
+
+    if form == "generic":
+        return random.choice(_GENERIC_DRUGS)
+    if form == "generic_dose":
+        return f"{random.choice(_GENERIC_DRUGS)} {random.choice(_DRUG_DOSAGES)}"
+    if form == "brand":
+        return random.choice(_BRAND_DRUGS)
+    if form == "brand_dose":
+        # Some brand names already include a dosage; only append for those that don't
+        b = random.choice(_BRAND_DRUGS)
+        if any(d.replace(" ", "") in b.replace(" ", "") for d in ("mg", "mcg", "ml")):
+            return b
+        return f"{b} {random.choice(_DRUG_DOSAGES)}"
+    if form == "generic_dose_form":
+        return (f"{random.choice(_GENERIC_DRUGS)} "
+                f"{random.choice(_DRUG_DOSAGES)} "
+                f"{random.choice(_DRUG_FORMS)}")
+    if form == "brand_form":
+        b = random.choice(_BRAND_DRUGS)
+        return f"{b} {random.choice(_DRUG_FORMS)}"
+    if form == "generic_salt":
+        return f"{random.choice(_GENERIC_DRUGS)} {random.choice(_DRUG_SALTS)}"
+    if form == "generic_salt_dose":
+        return (f"{random.choice(_GENERIC_DRUGS)} "
+                f"{random.choice(_DRUG_SALTS)} "
+                f"{random.choice(_DRUG_DOSAGES)}")
+    if form == "generic_salt_form":
+        return (f"{random.choice(_GENERIC_DRUGS)} "
+                f"{random.choice(_DRUG_SALTS)} "
+                f"{random.choice(_DRUG_FORMS)}")
+    return random.choice(_GENERIC_DRUGS)
 
 def _job_title() -> str:
     return fake.job()
@@ -528,9 +1101,54 @@ def _username_bare() -> str:
 # ---------------------------------------------------------------------------
 
 def _physician_name() -> str:
-    titles = ["Dr.", "Doctor"]
-    title = random.choice(titles)
-    return f"{title} {fake.first_name()} {fake.last_name()}"
+    """Multi-form physician/doctor name generator.
+
+    Mirrors the diversity in _first_last() but always with a 'Dr.' / 'Doctor'
+    prefix and occasionally an 'MD' / 'DO' / 'DDS' suffix.
+    """
+    title = random.choice(["Dr.", "Doctor", "Dr"])
+    suffix = random.choices(
+        ["", ", MD", ", DO", ", DDS", ", MD, PhD", ", FACS"],
+        weights=[55, 22, 6, 4, 7, 6],
+        k=1,
+    )[0]
+
+    form = random.choices(
+        [
+            "basic",                # Dr. Mike Smith
+            "with_middle_initial",  # Dr. Mike S. Smith
+            "intl",                 # Dr. Kim Min Soo / Dr. Wei Zhang
+            "two_initials_surname", # Dr. K. W. Smith
+            "single_letter_middle", # Dr. Kate M.
+            "nickname_quoted",      # Dr. Katherine "Kate" Doe
+            "surname_only",         # Dr. Smith
+            "with_suffix",          # Dr. Alex Johnson Jr.
+        ],
+        weights=[36, 16, 14, 6, 8, 8, 8, 4],
+        k=1,
+    )[0]
+
+    if form == "basic":
+        body = f"{fake.first_name()} {fake.last_name()}"
+    elif form == "with_middle_initial":
+        body = _name_with_middle_initial()
+    elif form == "intl":
+        body = _intl_name()
+    elif form == "two_initials_surname":
+        body = _name_two_initials_surname()
+    elif form == "single_letter_middle":
+        # "Dr. Kate M." — single-letter middle, no surname
+        body = f"{fake.first_name()} {random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}."
+    elif form == "nickname_quoted":
+        body = _name_with_nickname()
+    elif form == "surname_only":
+        body = fake.last_name()
+    elif form == "with_suffix":
+        body = _name_with_suffix()
+    else:
+        body = f"{fake.first_name()} {fake.last_name()}"
+
+    return f"{title} {body}{suffix}"
 
 def _card_holder() -> str:
     return f"{fake.first_name().upper()} {fake.last_name().upper()}"
@@ -561,6 +1179,37 @@ ENTITY_DEFS: dict[str, dict] = {
             "Authorized by {value}",
             "Licensed provider: {value}",
             "Clinician: {value}",
+            # Quoted-nickname and edge-case variants
+            "Cardiologist: {value}",
+            "Oncologist: {value}",
+            "Pediatrician: {value}",
+            "Radiologist on call: {value}",
+            "Anesthesiologist: {value}",
+            "Pathologist: {value}",
+            "Neurologist consulted: {value}",
+            "Orthopedic surgeon: {value}",
+            "Dermatologist: {value}",
+            "Psychiatrist: {value}",
+            "OB-GYN: {value}",
+            "Resident on duty: {value}",
+            "Chief of staff: {value}",
+            "Department head: {value}",
+            "Medical director: {value}",
+            "Board-certified physician: {value}",
+            "On-call provider: {value}",
+            "The dictating physician was {value}.",
+            "Co-signed by {value}.",
+            "Reviewed by {value}.",
+            "{value} authored the discharge summary.",
+            "{value} ordered the imaging study.",
+            "Telehealth consult with {value}.",
+            "Pre-op evaluation by {value}.",
+            "Post-op visit with {value}.",
+            "{value} was the operating surgeon.",
+            "{value} is the patient's PCP.",
+            # Multicultural / international physician contexts
+            "International physician {value} licensed to practice.",
+            "Visiting consultant: {value}",
         ],
     },
 
@@ -607,6 +1256,42 @@ ENTITY_DEFS: dict[str, dict] = {
             "Defendant: {value}",
             "Claimant name: {value}",
             "Guardian: {value}",
+            # Edge-case formats teach the model to handle uncommon variants
+            "Beneficiary: {value}",
+            "Authorized representative: {value}",
+            "Power of attorney: {value}",
+            "Spouse: {value}",
+            "Next of kin: {value}",
+            "Dependent: {value}",
+            "Co-applicant: {value}",
+            "Customer Name: {value}",
+            "Subscriber: {value}",
+            "Policyholder: {value}",
+            "Account opened by {value}.",
+            "Statement issued to {value}.",
+            "The party of record is {value}.",
+            "Application received from {value}.",
+            "Transferee: {value}",
+            "Loan applicant {value} submitted documentation.",
+            "Verified ID for {value}.",
+            "Customer {value} called regarding their account.",
+            "Witness: {value}",
+            # Multicultural / international name contexts
+            "International student {value} arrived on the F-1 visa.",
+            "Visiting scholar {value} delivered the keynote.",
+            "Foreign national: {value}",
+            "Patient name (last, first): {value}",
+            # All-caps and uppercase contexts
+            "Customer name (as printed): {value}",
+            "PRINTED NAME: {value}",
+            "PATIENT NAME: {value}",
+            "ACCOUNT HOLDER: {value}",
+            # Filiation / genealogy markers (mostly Indian government IDs)
+            "{value} resides in the registered address.",
+            "Father's name: {value}",
+            "Mother's name: {value}",
+            "Spouse's name: {value}",
+            "Care of {value} at the listed address.",
         ],
     },
 
@@ -1195,22 +1880,97 @@ ENTITY_DEFS: dict[str, dict] = {
     "organization_name": {
         "generator": _company,
         "templates": [
+            # ── Core / generic anchors ──
             "Organization: {value}",
             "Employer: {value}",
             "Company: {value}",
-            "Filed by {value}",
-            "Authorized by {value}",
             "Entity: {value}",
             "Business: {value}",
             "The organization is {value}.",
             "Referred from {value}.",
             "The employer on record is {value}.",
+            "Filed by {value}.",
+            "Authorized by {value}.",
+            # ── Title-case keyword anchors (user-reported failure modes) ──
+            "Company Name: {value}",
+            "Business Name: {value}",
+            "Organization Name: {value}",
+            "Nonprofit Organization: {value}",
+            "Government Organization: {value}",
+            "Technology Organization: {value}",
+            "Startup Organization: {value}",
+            "Consulting Organization: {value}",
+            "Retail Organization: {value}",
+            "Transportation Organization: {value}",
+            "Manufacturing Organization: {value}",
+            "Media Organization: {value}",
+            "Research Organization: {value}",
+            "Healthcare Organization: {value}",
+            "Educational Organization: {value}",
+            "Financial Organization: {value}",
+            "Insurance Organization: {value}",
+            "Legal Organization: {value}",
+            "Charitable Organization: {value}",
+            # ── ALL-CAPS label form ──
+            "ORGANIZATION#: {value}",
+            "NONPROFIT ORG#: {value}",
+            "GOVT ORGANIZATION-ID: {value}",
+            "MEDIA ORG-ID: {value}",
+            "BUSINESS NAME-ID: {value}",
+            "COMPANY NAME#: {value}",
+            "ENTITY ORG-ID: {value}",
+            # ── Conversational / prose forms ──
+            "The organization name is {value}.",
+            "Government organization {value} updated the policy.",
+            "Retail organization {value} linked to the account.",
+            "Research organization {value} validated the protocol.",
+            "Consulting organization {value} stored the data securely.",
+            "Patient is employed by {value}.",
+            "Records were filed by {value}.",
+            "The application was submitted by {value} on behalf of the patient.",
+            "{value} confirmed the appointment.",
+            "Provided by {value}.",
+            "Operated under {value}.",
+            "Subsidiary of {value}.",
+            "Parent entity: {value}.",
+            "Sponsoring organization: {value}.",
+            # ── Multi-line directory style ──
+            "Vendor: {value}",
+            "Supplier: {value}",
+            "Contractor: {value}",
+            "Agency: {value}",
+            "Department: {value}",
+            "Bureau: {value}",
         ],
     },
 
     "signature": {
-        "generator": _first_last,
+        # Mix of (a) free-form name signatures and (b) coded signature IDs.
+        # Coded IDs already have rock-solid regex coverage; including them here
+        # teaches GLiNER to back the regex up when context is clipped.
+        "generator": lambda: random.choice([
+            _first_last(),
+            _first_last(),
+            _first_last(),  # 3x weight on free-form names
+            f"/s/ {_first_last()}",
+            f"/s/ {_first_last()}",
+            f"SIG-{random.randint(100000, 999999)}",
+            f"BIO-SIGN-{random.randint(1000, 9999)}",
+            f"DOCSIGN-{random.randint(1000, 9999)}",
+            f"REGSIG-{random.randint(1000, 9999)}",
+            f"AST-{random.randint(1000, 9999)}",
+            f"PKI-{random.randint(1000, 9999)}",
+            f"ENC-SIGN-{random.randint(1000, 9999)}",
+            f"SDS-{random.randint(1000, 9999)}",
+            # Underscored handle: "JDoe_Sign", "MSmith_Sign"
+            (lambda fn=_first_last(): f"{fn.split()[0][0]}{fn.split()[-1]}_Sign")(),
+            # Dotted initials: "J.Doe", "K.Kate"
+            (lambda fn=_first_last(): f"{fn.split()[0][0]}.{fn.split()[-1]}")(),
+            # Spaced initials: "K. Kate"
+            (lambda fn=_first_last(): f"{fn.split()[0][0]}. {fn.split()[-1]}")(),
+        ]),
         "templates": [
+            # ── Generic signature anchors ──
             "Electronic signature: {value}",
             "Signed by: {value}",
             "Signature of {value} on file.",
@@ -1223,6 +1983,35 @@ ENTITY_DEFS: dict[str, dict] = {
             "Executed by {value}.",
             "Signature block: {value}",
             "Consent signed by {value}.",
+            # ── User-reported keyword anchors ──
+            "Secure Signature ID: {value}",
+            "Biometric Signature: {value}",
+            "Document Signature: {value}",
+            "Registered Signature: {value}",
+            "Authenticated Signature Token: {value}",
+            "PKI Digital Signature: {value}",
+            "Encrypted Signature ID: {value}",
+            "Secure Document Sign-Off: {value}",
+            "Notarized Signature: {value}",
+            "Witness Signature: {value}",
+            # ── ALL-CAPS label form ──
+            "DIGITAL SIGNATURE-ID: {value}",
+            "BIOMETRIC SIGN#: {value}",
+            "DOC SIGNATURE#: {value}",
+            "REGISTERED SIGN-ID: {value}",
+            "SIGN#: {value}",
+            "E-SIGNATURE-ID: {value}",
+            # ── Conversational forms ──
+            "Document signature {value} verified.",
+            "Registered signature {value} stored securely.",
+            "Biometric signature {value} validated.",
+            "Electronic signature {value} verified successfully.",
+            "Secure signature ID {value} generated.",
+            # ── Letter / contract closing forms (bare name as signature) ──
+            "Sincerely,\n{value}",
+            "Respectfully,\n{value}",
+            "Best regards,\n{value}",
+            "/s/ {value}",
         ],
     },
 
@@ -1797,6 +2586,40 @@ ENTITY_DEFS: dict[str, dict] = {
             "Active prescription: {value}",
             "Administered: {value}",
             "Treating with {value}.",
+            # Brand-name and dosage variants
+            "Prescription Medication: {value}",
+            "OTC Medication: {value}",
+            "Treatment Medication: {value}",
+            "Hospital Medication Name: {value}",
+            "Pharmacy Drug Name: {value}",
+            "Diabetes Medication: {value}",
+            "Antibiotic: {value}",
+            "Prescribed antibiotic: {value}",
+            "Pain medication: {value}",
+            "Antihypertensive: {value}",
+            "Antidepressant: {value}",
+            "Anti-inflammatory: {value}",
+            "Inhaler prescribed: {value}",
+            "Patient takes {value} every morning.",
+            "Discharge medications: {value}",
+            "Take {value} as directed.",
+            "Refill ordered for {value}.",
+            "Started on {value} two weeks ago.",
+            "Continue {value} per prior regimen.",
+            "Discontinued {value} due to side effects.",
+            "Switched from prior med to {value}.",
+            "Increased dose of {value}.",
+            "Tapering {value} over 2 weeks.",
+            "Allergic to {value}.",
+            "PATIENT DRUG-ID: {value}",
+            "ANTIBIOTIC MED#: {value}",
+            "Pharmacy filled {value}.",
+            "Dispensed by pharmacist: {value}",
+            "Brand-name medication: {value}",
+            "Generic equivalent: {value}",
+            "Over-the-counter purchase: {value}",
+            "Insulin therapy: {value}",
+            "Statin therapy: {value}",
         ],
     },
 
@@ -1941,6 +2764,40 @@ ENTITY_DEFS: dict[str, dict] = {
             "Inpatient at {value}.",
             "Clinical facility: {value}",
             "Patient transferred to {value}.",
+            # Specialty-facility templates teach the model to recognize
+            # dental / rehab / trauma / women's / urgent-care centers as
+            # hospital_name (industry taxonomy).
+            "Patient transferred to {value} for specialty care.",
+            "Emergency case routed to {value}.",
+            "Therapy sessions ongoing at {value}.",
+            "Dental records updated from {value}.",
+            "REHAB CENTER-ID: {value}",
+            "Women's Health Clinic: {value}",
+            "Dental Medical Center: {value}",
+            "Trauma Center: {value}",
+            "Rehab facility: {value}",
+            "Urgent Care location: {value}",
+            "Surgical Center: {value}",
+            "Imaging Center: {value}",
+            "Behavioral Health Provider: {value}",
+            "OB-GYN clinic: {value}",
+            "Children's hospital: {value}",
+            "Cancer Center: {value}",
+            "Cardiac Center: {value}",
+            "Eye Institute: {value}",
+            "Outpatient services rendered at {value}.",
+            "Long-term care provided at {value}.",
+            "Skilled nursing facility: {value}",
+            "Physical therapy at {value}.",
+            "Mental health services from {value}.",
+            "Hospice care at {value}.",
+            "Walk-in clinic visit at {value}.",
+            "Network provider: {value}",
+            "Affiliated hospital: {value}",
+            "Patient admitted to the {value} ICU.",
+            "Surgery scheduled at {value}.",
+            "Laboratory tests run at {value}.",
+            "Visiting hours at {value} are 9 AM to 8 PM.",
         ],
     },
 
@@ -2784,6 +3641,96 @@ HARD_NEGATIVES: list[str] = [
     "The stolen securities were recovered by law enforcement.",
     "The stolen property was inventoried and returned to the claimant.",
     "The arrest record was expunged pursuant to court order.",
+    # Group-B hard negatives — guard against over-tagging of generic vocabulary
+    "The patient was treated and released.",
+    "Please refer to the patient's chart for medical history.",
+    "The doctor will see you now.",
+    "The physician on call will respond within 30 minutes.",
+    "All medications must be reviewed annually.",
+    "The pharmacy is open from 8 AM to 10 PM.",
+    "The hospital's policy requires written consent for all procedures.",
+    "The medical center has a Level 1 trauma rating.",
+    "Walk-in clinics are open seven days a week.",
+    "Urgent care services are available without an appointment.",
+    "Emergency departments are staffed 24/7.",
+    "Dental insurance covers preventive care twice yearly.",
+    "Behavioral health appointments require a referral.",
+    "Rehabilitation services include physical and occupational therapy.",
+    "The women's clinic offers comprehensive obstetric care.",
+    "Cardiology consults must be requested in advance.",
+    "Oncology referrals are processed within 48 hours.",
+    "The pediatric ward visits hours are restricted.",
+    "Surgical procedures are scheduled by the operating room coordinator.",
+    "Imaging studies require radiology approval.",
+    "Skilled nursing facilities provide 24-hour care.",
+    "Hospice services focus on comfort and quality of life.",
+    "The patient's primary care provider should be contacted.",
+    "All providers must verify patient identity before treatment.",
+    "Antibiotic stewardship reduces resistance.",
+    "Generic medications are typically less expensive than brand names.",
+    "Over-the-counter drugs do not require a prescription.",
+    "Brand-name medications may have generic equivalents.",
+    "The drug interaction warning was reviewed.",
+    "Insulin administration requires patient education.",
+    "Steroid tapering should be done gradually.",
+    "Chemotherapy schedules are individualized.",
+    "Pain management plans are tailored to each patient.",
+    "Antidepressant therapy may take weeks to show effect.",
+    "The pharmacist counseled the patient on side effects.",
+    "Medication reconciliation occurs at every transition of care.",
+    "Drug allergies must be documented in the chart.",
+    "Inhaler technique should be reviewed at every visit.",
+    "Statin therapy is recommended for high cholesterol patients.",
+    "All clinicians must wash hands before patient contact.",
+    "The nurse practitioner can write prescriptions.",
+    "The physician assistant works under physician supervision.",
+    # Generic person-name distractors (don't tag these as person_name)
+    "Dear Sir or Madam,",
+    "To Whom It May Concern,",
+    "The Patient consented to the procedure.",
+    "Customer service is available Monday through Friday.",
+    "Account holders are responsible for all transactions.",
+    "The Defendant entered a plea of not guilty.",
+    "The Plaintiff filed a motion to dismiss.",
+    "The Witness was sworn in before testifying.",
+    "Members of the audience must remain seated.",
+    "Visitors must check in at the front desk.",
+    # ── Organization-name distractors (Group B-2) ──
+    "The organization follows a strict code of conduct.",
+    "Any organization must comply with HIPAA.",
+    "The company has a strong customer service track record.",
+    "A nonprofit organization is exempt under section 501(c)(3).",
+    "This business is registered with the state.",
+    "An entity must register before filing taxes.",
+    "Government agencies must publish annual reports.",
+    "The Department issues permits during business hours.",
+    "Bureau policies are reviewed every five years.",
+    "A startup may qualify for tax credits.",
+    "Consulting firms typically bill hourly.",
+    "Retail organizations are subject to state sales tax.",
+    "Manufacturing organizations report quarterly emissions data.",
+    "Media organizations observe editorial independence.",
+    "Research organizations partner with universities.",
+    "Healthcare organizations must meet accreditation standards.",
+    "Charitable organizations rely on donor contributions.",
+    "An organization name was not included on the form.",
+    "Please enter your employer's full legal name.",
+    "The company name is printed on the badge.",
+    # ── Signature-context distractors ──
+    "The signature line is at the bottom of the page.",
+    "A signature is required to complete the form.",
+    "Please sign and date the document where indicated.",
+    "Electronic signatures are legally binding under E-SIGN.",
+    "Wet signatures require the original document.",
+    "The digital signature certificate has expired.",
+    "Notarized signatures must be witnessed.",
+    "Please initial each page and sign the last one.",
+    "All signatures must be in blue ink.",
+    "The signature block is reserved for authorized officers.",
+    "A witness signature is required for this form.",
+    "The signature was illegible and rejected.",
+    "Counter-signature is required by the second party.",
+    "Authorized signatories are listed in the corporate registry.",
 ]
 
 
@@ -2941,6 +3888,223 @@ DISAMBIGUATION_TEMPLATES: list[dict] = [
         "entities": [
             ("case_num", "case_number", _case_number_alphanumeric),
             ("plate", "license_plate", _license_plate),
+        ],
+    },
+    # ── Group B disambiguation ────────────────────────────────────────────
+    # Patient name vs physician name — same surface form, different role
+    {
+        "text_template": "Patient {patient} was seen by {doctor}.",
+        "entities": [
+            ("patient", "person_name", _first_last),
+            ("doctor", "physician_name", _physician_name),
+        ],
+    },
+    {
+        "text_template": "Referring provider: {doctor}. Patient: {patient}.",
+        "entities": [
+            ("doctor", "physician_name", _physician_name),
+            ("patient", "person_name", _first_last),
+        ],
+    },
+    {
+        "text_template": "{doctor} treated {patient} at {facility}.",
+        "entities": [
+            ("doctor", "physician_name", _physician_name),
+            ("patient", "person_name", _first_last),
+            ("facility", "hospital_name", _hospital),
+        ],
+    },
+    # Specialty hospital + medication
+    {
+        "text_template": "Patient admitted to {facility}. Prescribed: {drug}.",
+        "entities": [
+            ("facility", "hospital_name", _hospital),
+            ("drug", "medication_name", _medication),
+        ],
+    },
+    {
+        "text_template": "Treatment at {facility} included {drug}.",
+        "entities": [
+            ("facility", "hospital_name", _hospital),
+            ("drug", "medication_name", _medication),
+        ],
+    },
+    # Multiple medications (poly-pharmacy realism)
+    {
+        "text_template": "Current meds: {drug1}, {drug2}, and {drug3}.",
+        "entities": [
+            ("drug1", "medication_name", _medication),
+            ("drug2", "medication_name", _medication),
+            ("drug3", "medication_name", _medication),
+        ],
+    },
+    # Multicultural names with physician — ensures model learns intl names
+    {
+        "text_template": "{patient} was admitted under the care of {doctor}.",
+        "entities": [
+            ("patient", "person_name", _intl_name),
+            ("doctor", "physician_name", _physician_name),
+        ],
+    },
+    # All-caps name vs uppercase label (distractor)
+    {
+        "text_template": "PATIENT NAME: {patient}. ATTENDING: {doctor}.",
+        "entities": [
+            ("patient", "person_name", _name_all_caps),
+            ("doctor", "physician_name", _physician_name),
+        ],
+    },
+    # Nickname-quoted name with physician
+    {
+        "text_template": "Cardholder: {cardholder}. Treating physician: {doctor}.",
+        "entities": [
+            ("cardholder", "card_holder_name", _card_holder),
+            ("doctor", "physician_name", _physician_name),
+        ],
+    },
+    # Genealogy prefix names — Indian ID-card style
+    {
+        "text_template": "Customer Name: {patient}. Father's name: {father}.",
+        "entities": [
+            ("patient", "person_name", _first_last),
+            ("father", "person_name", _first_last),
+        ],
+    },
+    # Hospital vs insurance company (sharp boundary — both are organizations)
+    {
+        "text_template": "Treatment at {facility}. Coverage through {insurer}.",
+        "entities": [
+            ("facility", "hospital_name", _hospital),
+            ("insurer", "insurance_company_name", _insurance_co),
+        ],
+    },
+    {
+        "text_template": "Discharged from {facility}. Claim filed with {insurer}.",
+        "entities": [
+            ("facility", "hospital_name", _hospital),
+            ("insurer", "insurance_company_name", _insurance_co),
+        ],
+    },
+    # Brand-name drug vs facility — both can have similar token shapes
+    {
+        "text_template": "Patient at {facility} was prescribed {drug}.",
+        "entities": [
+            ("facility", "hospital_name", _hospital),
+            ("drug", "medication_name", _medication),
+        ],
+    },
+    # Prescriber + DEA + medication
+    {
+        "text_template": "{doctor} (DEA: {dea}) ordered {drug}.",
+        "entities": [
+            ("doctor", "physician_name", _physician_name),
+            ("dea", "dea_number", _dea),
+            ("drug", "medication_name", _medication),
+        ],
+    },
+    # ─────────────────────────────────────────────────────────────────────
+    # Group B (second batch) — organization / signature / dosage disambig.
+    # ─────────────────────────────────────────────────────────────────────
+    # Organization vs Hospital — both are facilities, but different labels.
+    {
+        "text_template": (
+            "Employer: {org}. Treating facility: {hospital}."
+        ),
+        "entities": [
+            ("org", "organization_name", _company),
+            ("hospital", "hospital_name", _hospital),
+        ],
+    },
+    {
+        "text_template": (
+            "Patient employed by {org}; admitted to {hospital}."
+        ),
+        "entities": [
+            ("org", "organization_name", _company),
+            ("hospital", "hospital_name", _hospital),
+        ],
+    },
+    # Organization vs Insurance company — both are corporate entities.
+    {
+        "text_template": (
+            "Employer: {org}. Insurance carrier: {insurer}."
+        ),
+        "entities": [
+            ("org", "organization_name", _company),
+            ("insurer", "insurance_company_name", _insurance_co),
+        ],
+    },
+    # Organization vs Person — patient vs employer in the same sentence.
+    {
+        "text_template": (
+            "Patient: {patient}. Employer: {org}."
+        ),
+        "entities": [
+            ("patient", "person_name", _first_last),
+            ("org", "organization_name", _company),
+        ],
+    },
+    # Organization-on-its-own (no surrounding distractors) — strengthens
+    # the model's prior on bare org names like "OpenAI Technologies".
+    {
+        "text_template": "Authorized by {org}.",
+        "entities": [
+            ("org", "organization_name", _company),
+        ],
+    },
+    {
+        "text_template": "{org} confirmed the appointment.",
+        "entities": [
+            ("org", "organization_name", _company),
+        ],
+    },
+    # Signature vs Person (patient mentioned in body, signature at end).
+    {
+        "text_template": (
+            "Patient: {patient}. /s/ {signer}"
+        ),
+        "entities": [
+            ("patient", "person_name", _first_last),
+            ("signer", "signature", _first_last),
+        ],
+    },
+    {
+        "text_template": (
+            "Treating physician: {doctor}.\nElectronic signature: {signer}"
+        ),
+        "entities": [
+            ("doctor", "physician_name", _physician_name),
+            ("signer", "signature", _first_last),
+        ],
+    },
+    {
+        "text_template": (
+            "Consent obtained from {patient}. Signed by: {signer}."
+        ),
+        "entities": [
+            ("patient", "person_name", _first_last),
+            ("signer", "signature", _first_last),
+        ],
+    },
+    # Medication with explicit dosage form (Albuterol Sulfate Inhaler etc.)
+    {
+        "text_template": "Prescription: {drug}. Refill in 30 days.",
+        "entities": [
+            ("drug", "medication_name", _medication),
+        ],
+    },
+    {
+        "text_template": "Active medications: {drug1}; {drug2}.",
+        "entities": [
+            ("drug1", "medication_name", _medication),
+            ("drug2", "medication_name", _medication),
+        ],
+    },
+    # Brand-form medication ("Ventolin Inhaler", "Insulin Injection 10ml")
+    {
+        "text_template": "Dispensed: {drug}.",
+        "entities": [
+            ("drug", "medication_name", _medication),
         ],
     },
 ]
