@@ -111,7 +111,11 @@ entities:
     description: "Human personal names only: first name, last name, full name, nickname, or alias of a real person. Do NOT flag dates, section headers, department names, medical terms, lab test names, organization names, city names, or state names."
     policy: [hipaa]
     enabled: true
-    priority: 1
+    # Group C: lowered from 1 → 4 — person_name is the most open-vocabulary
+    # NER entity, so it must lose to physician_name (2), medication_name /
+    # hospital_name (3), and any structured pattern. Pattern always beats
+    # NER per _SOURCE_ORDER, so this primarily affects NER-vs-NER ties.
+    priority: 4
     confidence_threshold: 0.62
     gliner_label: "person full name"
     presidio_type: PERSON
@@ -124,13 +128,24 @@ entities:
     description: "Name of a doctor or physician identified by the 'Dr.' or 'Doctor' title. Example: 'Dr. Robert Hayes', 'Dr. Miguel Santos'. Always use DOCTOR tag instead of PERSON for medical professionals with explicit title."
     policy: [hipaa]
     enabled: true
-    priority: 1
+    # Group C: 1 → 2 — physician is a specific role; should outrank
+    # generic person_name (priority 3) but lose to highly-structured
+    # codes if both fire on overlapping spans.
+    priority: 2
     confidence_threshold: 0.75
     gliner_label: "physician or doctor name"
     patterns:
       - '((?:Dr\.|Doctor)\s+(?-i:[A-Z])[a-zA-Z]+(?:\s+(?-i:[A-Z])[a-zA-Z]+){1,2})'
       # "Evelyn May MD" — physician without Dr./Doctor prefix
       - '\b((?-i:[A-Z])[a-z]+(?:\s+(?-i:[A-Z])[a-z]+){0,2})\s+MD\.?\b'
+      # Permissive: name with optional initials and trailing period — "Dr. Kate M.", "Dr. K. W. Smith"
+      - '((?:Dr\.?|Doctor)\s+(?-i:[A-Z])(?:[a-zA-Z]+|\.)(?:\s+(?-i:[A-Z])(?:[a-zA-Z]+\.?|\.))*?\.?)(?=[\s,.;:!?\)]|$)'
+      # Quoted nickname: 'Dr. Katherine "Kate" Doe'
+      - '((?:Dr\.?|Doctor)\s+(?-i:[A-Z])[a-zA-Z]+\s+"(?-i:[A-Z])[a-zA-Z]+"\s+(?-i:[A-Z])[a-zA-Z]+)'
+      # Three single-syllable East Asian names: "Dr. Kim Min Soo"
+      - '((?:Dr\.?|Doctor)\s+(?-i:[A-Z])[a-z]+\s+(?-i:[A-Z])[a-z]+\s+(?-i:[A-Z])[a-z]+)\b'
+      # Surname-only with title: "Dr. Smith"
+      - '((?:Dr\.?|Doctor)\s+(?-i:[A-Z])[a-zA-Z]{2,}\b)'
     masking:
       strategy: redact
       format: "[DOCTOR {n}]"
@@ -139,17 +154,39 @@ entities:
 
   - id: street_address
     display_name: Street Address Line / House Number and Street
-    description: "Street address line only: house/building number + street name. Do NOT include city, state, or zip — those are separate entities. Example: '742 Evergreen Terrace', '85 River Road', '1600 Pennsylvania Ave NW Apt 3B'."
+    description: "Street address line only: house/building number + street name. Do NOT include city, state, or zip — those are separate entities. Example: '742 Evergreen Terrace', '85 River Road', '1600 Pennsylvania Ave NW Apt 3B', 'Apt 12B, 900 Elm Street', 'Flat 7C, 33 Hill Street', 'House No 18, Maple Colony', '12 Rue de Rivoli, Paris'."
     policy: [hipaa]
     enabled: true
     priority: 2
     gliner_label: "street address with house number"
     patterns:
-      - '(\d{1,6}[ \t]+(?:[A-Za-z0-9.-]+[ \t]+){1,4}(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Circles|Terrace|Terr|Highway|Hwy|Parkway|Pkwy|Squares?|Extensions?|Camp|Shoal|Trail|Trace|Roads?|Islands?|Route|Viaduct|Gardens?|Summit|Brook|Plains?|Points?|Center|Alley|Causeway|Prairie|Ports?|Neck|Wall|Coves?|Crescent|Station|Union|Via|Plaza|Tunnel|Springs?|Bend|Creek|Glen|Hill|Hills|Heights|Ridge|Run|Path|Pass|Pike|Row|Walk|Crossing|Landing|Loop|Meadow|Park|Overpass|Bypass|Corridor|Connector|Approach|Access|Drive|Branch|Close|Gate|Green|Grove|Hollow|Knoll|Lake|Manor|Mill|Mount|Mountain|Orchard|Overlook|Pond|Quarter|Ranch|River|Shore|Spur|Terrace|View|Village|Vista|Wood|Yard)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
+      - '(\d{1,6}[A-Z]?[ \t]+(?:[A-Za-z0-9.-]+[ \t]+){1,4}(?:Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl|Circle|Cir|Circles|Terrace|Terr|Highway|Hwy|Parkway|Pkwy|Squares?|Extensions?|Camp|Shoal|Trail|Trace|Roads?|Islands?|Route|Viaduct|Gardens?|Summit|Brook|Plains?|Points?|Center|Alley|Causeway|Prairie|Ports?|Neck|Wall|Coves?|Crescent|Station|Union|Via|Plaza|Tunnel|Springs?|Bend|Creek|Glen|Hill|Hills|Heights|Ridge|Run|Path|Pass|Pike|Row|Walk|Crossing|Landing|Loop|Meadow|Park|Overpass|Bypass|Corridor|Connector|Approach|Access|Drive|Branch|Close|Gate|Green|Grove|Hollow|Knoll|Lake|Manor|Mill|Mount|Mountain|Orchard|Overlook|Pond|Quarter|Ranch|River|Shore|Spur|Terrace|View|Village|Vista|Wood|Yard)\b\.?(?:[ \t]+(?:Apt\.?|Apartment|Suite|Ste|Unit|#)[ \t]*[\w\-]+)?)'
+      # Alphanumeric house number ("221B Baker Street") — UK / international form
+      # where the building is identified by digits + letter suffix.
+      - '\b(\d{1,4}[A-Z]\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\s+(?:Street|Road|Avenue|Boulevard|Lane|Drive|Court|Way|Place|Terrace|Park|Square|Plaza|Rd\.?|St\.?|Ave\.?|Blvd\.?|Dr\.?|Ln\.?))\b'
       # Forensic / law-enforcement context: "collected at 8435 Fillmore Road", "found at 123 Main St"
       - '(?:collected\s+at|found\s+at|scene\s+at|located\s+at|crime\s+scene\s+at|residence\s+at|address\s+of)\s+(\d{1,6}[ \t]+[A-Za-z0-9 \t]+[ \t]+(?:Road|Street|Avenue|Boulevard|Drive|Court|Way|Lane|Terrace|Path|Circle|Place|Rd|St|Ave|Blvd|Dr|Ct|Ln|Pl|Terr|Cir|Hwy|Pkwy)\b\.?)'
       # Standalone room / suite / apartment / building number (keyword required)
       - '(?:Room|Suite|Ste|Apt|Apartment|Unit|Building|Bldg)\s*(?:Number|No|#)?\s*[:#]?\s*(\d{1,6})\b'
+      # Apartment-prefixed compound address: "Apt 12B, 900 Elm Street",
+      # "Flat 7C, 33 Hill Street", "Suite 305, 77 Sunset Boulevard",
+      # "Apartment 10A, Central Park West", "Villa 22, Palm Jumeirah",
+      # "Flat No 5, MG Road", "House No 18, Maple Colony", "No. 88 Orchard Road".
+      - '\b((?:Apt|Apartment|Flat|Suite|Ste|Unit|Villa|House|H\.?\s*No|Plot|Door|Block|Tower|Bldg|Building|No\.?)\s*(?:No\.?\s*)?[\w\-]+\s*,\s*(?:\d+\s+)?[A-Z][A-Za-z0-9 ,.\-/]*?(?:Street|Road|Avenue|Boulevard|Lane|Drive|Court|Way|Place|Terrace|Highway|Parkway|Square|Gardens?|Colony|Layout|Marg|Nagar|Park|Crescent|West|East|North|South|Block|Extension|Sector|Phase|Stage|Plaza|Jumeirah|Rivoli|Pennsylvania|Baker|Pennsylvania\s+Avenue\s+NW)\b\.?)'
+      # International street types: "12 Rue de Rivoli", "45 Queen Street",
+      # "221B Baker Street", "1600 Pennsylvania Avenue NW", "No. 88 Orchard Road".
+      - '\b(\d{1,5}[A-Za-z]?\s+(?:Rue|Strasse|Calle|Via|Avenida|Plaza|Plein|Gata|Ulica|Carrera|Karl[\w\-]+)\s+[A-Z][\w\s\.\-]{2,40})'
+      # "No. 88 Orchard Road" — address starting with "No." prefix.
+      - '\b(No\.?\s*\d{1,5}\s+[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,4}\s+(?:Street|Road|Avenue|Boulevard|Lane|Drive|Court|Way|Place|Terrace|Park|Square|Plaza|Rd\.?|St\.?|Ave\.?|Blvd\.?|Dr\.?|Ln\.?))'
+      # Title-case keyword anchors: "Apartment Address: Apt 12B, 900 Elm Street",
+      # "Contact Address: Flat 7C, 33 Hill Street",
+      # "Delivery Address: House No 18, Maple Colony",
+      # "Customer address 64 Green Street linked to the profile".
+      - '(?:Apartment\s+Address|Contact\s+Address|Delivery\s+Address|Home\s+Address|Office\s+Address|Mailing\s+Address|Billing\s+Address|Service\s+Address|Warehouse\s+Address|Customer\s+Address|Postal\s+Address|Residential\s+Address|Permanent\s+Address|Correspondence\s+Address|Shipping\s+Address|Suite\s+Address)\s*[:#]?\s*([A-Za-z0-9][\w\d\s,.\-#/]{6,80}?(?:Street|Road|Avenue|Boulevard|Lane|Drive|Way|Court|Place|Terrace|Park|Square|Gardens?|Colony|Layout|Marg|Nagar|Plaza|Highway|Parkway|Crescent|Block|Extension|Sector|Phase|Stage|Boulevard|Rd\.?|St\.?|Ave\.?|Blvd\.?|Dr\.?|Ln\.?|Ct\.?|Pl\.?|Terr\.?|Cir\.?|Hwy\.?|Pkwy\.?))\b'
+      # All-uppercase label form: "DELIVERY ADDRESS: House No 18, Maple Colony",
+      # "APT ADDRESS#: Apt 12B, 900 Elm Street",
+      # "SUITE ADDRESS-ID: Suite 305, 77 Sunset Boulevard".
+      - '(?:DELIVERY\s+ADDRESS|APT\s+ADDRESS#?|SUITE\s+ADDRESS[-\s]?ID|HOME\s+ADDRESS#?|MAILING\s+ADDRESS[-\s]?ID|BILLING\s+ADDRESS#?|OFFICE\s+ADDRESS[-\s]?ID|WAREHOUSE\s+ADDRESS#?|CUSTOMER\s+ADDRESS[-\s]?ID|POSTAL\s+ADDRESS#?|RESIDENTIAL\s+ADDRESS[-\s]?ID)\s*[:#]?\s*([A-Za-z0-9][\w\d\s,.\-#/]{6,80}?(?:Street|Road|Avenue|Boulevard|Lane|Drive|Way|Court|Place|Terrace|Park|Square|Gardens?|Colony|Layout|Marg|Nagar|Plaza|Highway|Parkway|Crescent|Block|Extension|Sector|Phase|Stage|Boulevard|Rd\.?|St\.?|Ave\.?|Blvd\.?|Dr\.?|Ln\.?|Ct\.?|Pl\.?|Terr\.?|Cir\.?|Hwy\.?|Pkwy\.?))\b'
     masking:
       strategy: redact
       format: "[ADDRESS {n}]"
@@ -176,23 +213,48 @@ entities:
       format: "[LOCATION {n}]"
 
   - id: us_state
-    display_name: US State or Territory Abbreviation
-    description: "Two-letter US state or territory abbreviation when part of a personal address. Example: 'IL', 'CA', 'TX', 'NY'. Only flag when adjacent to a street address or zip code."
+    display_name: US State / Territory (full name or abbreviation)
+    description: "US state, territory, or District of Columbia — full name (e.g. 'California', 'New York') or two-letter abbreviation (e.g. 'CA', 'NY'). Detected when adjacent to a city/zip, or when explicitly labelled with a state-keyword (US State, Residence State, Billing State, Mailing State, Patient State, etc.)."
     policy: [hipaa]
     enabled: true
     priority: 3
-    gliner_label: "US state abbreviation in address"
+    gliner_label: "US state abbreviation or full name in address"
     patterns:
+      # Two-letter abbreviation followed by ZIP code
       - '(?:,\s*)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)(?=\s+\d{5})'
       # "City, ST" without zip
       - '(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}),\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
+      # Title-case keyword anchor: "US State: California", "State Name: Texas",
+      # "U.S. State: New York", "State: Florida", "American State: Illinois",
+      # "Residence State: Washington", "Registered State: Arizona",
+      # "Billing State: Nevada", "Shipping State: Colorado",
+      # "Patient State: Georgia", "Customer State: North Carolina",
+      # "Business State: Oregon", "Legal State: Pennsylvania",
+      # "Home State: Michigan", "Mailing State: Ohio",
+      # "Work State: New Jersey", "Service State: Massachusetts",
+      # "Clinic State: Maryland".
+      - '(?:US\s+State|U\.S\.\s+State|State\s+Name|American\s+State|Residence\s+State|Registered\s+State|Billing\s+State|Shipping\s+State|Patient\s+State|Customer\s+State|Business\s+State|Legal\s+State|Home\s+State|Mailing\s+State|Work\s+State|Service\s+State|Clinic\s+State|State)\s*[:#]?\s*(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New\s+Hampshire|New\s+Jersey|New\s+Mexico|New\s+York|North\s+Carolina|North\s+Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode\s+Island|South\s+Carolina|South\s+Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West\s+Virginia|Wisconsin|Wyoming|District\s+of\s+Columbia)\b'
+      # All-uppercase label form: "STATE-ID: New York", "RESIDENCE STATE NO: Florida",
+      # "BILLING STATE#: Nevada", "SHIPPING STATE-ID: Colorado",
+      # "WORK STATE NO: New Jersey".
+      - '(?:STATE[-\s]?ID|RESIDENCE\s+STATE\s+NO|BILLING\s+STATE#?|SHIPPING\s+STATE[-\s]?ID|WORK\s+STATE\s+NO|MAILING\s+STATE#?|HOME\s+STATE[-\s]?ID|PATIENT\s+STATE#?|US\s+STATE[-\s]?ID)\s*[:#]?\s*([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2})\b'
+      # Title-case keyword anchor + abbreviation: "Billing state TX verified",
+      # "Mailing state OH registered", "Shipping state FL linked".
+      - '(?:US\s+state|U\.S\.\s+state|state|residence\s+state|registered\s+state|billing\s+state|shipping\s+state|patient\s+state|customer\s+state|business\s+state|legal\s+state|home\s+state|mailing\s+state|work\s+state|service\s+state|clinic\s+state)\s+(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
+      # Bare full state name: standalone capitalized state name.
+      # Anchored with word boundaries to avoid matching inside other text.
+      - '\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New\s+Hampshire|New\s+Jersey|New\s+Mexico|New\s+York|North\s+Carolina|North\s+Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode\s+Island|South\s+Carolina|South\s+Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West\s+Virginia|Wisconsin|Wyoming|District\s+of\s+Columbia)\b'
+      # State name + abbreviation pair: "California (CA)", "Texas - TX",
+      # "New York [NY]", "Florida / FL", "Illinois, IL", "Washington WA",
+      # "Arizona-AZ", "Nevada_NV", "Colorado: CO", "Georgia (GA)".
+      - '\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New\s+Hampshire|New\s+Jersey|New\s+Mexico|New\s+York|North\s+Carolina|North\s+Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode\s+Island|South\s+Carolina|South\s+Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West\s+Virginia|Wisconsin|Wyoming|District\s+of\s+Columbia)\s*[\(\[\-_,/:]\s*[A-Z]{2}\s*[\)\]]?\b'
     masking:
       strategy: redact
       format: "[STATE {n}]"
 
   - id: zipcode
     display_name: ZIP Code / Postal Code
-    description: "US ZIP code or postal code when part of a personal address. Example: '60614', '94303', '07102-1234'."
+    description: "US ZIP code (5-digit or ZIP+4), or international postal code (UK, Canada, India, France, Germany, Australia) when part of a personal address. Example: '60614', '94303', '07102-1234', 'SW1A 1AA', 'M5V 3L9'."
     policy: [hipaa]
     enabled: true
     priority: 3
@@ -200,6 +262,31 @@ entities:
     patterns:
       - '(?:,?\s*[A-Z]{2}\s+)(\d{5}(?:-\d{4})?)\b'
       - '(?:zip|postal)\s+(?:code|#)?\s*:?\s*(\d{5}(?:-\d{4})?)'
+      # Bare US ZIP+4: "90210-1234" — anchored with no surrounding digit
+      - '(?<!\d)(\d{5}-\d{4})(?!\d)'
+      # Title-case keyword anchors: "Zipcode: 90210", "ZIP: 60614",
+      # "Office ZIP Number: 85001", "Service Area ZIP: 20001",
+      # "Government ZIP Number: 46204", "Mailing ZIP", "Billing ZIP",
+      # "Delivery ZIP", "Postal Code".
+      - '(?:Zipcode|ZIP\s+(?:Code|Number|No)|ZIP|Office\s+ZIP\s+Number|Service\s+Area\s+ZIP|Government\s+ZIP\s+Number|Mailing\s+ZIP|Billing\s+ZIP|Delivery\s+ZIP|Postal\s+Code|Post\s+Code|PIN\s+Code)\s*[:#]?\s*(\d{4,6}(?:-\d{4})?)\b'
+      # All-uppercase label form: "ZIP NO: 90210", "ZIP#: 10001",
+      # "ZIPCODE-ID: 30301", "POSTAL CODE#: 60614", "MAILING ZIP NO: 73301",
+      # "BILLING POSTAL-ID: 32801", "DELIVERY ZIP#: 33101",
+      # "SERVICE AREA ZIP-ID: 20001".
+      - '(?:ZIP\s+NO|ZIP#?|ZIPCODE[-\s]?ID|POSTAL\s+CODE#?|MAILING\s+ZIP\s+NO|BILLING\s+POSTAL[-\s]?ID|DELIVERY\s+ZIP#?|SERVICE\s+AREA\s+ZIP[-\s]?ID|OFFICE\s+ZIP[-\s]?ID|GOVT\s+ZIP\s+NO)\s*[:#]?\s*(\d{4,6}(?:-\d{4})?|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}|[A-Z]\d[A-Z]\s*\d[A-Z]\d)\b'
+      # UK postcode: "SW1A 1AA", "EC1A 1BB" — full or partial format.
+      - '\b([A-Z]{1,2}\d[A-Z\d]?\s\d[A-Z]{2})\b'
+      # Canadian postal code: "M5V 3L9", "V6B 1A1" — A1A 1A1 pattern.
+      - '\b([A-Z]\d[A-Z]\s\d[A-Z]\d)\b'
+      # Indian PIN code: 6-digit (e.g. 110001, 560001, 400001) preceded by city.
+      - '(?:[A-Z][a-zA-Z]+,?\s+)(\d{6})(?!\d)'
+      # French postal code: 5-digit (e.g. 75008) preceded by city.
+      - '(?:Paris|Lyon|Marseille|Toulouse|Nice|Bordeaux|Lille|Nantes|Strasbourg)\s*,?\s*(\d{5})(?!\d)'
+      # German postal code: 5-digit (e.g. 10115) preceded by city.
+      - '(?:Berlin|Munich|Hamburg|Cologne|Frankfurt|Stuttgart|Dusseldorf|Leipzig|Dortmund)\s*,?\s*(\d{5})(?!\d)'
+      # Australian postcode: 4-digit (e.g. 2000) preceded by city or "NSW",
+      # "VIC", "QLD", "WA", "SA", "TAS", "NT", "ACT".
+      - '(?:Sydney|Melbourne|Brisbane|Perth|Adelaide|Hobart|Darwin|Canberra|NSW|VIC|QLD|WA|SA|TAS|NT|ACT)\s*,?\s*(\d{4})(?!\d)'
     masking:
       strategy: redact
       format: "[ZIPCODE {n}]"
@@ -217,6 +304,20 @@ entities:
       - '(?:lat(?:itude)?|lon(?:g(?:itude)?)?)\s*[:#=]?\s*(-?\d{1,3}\.\d{4,8})'
       # Degree-symbol GPS format: "37.7749°N, 122.4194°W" (GAP-11)
       - '(\d{1,3}\.\d{2,8}°?\s*[NS](?:\s*,\s*\d{1,3}\.\d{2,8}°?\s*[EW])?)'
+      # Explicit LAT/LNG keyword form: "LAT 6.524379, LNG 3.379206" (also LON/LONG)
+      - '\b(LAT(?:ITUDE)?\s+-?\d{1,3}\.\d{2,8}\s*,?\s+LN[GP](?:ITUDE)?\s+-?\d{1,3}\.\d{2,8})\b'
+      # WKT POINT format (PostGIS / GeoJSON): "POINT(48.856613 2.352222)"
+      - '\b(POINT\s*\(\s*-?\d{1,3}\.\d{2,8}\s+-?\d{1,3}\.\d{2,8}\s*\))'
+      # Direction-prefix decimal: "N 28.613939 E 77.209023", "S 33.8688 W 151.2093"
+      - '\b([NS]\s+-?\d{1,3}\.\d{2,8}\s+[EW]\s+-?\d{1,3}\.\d{2,8})\b'
+      # Direction-suffix decimal with degree symbol: "34.052235°N 118.243683°W"
+      - '\b(-?\d{1,3}\.\d{2,8}°\s*[NS]\s+-?\d{1,3}\.\d{2,8}°\s*[EW])\b'
+      # DMS (Degrees / Minutes / Seconds): 13°04'57.6"N 80°16'14.6"E (with straight or curly quotes)
+      - '(\d{1,3}°\d{1,2}[''\u2019]\d{1,2}(?:\.\d+)?["\u201D]\s*[NS]\s+\d{1,3}°\d{1,2}[''\u2019]\d{1,2}(?:\.\d+)?["\u201D]\s*[EW])'
+      # GeoJSON-style coordinate array: "[-122.4194, 37.7749]"
+      - '(\[-?\d{1,3}\.\d{2,8}\s*,\s*-?\d{1,3}\.\d{2,8}\])'
+      # Plus Code (Open Location Code): "849VCWC8+R9"
+      - '\b([23456789CFGHJMPQRVWX]{4,6}\+[23456789CFGHJMPQRVWX]{2,3})\b'
     masking:
       strategy: redact
       format: "[GPS {n}]"
@@ -245,6 +346,8 @@ entities:
       # Underscore formats: 2026_05_21, 21_May_2026
       - '(\d{4}_\d{2}_\d{2})'
       - '(\d{2}_(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_\d{4})'
+      # Dash-separated month abbrev: 21-Aug-1995, 21-MAY-1995, 21-aug-1995
+      - '\b(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)-\d{2,4})\b'
       # "21/MAY/2026" uppercase month
       - '(\d{1,2}/(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/\d{4})'
       # Standalone 4-digit year after medical keyword
@@ -252,6 +355,38 @@ entities:
       - '(?:commercial\s+license|driver.s\s+license|certificate|degree|permit)\s+(?:issued\s+)?(\b(?:19|20)\d{2}\b)'
       # "Year: 2023" or "YEAR: 2024" label-prefixed year (GAP-01)
       - '(?:\bYear\b|\bYEAR\b)\s*[:#=]?\s*(\b(?:19|20)\d{2}\b)'
+      # YYYY[./_-]MM[./_-]DD with DOB keyword (covers 1995/08/21, 1995.08.21, 1995_08_21)
+      - '(?:DOB|Date\s+of\s+Birth|born|Person\s+Date\s+of\s+Birth|Registered\s+DOB|Individual\s+DOB|User\s+DOB|Birth\s+Record\s+Date|Dependent\s+DOB|Official\s+DOB)\s*[:#]?\s*(\d{4}[./\-_]\d{1,2}[./\-_]\d{1,2})\b'
+      # Compact 8-digit YYYYMMDD with DOB keyword (e.g. 19950821)
+      - '(?:DOB|Date\s+of\s+Birth|born|Person\s+Date\s+of\s+Birth|Registered\s+DOB|Individual\s+DOB|User\s+DOB|Birth\s+Record\s+Date)\s*[:#]?\s*((?:19|20)\d{6})(?!\d)'
+      # Standalone 8-digit YYYYMMDD pre-anchored: "validated 19950821"
+      - '(?:validated|verified|issued|registered|recorded)\s+((?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01]))(?!\d)'
+      # 14-digit compact YYYYMMDDHHMMSS (timestamp DOB) with keyword
+      - '(?:DOB|Date\s+of\s+Birth)\s*[:#]?\s*((?:19|20)\d{12})(?!\d)'
+      # ISO 8601 datetime — full timezone variants: Z, ±HH:MM, ±HHMM
+      - '(?:DOB|Date\s+of\s+Birth|born|Birth)\s*[:#]?\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:?\d{2})?)\b'
+      # YYYY-MM-DD with time: "1995-08-21 12:00 AM" / "1995-08-21 14:30:00"
+      - '(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM|am|pm))?)\b'
+      # DD/MM/YYYY HH:MM with optional 24h: "21/08/1995 00:00"
+      - '(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM|am|pm))?)\b'
+      # ctime/asctime: "Fri Aug 21 00:00:00 1995"
+      - '\b((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})\b'
+      # DD-Mon-YYYY HH:MM hrs format (military): "21-Aug-1995 09:00 hrs"
+      - '\b(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{4}\s+\d{1,2}:\d{2}\s*hrs?)\b'
+      # Date with AD/CE/BC suffix: "1995.08.21 AD"
+      - '\b(\d{4}[./\-]\d{1,2}[./\-]\d{1,2}\s+(?:AD|CE|BC|BCE))\b'
+      # MM/DD/YYYY HH:MM:SS: "08/21/1995 07:30:55"
+      - '\b(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2})\b'
+      # Year-day-month order: "1995-21-08", "2026-22-05"
+      - '\b((?:19|20)\d{2}-(?:[12]\d|3[01]|0?[1-9])-(?:0?[1-9]|1[0-2]))(?!\d)'
+      # 2-digit year MM/DD/YY with bounds (DOB: 08/21/95): keyword-anchored only
+      - '(?:DOB|Date\s+of\s+Birth|born)\s*[:#]?\s*(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2})(?!\d)'
+      # Ordinal-day text DOB: "21st August 1995"
+      - '\b(\d{1,2}(?:st|nd|rd|th)\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:19|20)\d{2})\b'
+      # Day-of-week prefixed long form: "Friday, August 21, 1995"
+      - '\b((?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(?:19|20)\d{2})\b'
+      # YYYY Mon DD: "1995 Aug 21"
+      - '\b((?:19|20)\d{2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2})\b'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -293,6 +428,8 @@ entities:
       # Underscore formats: 2026_05_21, 21_May_2026
       - '(\d{4}_\d{2}_\d{2})'
       - '(\d{2}_(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_\d{4})'
+      # Dash-separated month abbrev: 22-May-2026, 22-MAY-2026
+      - '\b(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)-\d{2,4})\b'
       # "21/MAY/2026" uppercase month
       - '(\d{1,2}/(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/\d{4})'
       # Standalone 4-digit year after medical keyword
@@ -320,6 +457,35 @@ entities:
       - '(?:check[-\s]in|check[-\s]out)\s*[:#]\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})\b'
       # Bare MM/DD/YYYY — catches dates in parentheses, standalone, or after unlisted keywords
       - '(?<![A-Za-z0-9/\-])(\b(?:0?[1-9]|1[0-2])[/\-](?:0?[1-9]|[12]\d|3[01])[/\-](?:19|20)\d{2})\b'
+      # ISO 8601 with timezone: "2026-05-22T10:45:00Z", "2026-05-22T14:22:11+05:30"
+      - '\b(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:?\d{2})?)\b'
+      # YYYY-MM-DD with time: "2026-05-22 10:45 AM", "2026-05-22 14:30:00"
+      - '\b(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM|am|pm))?)\b'
+      # DD/MM/YYYY HH:MM: "22/05/2026 14:30"
+      - '\b(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM|am|pm))?)\b'
+      # MM/DD/YYYY HH:MM:SS: "05/22/2026 07:30:55"
+      - '\b(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2})\b'
+      # Long datetime: "May 22, 2026 08:15 PM"
+      - '\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\b'
+      # 14-digit compact YYYYMMDDHHMMSS (e.g. "20260522104530")
+      - '(?<!\d)((?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{6})(?!\d)'
+      # 8-digit compact YYYYMMDD with clinical/DOB context keywords (e.g. "issued on 19950821")
+      - '(?:issued|recorded|reported|filed|created|admitted|discharged|prescribed|on)\s+((?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01]))(?!\d)'
+      # ctime/asctime: "Fri May 22 10:45:00 2026"
+      - '\b((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+(?:19|20)\d{2})\b'
+      # DD-Mon-YYYY with hrs: "22-May-2026 09:00 hrs"
+      - '\b(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{4}\s+\d{1,2}:\d{2}\s*hrs?)\b'
+      # Date with AD/CE suffix: "2026.05.22 AD"
+      - '\b(\d{4}[./\-]\d{1,2}[./\-]\d{1,2}\s+(?:AD|CE|BC|BCE))\b'
+      # Year-day-month order: "2026-22-05" — only valid when 2nd group >12 (clearly day not month)
+      - '\b((?:19|20)\d{2}-(?:1[3-9]|2\d|3[01])-(?:0?[1-9]|1[0-2]))(?!\d)'
+      # YYYY Mon DD format: "2026 May 22"
+      - '\b((?:19|20)\d{2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2})\b'
+      # Ordinal-day clinical: "May 22nd, 2026", "22nd May 2026"
+      - '\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th),?\s+\d{4})\b'
+      - '\b(\d{1,2}(?:st|nd|rd|th)\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b'
+      # Day-of-week prefixed: "Friday, May 22, 2026"
+      - '\b((?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})\b'
     masking:
       strategy: redact
       format: "[DATE {n}]"
@@ -347,6 +513,18 @@ entities:
       - '(\d{3}-\d{3}-\d{4}(?:x\d{1,6})?)'
       # long international digits without separators (10-15 digits)
       - '(?<!\d)(\d{10,15})(?!\d)'
+      # US/Canada toll-free with optional 1- prefix: 1-800-NNN-NNNN, 1860-NNN-NNNN, 800-NNN-NNNN
+      - '\b(1?[-\s]?(?:800|833|844|855|866|877|888|860)[-\s]?\d{3}[-\s]?\d{4})\b'
+      # UK landline: 020-7946-0958 (3-4-4 dashed) or 020 7946 0958
+      - '\b(0\d{2,4}[-\s]\d{3,4}[-\s]\d{4})\b'
+      # Indian fixed line: 040-23456789, 011-45678901 (3 digit STD + 7-8 digit local)
+      - '\b(0\d{2,4}[-\s]\d{6,8})\b'
+      # Indian mobile: 99999 88888 (5+5 with space) or 9999988888 (10 digit starts 6-9)
+      - '\b([6-9]\d{4}\s\d{5})\b'
+      # E.164 international: +CC-NNN-NNN-NNNN with extensions
+      - '(\+\d{1,3}[-\s]\d{1,4}[-\s]\d{3,4}[-\s]\d{3,4}(?:\s*(?:ext|x)\s*\d{1,6})?)'
+      # Helpline / customer support context
+      - '(?:Customer\s+Support|Service\s+Helpline|Toll[\s-]?Free|Helpline)\s+(?:Number|No)?\s*[:#]?\s*(\+?[\d][\d\s\-\(\)\.]{8,20})'
     masking:
       strategy: redact
       format: "[PHONE NUMBER {n}]"
@@ -364,6 +542,12 @@ entities:
       - '(?:FAX|Fax)\s*(?:Number|No|#)?\s*[:#]?\s*(\+?[\d\s\-\(\)\.]{9,18})'
       - '(?:FAX|Fax)\s*[:#]\s*(\+?[\d\s\-\(\)\.]{9,18})'
       - '(?:Fax\s+Contact\s+Number|Official\s+Fax\s+ID|Fax\s+Extension\s+Number)\s*[:#]?\s*(\+?[\d\s\-\(\)\.]{9,22}(?:\s+ext\s+\d+)?)'
+      # FAX-NNNNNN code-style identifier (e.g. FAX-556677)
+      - '\b(FAX-\d{4,12})\b'
+      # International fax with extension: +1-415-555-7788 ext 204
+      - '(?:FAX|Fax)\s*[:#]?\s*(\+\d{1,3}[-\s]\d{1,4}[-\s]\d{3,4}[-\s]\d{4}(?:\s*ext\s*\d{1,6})?)'
+      # 4-digit short fax extension after Fax keyword (e.g. "555-8899" in fax context)
+      - '(?:FAX|Fax)\s*(?:Number|No|#)?\s*[:#]?\s*(\d{3}-\d{4})\b'
     masking:
       strategy: redact
       format: "[FAX NUMBER {n}]"
@@ -395,7 +579,15 @@ entities:
     gliner_label: "social security number"
     presidio_type: US_SSN
     patterns:
-      - '(\d{3}-\d{2}-\d{4})'
+      # Canonical NNN-NN-NNNN
+      - '\b(\d{3}-\d{2}-\d{4})\b'
+      # Separator variants — space, dot, slash, underscore (excludes valid prefixes 666, 9XX per SSA rules via \b)
+      - '\b(\d{3}[\s./_]\d{2}[\s./_]\d{4})\b'
+      # Mixed separator (e.g. 123-45_6789, 123.45-6789)
+      - '\b(\d{3}[-\s./_]\d{2}[-\s./_]\d{4})\b'
+      # 9-digit SSN with explicit keyword anchor (safer than bare 9-digit)
+      - '(?:SSN|Social\s+Security\s+(?:Number|No|#))\s*[:#]?\s*(\d{9})(?!\d)'
+      - '(?:SSN|Social\s+Security\s+(?:Number|No|#))\s*[:#]?\s*(\d{3}[-\s./_]\d{2}[-\s./_]\d{4})\b'
     masking:
       strategy: redact
       format: "[SSN {n}]"
@@ -418,6 +610,10 @@ entities:
       # Stable medical ID prefixes (full token)
       - '\b(VIS|LAB|SMP|RAD|BLD|IMG|HRN|EHR|EMR|RX|CT|DRN|CMR|CDN|HIR|PVR|HCR|CRI|MFN|TRN|IPR|OPR|PCN|MHR|PMR)-[A-Za-z0-9\-]{4,20}\b'
       - '\bLAB-ACCN-[A-Za-z0-9\-]{4,20}\b'
+      # Uppercase keyword-prefixed labels: "PATIENT RECORD-ID:", "EMR#:", "CLINICAL RECORD#:"
+      - '(?:PATIENT\s+RECORD[-\s]?ID|HOSPITAL\s+RECORD\s+NO|EMR#?|EHR[-\s]?ID|CLINICAL\s+RECORD#?|MEDICAL\s+RECORD#?|HEALTHCARE\s+RECORD#?|TREATMENT\s+RECORD#?|INPATIENT\s+RECORD#?|OUTPATIENT\s+RECORD#?|PATIENT\s+CHART#?|MEDICAL\s+HISTORY\s+RECORD#?)\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,20})'
+      # Care management / health information / patient visit record codes
+      - '\b(?:HCR|HCM|MED|MCD|HCB)-[A-Za-z0-9\-]{4,20}\b'
     masking:
       strategy: redact
       format: "[MRN {n}]"
@@ -443,6 +639,15 @@ entities:
       - 'Subscriber\s+(?:ID|Number|No)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{4,20})'
       - '(?:Medicare\s+Number|Medicaid\s+ID|Beneficiary\s+Registration\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
       - '\b(MED|MCD|BRN|HPB|HPN|MBN|PBID|IBN|HCB|SBN|GHB|HSB|IEB|PBA|HAB|FHB)-[A-Za-z0-9\-]{4,20}\b'
+      # Medicare Beneficiary Identifier (MBI) — strict CMS format: 1L 1A-N 1AN 1N 1L 1A-N 1AN 1N 1L 1L 2N
+      # Practical regex: 11 alphanumeric uppercase, no S/L/O/B/I/Z (CMS spec)
+      - '\b([1-9][AC-HJ-NP-RT-Y][AC-HJ-NP-RT-Y0-9]\d[AC-HJ-NP-RT-Y][AC-HJ-NP-RT-Y0-9]\d[AC-HJ-NP-RT-Y]{2}\d{2})\b'
+      # HICN legacy Medicare format: 9 digits + 1-2 letter suffix
+      - '(?:HICN|Medicare)\s*(?:Number|No|#|ID)?\s*[:#]?\s*(\d{9}[A-Z]{1,2})\b'
+      # Beneficiary keyword variants (registration, enrollment, group)
+      - '(?:Patient\s+Beneficiary|Insured\s+Beneficiary|Healthcare\s+Beneficiary|Plan\s+Beneficiary|Beneficiary\s+Enrollment)\s+(?:Number|ID|No|#)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      # Uppercase label-style: "MEMBER ID:", "GROUP NO:"
+      - '(?:MEMBER\s+(?:ID|NO|NUMBER|#)|GROUP\s+(?:ID|NO|NUMBER|#)|SUBSCRIBER\s+(?:ID|NO|NUMBER|#)|BENEFICIARY\s+(?:ID|NO|NUMBER|#))\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,19})'
     masking:
       strategy: redact
       format: "[INSURANCE ID {n}]"
@@ -459,6 +664,14 @@ entities:
     patterns:
       - '(?:Policy\s+(?:Number|No|#)\s*[:#]?\s*)([A-Za-z0-9\-]{4,20})'
       - '\bPOL-[A-Za-z0-9\-]{4,20}\b'
+      # Specific insurance keyword + value: Health/Life/Auto/Travel/Family/Government/Claim insurance
+      - '(?:Health|Life|Auto|Travel|Family|Government|Claim|Member|Group|Corporate|Dental|Employer\s+Coverage|Accident|Property|Vehicle)\s+Insurance\s+(?:Policy|Plan)?\s*(?:ID|Number|No|#)?\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      # Insurance prefix codes — full code-set
+      - '\b(?:PN|IPID|HIP|LIP|AIP|PRN|MIP|TIP|RPN|MBI|SPN|GIP|IEN|PCP|CIP|FIP|SIP|DIP|ECP|ACP|CORP)-[A-Za-z0-9\-]{4,20}\b'
+      # Generic policy keyword + alphanumeric (uppercase label form): "POLICY#:", "INSURANCE POLICY-ID:"
+      - '(?:POLICY\s*#?|INSURANCE\s+POLICY[-\s]?ID|LIFE\s+INSURANCE#?|AUTO\s+POLICY[-\s]?ID|HEALTH\s+POLICY[-\s]?ID)\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,19})'
+      # Policy enrollment number
+      - '(?:Policy\s+Enrollment|Coverage\s+ID|Coverage\s+Number|Insurance\s+Enrollment\s+Number|Plan\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
     masking:
       strategy: redact
       format: "[INSURANCE POLICY {n}]"
@@ -480,6 +693,16 @@ entities:
       - '\bHB-\d{4}-\d{4}\b'
       - '\b(?:MBN|UBN|PBN|BS|BRN|SUB|TAX-BN|SBR|MOB)-[A-Za-z0-9\-]{4,20}\b'
       - '\bBC\d{4,12}\b'
+      # Customer / Tax / Corporate / Telecom / Hospital / Utility / Mobile / Subscription billing prefix codes
+      - '\b(?:CB|CORP-BILL|TEL|HB|TAX-BN|CB-MOB|MOB|MBN|UBN|HB|BS|PBN|SUB|SBR|BRN|UTIL|CORP|HOSP|TELE)-[A-Za-z0-9\-]{4,20}\b'
+      # BILL-YYYY-NNN year-tagged invoice number: "BILL-2026-001"
+      - '\b(BILL-(?:19|20)\d{2}-\d{2,6})\b'
+      # BC + 5-9 digits short billing code: "BC998877"
+      - '\b(BC\d{5,9})\b'
+      # SBR-YYYY-NNN subscription billing
+      - '\b(SBR-(?:19|20)\d{2}-\d{2,6})\b'
+      # Generic billing keyword + alphanumeric value (catch-all for new label variants)
+      - '(?:Invoice|Statement|Customer|Tax|Corporate|Mobile|Hospital|Utility|Telecom|Subscription|Payment|Monthly|Annual)\s+Billing\s+(?:Number|ID|No|Code|Statement\s+No)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-]{3,19})'
     masking:
       strategy: redact
       format: "[BILLING NO {n}]"
@@ -503,6 +726,14 @@ entities:
       - '\b(ML-[A-Z]{2}-[A-Za-z0-9]{4,12})\b'
       - '(?:Practitioner\s+License\s+ID|Medical\s+Board\s+Registration\s+Number|Physician\s+Registration\s+ID|Telemedicine\s+Practitioner\s+License|Resident\s+Doctor\s+License\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - '\b(?:PLI|MBR|PLN|SML|HPL|CLN|SLN|HPR|MCN|PRI|MCL|PML|HPI|DRC|NML|PMC|TPL|RDL)-[A-Za-z0-9\-]{4,15}\b'
+      # Specialised license categories (SPL, MCL, PMC) and additional registration formats
+      - '\b(?:SPL|HPL|MCL|PMC|RDL|TPL|CLN|MBR|HPR|PLI|PRI|HPI|SML|PLN)-[A-Za-z0-9\-]{4,15}\b'
+      # Pharmacy / nursing license formats
+      - '(?:Pharmacy|Nursing|RN|LPN|NP|PA|DO|DDS|DMD)\s+License\s*(?:Number|No|#)?\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      # State-prefix license: "CA-PHY-12345", "NY-MED-67890"
+      - '\b([A-Z]{2}-(?:PHY|MED|RN|LPN|DEN|PHARM)-[A-Za-z0-9\-]{4,12})\b'
+      # NPI alternative — National Provider Identifier (not the npi_number entity, but provider license context)
+      - '(?:Provider\s+License|License\s+Verification|Board\s+Certification)\s+(?:Number|No|#|ID)?\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
     masking:
       strategy: redact
       format: "[MED LICENSE {n}]"
@@ -519,6 +750,11 @@ entities:
       - '(?:PRESCRIBER\s+DEA\s+ID|Medical\s+Practice\s+DEA\s+ID|Pharmacy\s+DEA\s+Verification\s+Number|DEA\s+Controlled\s+Drug\s+Authorization)\s*[:#]?\s*([A-Za-z]{2}\d{7})\b'
       - '(?:The\s+)?DEA\s+(?:number\s+is\s+)?([A-Za-z]{2}\d{7})\b'
       - '([A-Za-z]{2}\d{7})\s+for\s+dea\s+number'
+      # Standalone DEA format (2 letters + 7 digits) — restricted to first letter A-H/J-N/P/R-X (CFR 1304 registrant codes)
+      # Lookbehind/ahead prevent matching mid-token (e.g. inside passport ABC1234567)
+      - '(?<![A-Za-z0-9])((?:[ABCDEFGHJKLMNPRSTUX][A-Z])\d{7})(?![A-Za-z0-9])'
+      # DEA in same line as prescriber/pharmacy/medical context
+      - '(?:Prescriber|Pharmacy|Medical\s+Practice|Controlled\s+Drug)\s+\S*\s*[:#]?\s*([A-Z]{2}\d{7})\b'
     masking:
       strategy: redact
       format: "[DEA NUMBER {n}]"
@@ -557,6 +793,14 @@ entities:
       - '\b(?:PID|GP|CPI|DP|OPI|MRP|BP|TP|EP|NPR|IP|OPN|CPN|STP|INT)-[A-Za-z0-9\-]{4,15}\b'
       # Bare "Passport VALUE." without Number/No keyword (GAP-14)
       - '\bPassport\s+([A-Za-z][0-9]{7,8})\b'
+      # National passport prefixes (ICAO doc-code variants): IND, CAN, EUP, RTP, ICP, UK, USA, AUS, NZ, JPN, FP
+      - '\b(?:IND|CAN|EUP|RTP|ICP|UK|USA|AUS|NZ|JPN|RUS|BRA|MEX|CHN|FP)-[A-Za-z0-9\-]{4,15}\b'
+      # National keyword + value: "Indian Passport Number: IND-9988"
+      - '(?:Indian|Canadian|EU|European|Refugee|International|US|British|Australian|Japanese|Russian|Chinese|Brazilian|Mexican)\s+(?:Travel\s+)?(?:Citizen\s+)?Passport\s+(?:Number|ID|No|#)?\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      # Bare ICAO format: 1-2 letters + 6-8 digits (A1234567, XZ445566) — anchored to avoid mid-token
+      - '(?<![A-Za-z0-9])([A-Z]{1,2}\d{6,8})(?![A-Za-z0-9])'
+      # Diplomatic/temporary/biometric passport keyword + value
+      - '(?:Diplomatic|Temporary|Biometric|Electronic|Machine\s+Readable|Overseas|Government|Official|Foreign)\s+Passport\s+(?:Number|ID|No|#)?\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
     masking:
       strategy: redact
       format: "[PASSPORT {n}]"
@@ -570,12 +814,22 @@ entities:
     gliner_label: "driver's license number"
     presidio_type: US_DRIVER_LICENSE
     patterns:
-      - "(Driver's?\\s+License\\s*[:#]?\\s*[A-Za-z0-9\\-]{6,18})"
+      - "(?:Driver's?\\s+License\\s*[:#]?\\s*)([A-Za-z0-9\\-]{6,18})"
       - '(\bDL[-\s]*[A-Za-z0-9][A-Za-z0-9\-]{4,17})\b'
       - '(?:Learner\s+Permit\s+Number|Driving\s+Permit\s+ID|International\s+Driving\s+Permit\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{6,18})'
       - 'DL#\s*([A-Za-z0-9\-]{6,18})'
       - 'LICENSE[-\s]*ID\s*[:#]?\s*([A-Za-z0-9\-]{6,18})'
       - '\b(?:LIC|DRV|MVL|SDL|CDL|LP|OL|DP|VOL|LID|TDL|SIL|DMV|DCN|RL|IDP)-[A-Za-z0-9\-]{4,18}\b'
+      # Single-letter prefix + 8-10 digits (D987654321, S123456789) — common US state DL formats
+      - '(?:DL|Driver(?:''s)?\s+License|Driving\s+License)\s*(?:Number|No|#)?\s*[:#]?\s*([A-Z]\d{8,10})\b'
+      # Letter + dashed segments: S123-4567-8901
+      - '(?:DL|Driver(?:''s)?\s+License|Driving\s+License)\s*(?:Number|No|#)?\s*[:#]?\s*([A-Z]\d{3}-\d{4}-\d{4})\b'
+      # Bare DL# format: "DL# D987654321"
+      - '\bDL#\s*([A-Z]\d{8,10})\b'
+      # Commercial / specialised DL prefix: CDL-C-NNNNNN
+      - '\b(CDL-[A-Z]-\d{4,10})\b'
+      # Standalone state-DL alphanumeric (must contain at least 1 letter and 5 digits, anchored)
+      - '(?<![A-Za-z0-9])([A-Z]\d{8,10})(?![A-Za-z0-9])'
     masking:
       strategy: redact
       format: "[DRIVERS LICENSE {n}]"
@@ -584,7 +838,7 @@ entities:
 
   - id: vehicle_vin
     display_name: Vehicle Identification Number (VIN)
-    description: "17-character vehicle identification number. Example: 1HGCM82633A004352"
+    description: "17-character vehicle identification number. Example: 1HGCM82633A004352. ISO 3779: excludes I, O, Q to avoid digit confusion."
     policy: [hipaa, transportation]
     enabled: true
     priority: 2
@@ -593,6 +847,12 @@ entities:
       - '(?:Vehicle\s+)?VIN\s*[:#]?\s*([A-HJ-NPR-Z0-9]{17})\b'
       - '(?:Vehicle\s+Identification\s+Number)\s*[:#]?\s*([A-HJ-NPR-Z0-9]{8,17})\b'
       - '\b([A-HJ-NPR-Z0-9]{17})\b'
+      # Title-case keyword anchors: "Insurance Vehicle VIN: YV1TS592761234567",
+      # "Registered Vehicle VIN: VF1RFB00612345678",
+      # "Electric Vehicle VIN: LEAFA123456789012".
+      - '(?:Insurance\s+Vehicle\s+VIN|Registered\s+Vehicle\s+VIN|Electric\s+Vehicle\s+VIN|Commercial\s+Vehicle\s+VIN|Truck\s+VIN|Car\s+VIN|Motorcycle\s+VIN)\s*[:#]?\s*([A-HJ-NPR-Z0-9]{17})\b'
+      # All-uppercase label form: "REGISTERED VIN#: VF1RFB00612345678".
+      - '(?:REGISTERED\s+VIN#?|VEHICLE\s+VIN[-\s]?ID|CAR\s+VIN#?|TRUCK\s+VIN[-\s]?ID|INSURANCE\s+VIN#?)\s*[:#]?\s*([A-HJ-NPR-Z0-9]{17})\b'
     masking:
       strategy: redact
       format: "[VIN {n}]"
@@ -610,6 +870,19 @@ entities:
       - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{1,3}[\s\-][A-Z0-9]{2,4}[\s\-][A-Z0-9]{1,4})\b'
       - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z]{2}-\d{3,6})'
       - '(?:license\s+plate|plate\s+(?:number|no\.?|#)|vehicle\s+plate|tag\s+number)\s*[:#]?\s*([A-Z0-9]{5,8})'
+      # Indian state plate format: 2-letter state + 1-2 digit RTO + 1-3 letter series + 4 digits (no separator)
+      # Examples: KA01AB1234, AP39XY7788, TS09EF1122, GJ05TR3344, TN10BK9090, RJ14CP2211, KL07MN6767
+      - '\b((?:AP|AR|AS|BR|CG|GA|GJ|HR|HP|JH|KA|KL|MP|MH|MN|ML|MZ|NL|OD|PB|RJ|SK|TN|TS|TR|UP|UK|WB|AN|CH|DD|DN|DL|JK|LA|LD|PY)\d{1,2}[A-Z]{1,3}\d{3,4})\b'
+      # Indian plate with optional spaces: "RJ 14 CP 2211"
+      - '\b((?:AP|AR|AS|BR|CG|GA|GJ|HR|HP|JH|KA|KL|MP|MH|MN|ML|MZ|NL|OD|PB|RJ|SK|TN|TS|TR|UP|UK|WB|AN|CH|DD|DN|DL|JK|LA|LD|PY)\s\d{1,2}\s[A-Z]{1,3}\s\d{3,4})\b'
+      # UK plate (current format): 2 letters + 2 digits + space + 3 letters (e.g. "AB12 CDE")
+      - '\b([A-Z]{2}\d{2}\s[A-Z]{3})\b'
+      # Keyword-prefixed temporary / commercial / motorcycle plate codes
+      - '(?:Temporary\s+Plate\s+Number|State\s+Registration\s+Plate|Motorcycle\s+Plate\s+Number|Auto\s+Registration\s+Number|Commercial\s+Plate|Transport\s+Vehicle\s+Registration|UK\s+Registration\s+Plate)\s*[:#-]?\s*([A-Z0-9]{2,4}[\s-]?[A-Z0-9]{2,8})\b'
+      # Special prefix codes: TEMP-, NYK-, TX-, CAB-, FLT-, PRK-, DIP-
+      - '\b((?:TEMP|NYK|TX|CAB|FLT|PRK|DIP)-[A-Z0-9]{4,8})\b'
+      # US 3-letter + 4-digit format: "ABC-1234", "XYZ 9876"
+      - '(?<![A-Za-z0-9])([A-Z]{3}[\s-]\d{4})(?![A-Za-z0-9])'
     masking:
       strategy: redact
       format: "[LICENSE PLATE {n}]"
@@ -632,6 +905,22 @@ entities:
       - '(?:Device\s+(?:ID|identifier|serial|Registration\s+Number|Tracking\s+Number))\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
       - '(?:Cardiac\s+Implant\s+Device\s+Serial\s+Number|Pacemaker\s+Model\s+Number|Device\s+Tracking\s+Number|Patient\s+Monitoring\s+Device\s+ID|Wearable\s+Health\s+Device\s+Serial|Unique\s+Device\s+Identifier|Hardware\s+Identifier|Endpoint\s+Device\s+ID|Electronic\s+Device\s+Identifier|Asset\s+Device\s+Number|IoT\s+Device\s+Identifier|Mobile\s+Device\s+ID|Computer\s+Device\s+Number|Tracking\s+Device\s+ID|Sensor\s+Device\s+Identifier|Network\s+Device\s+Identifier|Device\s+Serial\s+Identifier|Embedded\s+Device\s+ID|Digital\s+Device\s+Identifier|Authentication\s+Device\s+ID|Enterprise\s+Device\s+Identifier|Cloud\s+Device\s+Registration\s+ID|Secure\s+Endpoint\s+Device\s+ID|Virtual\s+Device\s+Identifier|Remote\s+Device\s+Authentication\s+ID|Industrial\s+Device\s+Tracking\s+Number)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
       - '\b(?:DEV|DVC|UDI|HW|TERM|END|EDI|ADN|IOT|MD|CDN|TDI|SDI|DRN|NDI|DSI|EBD|DDI|ADI|IMPL|DTN|PMD|WH|PM|DEVICE|CDR|SED|VDI|RDA|IDT)-[A-Za-z0-9\-]{4,20}\b'
+      # Hyphen-separated MAC: AA-BB-CC-DD-EE-FF (already handled by char class above; explicit anchor for safety)
+      - '\b([0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2})\b'
+      # Cisco-style dotted MAC: aabb.ccdd.eeff
+      - '\b([0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4})\b'
+      # IMEI 15-digit Luhn-shaped (no dashes, anchored)
+      - '(?<!\d)(\d{15})(?!\d)'
+      # MEID (14 hex) and EIN
+      - '\b(MEID[-:#\s]*[0-9A-Fa-f]{14})\b'
+      - '\b(ESN[-:#\s]*[0-9A-Fa-f]{8,11})\b'
+      # Mobile-device IDs: ANDROID_ID (16 hex), GAID/IDFA UUID
+      - '\bANDROID[_\-]?ID\s*[:#=]?\s*([0-9a-fA-F]{16})\b'
+      - '\b(?:GAID|IDFA|ADID)\s*[:#=]?\s*([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})\b'
+      # Apple UDID (40 hex)
+      - '\bUDID\s*[:#=]?\s*([0-9a-fA-F]{40})\b'
+      # Cloud / virtual / industrial / endpoint device prefix codes
+      - '\b(?:EDI|CDR|SED|VDI|RDA|IDT|EDR|CLD|VRT|RMT|IND-DEV)-[A-Za-z0-9\-]{4,20}\b'
     masking:
       strategy: redact
       format: "[DEVICE ID {n}]"
@@ -640,7 +929,7 @@ entities:
 
   - id: url_with_pii
     display_name: URL with PII
-    description: "Flag only actual URL values (starting with http/https) from sensitive or internal domains. NOT the label word 'URL' itself. Do not flag generic public URLs."
+    description: "Flag actual URL values (http/https) that carry personal information — either via PII query parameters (ssn, email, phone, dob, mrn, lat/lng, etc.) or sensitive domain (health/hospital/medical/clinic/patient/portal/ehr). NOT the label word 'URL' itself."
     policy: [hipaa]
     enabled: true
     priority: 3
@@ -650,6 +939,25 @@ entities:
       - '(https?://\S+)'
       - '(?:https?://)?(?:www\.)?([a-z0-9][-a-z0-9.]*healthrecords\.com)\b'
       - '(?:https?://)?(?:www\.)?([a-z0-9][-a-z0-9.]*(?:health|hospital|medical|clinic|patient)[a-z0-9.-]*\.(?:com|org|net))\b'
+      # Title-case keyword anchor + URL: "URL with PII: https://...",
+      # "Personal Data URL: https://...", "PII URL: https://...",
+      # "Sensitive URL: https://...", "Tracking URL with PII: https://...",
+      # "Medical Record URL: https://...", "Account Recovery URL: https://...",
+      # "Geo Location URL: https://...", "Prescription URL: https://...",
+      # "Document Sharing URL: https://...", "Healthcare Portal URL: https://...",
+      # "Secure Login URL: https://...", "Taxpayer URL: https://...",
+      # "Support Ticket URL: https://...".
+      - '(?:URL\s+with\s+PII|Personal\s+Data\s+URL|PII\s+URL|Sensitive\s+URL|Tracking\s+URL\s+with\s+PII|Medical\s+Record\s+URL|Account\s+Recovery\s+URL|Geo\s+Location\s+URL|Prescription\s+URL|Document\s+Sharing\s+URL|Healthcare\s+Portal\s+URL|Secure\s+Login\s+URL|Taxpayer\s+URL|Support\s+Ticket\s+URL|URL)\s*[:#]?\s*(https?://\S+)'
+      # All-uppercase label form: "PII-URL#: https://...",
+      # "SENSITIVE LINK-ID: https://...", "HEALTH RECORD URL#: https://...",
+      # "LOGIN URL-ID: https://...", "SUPPORT TICKET URL: https://...".
+      - '(?:URL#?|PII[-\s]?URL#?|SENSITIVE\s+LINK[-\s]?ID|HEALTH\s+RECORD\s+URL#?|LOGIN\s+URL[-\s]?ID|SUPPORT\s+TICKET\s+URL|MEDICAL\s+URL#?|GEO\s+URL[-\s]?ID)\s*[:#]?\s*(https?://\S+)'
+      # URL with PII query parameter — strong signal regardless of domain.
+      # Captures the full URL when the query string contains identifying keys
+      # (ssn, email, phone, dob, mrn, tin, tax_id, patient, customer, user,
+      # username, name, firstname, lastname, address, lat, lng, longitude,
+      # latitude, card, token, password, api_key).
+      - '(https?://[^\s?#]+\?[^\s]*\b(?:ssn|email|phone|dob|mrn|tin|tax_id|patient|customer|user|username|name|firstname|lastname|address|lat|lng|longitude|latitude|card|token|password|api_key)=[^\s]+)'
     masking:
       strategy: redact
       format: "[URL {n}]"
@@ -672,6 +980,14 @@ entities:
       - '(?:Device\s+IP\s+Address|IP\s+Address)\s*[:#]?\s*(::1)\b'
       # Standalone IPv4 — high priority to beat GPS mislabeling
       - '\b((?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))\b'
+      # IPv6 — full form: 8 groups of 1-4 hex digits separated by ":" (RFC 4291)
+      - '(?<![\w:])((?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4})(?![\w:])'
+      # IPv6 — compressed form with "::" (RFC 5952): fe80::1ff:fe23:4567:890a, 2001:db8::1
+      - '(?<![\w:])((?:[A-Fa-f0-9]{1,4}:){1,7}:|(?:[A-Fa-f0-9]{1,4}:){1,6}:[A-Fa-f0-9]{1,4}|(?:[A-Fa-f0-9]{1,4}:){1,5}(?::[A-Fa-f0-9]{1,4}){1,2}|(?:[A-Fa-f0-9]{1,4}:){1,4}(?::[A-Fa-f0-9]{1,4}){1,3}|(?:[A-Fa-f0-9]{1,4}:){1,3}(?::[A-Fa-f0-9]{1,4}){1,4}|(?:[A-Fa-f0-9]{1,4}:){1,2}(?::[A-Fa-f0-9]{1,4}){1,5}|[A-Fa-f0-9]{1,4}:(?::[A-Fa-f0-9]{1,4}){1,6})(?![\w:])'
+      # IPv6 — leading "::" forms: ::1 (loopback), ::ffff:NNN.NNN.NNN.NNN (IPv4-mapped)
+      - '(?<![\w:])(::(?:[A-Fa-f0-9]{1,4}(?::[A-Fa-f0-9]{1,4})*)?)(?![\w:])'
+      # IPv6 link-local zone-id form (e.g., fe80::1%eth0)
+      - '(?<![\w:])(fe80:(?::[A-Fa-f0-9]{1,4}){0,4}%[A-Za-z0-9]+)(?![\w:])'
     masking:
       strategy: redact
       format: "[IP ADDRESS {n}]"
@@ -690,6 +1006,24 @@ entities:
       - '\b(?:FACE|FRT|FAUTH|FP|FGD|FRP|FIN|FDR|FAT|FBC|BFR|FVC|FMR|FSC|BFH|FSR|AIFM)-[A-Za-z0-9\-]{4,20}\b'
       - '\bFACE-SCAN-[A-Za-z0-9\-]{4,20}\b'
       - '\bPhoto-\d{1,6}\b'
+      # FS-YYYY-NNNN year-tagged face scan: "FS-2026-9981"
+      - '\b(FS-(?:19|20)\d{2}-\d{2,6})\b'
+      # FGD-YYYY-ALPHA face geometry data with year + suffix: "FGD-2026-A91"
+      - '\b(FGD-(?:19|20)\d{2}-[A-Z0-9]{2,8})\b'
+      # All-caps label form: "FACIAL RECOGNITION ID:", "FACE TEMPLATE NO:"
+      - '(?:FACIAL\s+RECOGNITION\s+ID|FACE\s+RECOGNITION\s+ID|FACE\s+SCAN\s+ID|FACIAL\s+AUTHENTICATION\s+ID|FACE\s+TEMPLATE\s+ID|FACE\s+TEMPLATE\s+NO|FACIAL\s+VERIFICATION\s+CODE|FACE\s+RECOGNITION\s+PROFILE)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-]{3,24})'
+      # Facial biometric hash (FBH-...) and security code (FSC-)
+      - '\b(?:FBH|FSC|FSP|FRP|FRC)-[A-Za-z0-9]{4,16}\b'
+      # AI Face Match / Detection IDs: "AIFM-77122"
+      - '\b((?:AIFM|FAIM|FACE-AI)-\d{4,10})\b'
+      # Group C: keyword-anchored no-dash variants — captures values like
+      # "F12345", "T98765" that appear after explicit face-context labels.
+      # Without this, NER (merchant_id / terminal_id / person_name) ate
+      # the value because the dash-prefix pattern above missed it.
+      - '(?:Face\s+Match\s+ID|Facial\s+Match\s+ID|Face\s+Template\s+ID|Face\s+Scan\s+Code|Face\s+ID|Facial\s+ID)\s*[:#]?\s*([A-Z]\d{4,10})\b'
+      - '(?:FACE\s+MATCH\s+ID|FACIAL\s+MATCH\s+ID|FACE\s+TEMPLATE\s+ID|FACE\s+SCAN\s+CODE|FACE\s+ID|FACIAL\s+ID)\s*[:#]?\s*([A-Z]\d{4,10})\b'
+      # Hex face hashes / templates (e.g. "Face Hash: a1b2c3d4...")
+      - '(?:Face(?:\s+Recognition)?\s+(?:Hash|Template\s+Hash)|Facial\s+Hash)\s*[:#]?\s*([0-9A-Fa-f]{16,64})\b'
     masking:
       strategy: redact
       format: "[BIOMETRIC FACE {n}]"
@@ -707,6 +1041,14 @@ entities:
       - '(?:Voiceprint|VOICEPRINT|Voice\s+Auth)\s*(?:ID|No|#)?\s*[:#]?\s*([A-Z]{2,5}-\d{4,12})'
       # VP-NNNNNN bare prefix format (GAP-13)
       - '\b(VP-\d{4,10})\b'
+      # Full prefix family (BV, VA, SR, VBT, VS, RVN, VM, AB, VSI, VRP, CVP, DVS, SBI, VIN, VE, VPR, SVID, AIV, CCV, BVV, VVN, VAT, VS)
+      - '\b(?:VP|BV|VA|SR|VBT|VS|RVN|VM|AB|VSI|VRP|CVP|DVS|SBI|VIN|VE|VPR|SVID|AIV|CCV|BVV|VVN|VAT)-(?:(?:19|20)\d{2}-)?[A-Za-z0-9]{2,12}\b'
+      # Uppercase label form: "VOICEPRINT ID:", "VOICE AUTH NO:", "SPEAKER ID#"
+      - '(?:VOICEPRINT\s+ID|VOICEPRINT#?|VOICE\s+AUTH(?:\s+NO)?|SPEAKER\s+ID#?|VOICE-BIOMETRIC-ID|VOICE\s+PROFILE\s+ID|DIGITAL\s+VOICE\s+ID)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-]{3,19})'
+      # VS-YYYY-NNN year-tagged voice signature
+      - '\b(VS-(?:19|20)\d{2}-\d{2,6})\b'
+      # Dotted-config style: voice.auth.token.NNNNN
+      - '\b(voice\.[a-z\.]+\.\d{4,12})\b'
     masking:
       strategy: redact
       format: "[BIOMETRIC VOICE {n}]"
@@ -727,6 +1069,22 @@ entities:
       - 'irisCaptureRef=([A-Za-z0-9\-]{4,20})'
       - '\bIRISSCAN_\d{4,12}\b'
       - '\biris-template-[A-Za-z0-9\-]{4,15}\b'
+      # 8-character hex iris hash: "9F2A7C11"
+      - '(?:Iris\s+Biometric\s+Hash|Iris\s+Hash)\s*[:#]?\s*([0-9A-Fa-f]{8,32})\b'
+      # IR-YYYY-NNNN year-tagged enrollment: "IR-2026-8841"
+      - '\b(IR-(?:19|20)\d{2}-\d{2,6})\b'
+      # Iris UUID v4 format
+      - '(?:Biometric\s+Iris\s+UUID|Iris\s+UUID)\s*[:#]?\s*([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})\b'
+      # Compound suffix: "IRS-FA229" (Iris Retina Signature)
+      - '\b(IRS-[A-Z0-9]{4,10})\b'
+      # Iris Capture / Auth dotted config style: "iris.capture.id=NNN" (covered above), plus snake_case variants
+      - '\b(scan_iris_(?:left|right)_\d{4,8})\b'
+      - '\b(ocular[-_]id[-_]ir[-_](?:19|20)\d{2})\b'
+      # Uppercase label form: "IRIS SCAN ID:", "IRIS PATTERN CODE:"
+      - '(?:IRIS\s+SCAN\s+ID|IRIS\s+PATTERN\s+CODE|IRIS\s+VERIFICATION\s+TOKEN|IRIS\s+BIOMETRIC\s+HASH|RETINA/IRIS\s+MATCH|LEFT\s+IRIS\s+TEMPLATE|RIGHT\s+IRIS\s+TEMPLATE|OCULAR\s+RECOGNITION\s+ID|SECURE\s+IRIS\s+TOKEN)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-#.]{3,39})'
+      # Hash anchors for iris auth keys
+      - '\b(EIK-\d+-\d+)\b'
+      - '\b(MC-\d{4,8})\b'
     masking:
       strategy: redact
       format: "[BIOMETRIC IRIS {n}]"
@@ -745,6 +1103,18 @@ entities:
       - '\bSHA-DNA-[A-Za-z0-9\-]{4,15}\b'
       # CODIS STR locus allele format: "D3S1358-15", "vWA-17", "TH01-9" (GAP-10)
       - '\b((?:D\d+S\d+|vWA|TH01|TPOX|CSF1PO|FGA|D7S820|D3S1358|D13S317|D16S539|D2S1338|D21S11|D18S51|D5S818|D8S1179|PentaE|PentaD|SE33)-\d{1,3})\b'
+      # Standalone DNA sequence (10+ ACGT bases, IUPAC) — keyword-anchored to avoid matching English words
+      - '(?:DNA|Sequence|Genome|Genetic)[\s:#-]+([ACGTacgt]{10,})\b'
+      # Pure ACGT 10+ char standalone (very strict — 4-letter alphabet rare in English text)
+      - '(?<![A-Za-z])([ACGT]{12,})(?![A-Za-z])'
+      # BRCA / cancer-marker variants: "BRCA1-MUT-22", "BRCA2-VAR-11"
+      - '\b(BRCA[12]?-(?:MUT|VAR|DEL|INS|SNP)-\d{1,4})\b'
+      # GS-NNNNN-ALPHA / GS-NNNNN-BETA genetic signature variants
+      - '\b(GS-\d{4,8}-(?:ALPHA|BETA|GAMMA|DELTA|EPSILON))\b'
+      # Generic genetic-signature alphanumeric: "GEN-992134", "DNA-458721"
+      - '\b((?:DNA|GEN|FDNA|DNAREC|DNC|BGID|DRN|GS|FDNA|H-DNA)-(?:[A-Z\d]{4,12}))\b'
+      # Hash-prefixed digest: "SHA-DNA-99A7F", with hex content
+      - '\b(SHA-DNA-[0-9A-Fa-f]{4,32})\b'
     masking:
       strategy: redact
       format: "[BIOMETRIC DNA {n}]"
@@ -759,6 +1129,16 @@ entities:
     patterns:
       - '(?:Digital\s+Fingerprint\s+Number|Fingerprint\s+ID|FP\s+Auth\s+No)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - '\b(?:FP|FSN|BFP|FTI|FSI|FRN|FAI|DFN|FVC|LFP|FRG|FM|FEI|SFT|PFR|BSI|FCN|FFN|FPA)-[A-Za-z0-9\-]{4,15}\b'
+      # Comprehensive fingerprint label variants
+      - '(?:Fingerprint\s+(?:Number|ID|Auth\s+No|Reference|Code|Hash|Template|Capture\s+ID|Scan\s+ID|Biometric\s+ID|Verification\s+Code|Vector\s+Code|Match\s+ID|Pattern\s+ID)|Palm\s+Print\s+(?:ID|Reference|Number)|Biometric\s+Fingerprint|Touch\s+ID\s+Reference|Fingerprint\s+Authentication|Latent\s+Fingerprint|Friction\s+Ridge\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
+      # FP-AUTH-NO style: "FP AUTH NO: FAI-223344"
+      - '\bFP\s+AUTH\s+NO\s*[:#]?\s*([A-Z]{2,5}-\d{4,12})'
+      # Uppercase label
+      - '(?:FINGERPRINT\s+ID|FP\s+AUTH\s+NO|FINGERPRINT\s+NUMBER|PALM\s+PRINT\s+ID)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-]{3,19})'
+      # Standalone hex fingerprint hash (32 hex chars / SHA-256-like)
+      - '(?:Fingerprint\s+Hash|Biometric\s+Hash)\s*[:#]?\s*([0-9A-Fa-f]{16,64})\b'
+      # FBI IAFIS / NGI ten-print format: "FBI-FP-NNNNNNN"
+      - '\b((?:FBI|NGI|IAFIS)-FP-\d{4,12})\b'
     masking:
       strategy: redact
       format: "[FINGERPRINT {n}]"
@@ -766,12 +1146,21 @@ entities:
 # ── #18  Any other unique identifying number ──────────────────────────────────
 
   - id: organization_name
-    display_name: Company / Organization Name
-    description: "Company, business, or organization name only. Do NOT flag city names, state names, country names, or geographic locations."
+    display_name: Company / Organization / Government Body / Foundation Name
+    description: "Company, business, nonprofit, government agency, or organization name. Examples: 'OpenAI Technologies', 'Bright Future Solutions', 'Helping Hands Foundation', 'Department of Public Services', 'Tata Consultancy Services'. Do NOT flag city names, state names, country names, or geographic locations on their own."
     policy: [hipaa]
     enabled: true
+    # Group B-2: priority 4 keeps it below physician/hospital/medication when
+    # GLiNER produces overlapping proper-noun spans, while still beating bare
+    # person_name (5) for free-form corporate names.
     priority: 4
-    confidence_threshold: 0.90
+    # Group B-2: 0.90 → 0.55. The high threshold suppressed almost every
+    # GLiNER hit on bare proper-noun org names like "OpenAI Technologies".
+    # 0.55 is the recommended value for trained GLiNER models on
+    # open-vocabulary corporate names; combined with the new training
+    # templates and hard-negative distractors, it gives strong recall
+    # without leaking onto generic words like "company" or "organization".
+    confidence_threshold: 0.55
     gliner_label: "company or organization name"
     presidio_type: ORG
     patterns:
@@ -796,6 +1185,23 @@ entities:
     enabled: true
     priority: 2
     gliner_label: "electronic or physical signature"
+    patterns:
+      # Code-style signature IDs (prefix + digits) — anchored as full token
+      - '\b((?:SIG|BIO-SIGN|DOCSIGN|REGSIG|AST|PKI|ENC-SIGN|SDS|E-SIGN|DSIG)-[A-Za-z0-9]{4,16})\b'
+      # /s/ FirstName [Initial.] LastName — legal e-signature convention
+      - '(/s/\s+(?-i:[A-Z])[a-zA-Z]+(?:\s+(?-i:[A-Z])\.?[a-zA-Z]*)+)'
+      # Signature keyword + value: capture full alphanumeric token (greedy, non-empty)
+      - '(?:Secure\s+Signature\s+ID|Biometric\s+Signature|Document\s+Signature|Registered\s+Signature|Digital\s+Signature|Electronic\s+Signature|Authenticated\s+Signature\s+Token|PKI\s+Digital\s+Signature|Encrypted\s+Signature\s+ID|Secure\s+Document\s+Sign[-\s]Off)\s*[:#]?\s*((?:/s/\s+)?[A-Za-z0-9_\-/]{3,40}(?:\s+[A-Za-z0-9_\-/]{2,20})?)'
+      # Underscored signature handles: JDoe_Sign, Maria_Sign, John.Doe_Sign
+      - '\b((?-i:[A-Z])[a-zA-Z]+(?:[._](?-i:[A-Z])?[a-zA-Z]+)*_[Ss]ign)\b'
+      # Dotted initials handle: J.Doe, M.Smith — only when preceded by signature context word
+      - '(?:Signature|Sign|signed|s/)\s*[:#]?\s*((?-i:[A-Z])\.(?-i:[A-Z])[a-zA-Z]+)\b'
+      # Spaced initials: "K. Kate", "J. Doe" — only when preceded by signature context word
+      - '(?:Signature|Sign|signed|s/)\s*[:#]?\s*((?-i:[A-Z])\.\s+(?-i:[A-Z])[a-zA-Z]+)\b'
+      # Uppercase label form: requires \b on each alternation to avoid mid-word "SIGN" inside "SIGNATURE"
+      - '(?:\bDIGITAL\s+SIGNATURE[-\s]?ID\b|\bBIOMETRIC\s+SIGN(?:#|\b)|\bDOC\s+SIGNATURE(?:#|\b)|\bREGISTERED\s+SIGN[-\s]?ID\b|\bE-SIGNATURE[-\s]?ID\b)\s*[:#]?\s*([A-Za-z0-9_\-/][A-Za-z0-9_\-/]{2,29})'
+      # Year-tagged signature ID: "SIG-2026-XXXX"
+      - '\b((?:SIG|BIO-SIGN|DSIG|PKI)-(?:19|20)\d{2}-\d{2,6})\b'
     masking:
       strategy: redact
       format: "[SIGNATURE {n}]"
@@ -839,20 +1245,36 @@ entities:
 
   - id: card_expiration_date
     display_name: Card Expiry MM/YY (two-digit year, no day)
-    description: "Credit/debit card expiry date in MM/YY format ONLY — exactly 2 digits slash 2 digits (e.g. '09/27', '03/26'). Never flag 3-part dates with a day and 4-digit year like '03/14/2025' — those are clinical dates."
+    description: "Credit/debit card expiry date in MM/YY, MM-YY, MM/YYYY, or MM-YYYY format. Exactly 2 digits month + (2 or 4) digits year. NEVER flag 3-part dates with a day and 4-digit year like '03/14/2025' — those are clinical dates."
     policy: [pci_dss]
     enabled: true
     priority: 1
     gliner_label: "card expiration date"
     patterns:
-      - '(?:Expiry|Exp(?:iration)?)\s*(?:Date\s*)?[:#]?\s*(\d{2}/\d{2})\b'
+      # Title-case keyword anchors covering all listed labels:
+      # "Expiration Date: 08/2030", "Card Expiry: 11-29", "Valid Through: 07/31",
+      # "Valid Thru: 10/28", "Card Valid Until: 04/2032", "Credit Card Expiration: 01-30",
+      # "Card Validity Date: 02/2031", "EMV Card Expiry: 09-28",
+      # "Bank Card Expiration Date: 12/2035", "Secure Card Exp Date: 05-27",
+      # "Membership Card Expiry: 11/2033", "Corporate Card Valid Thru: 07-30",
+      # "Prepaid Card Expiration: 10/2034".
+      - '(?:Expir(?:y|ation)(?:\s+Date)?|Card\s+Expir(?:y|ation)(?:\s+Date)?|Valid\s+(?:Through|Thru|Until)|Card\s+Valid\s+(?:Through|Thru|Until)|Credit\s+Card\s+Expir(?:y|ation)|Card\s+Validity\s+Date|EMV\s+Card\s+Expiry|Bank\s+Card\s+Expir(?:y|ation)(?:\s+Date)?|Secure\s+Card\s+Exp\s+Date|Membership\s+Card\s+Expiry|Corporate\s+Card\s+Valid\s+Thru|Prepaid\s+Card\s+Expir(?:y|ation)|Card\s+Exp(?:iry)?(?:\s+Date)?|Exp(?:iration|iry)?(?:\s+Date)?)\s*[:#]?\s*((?:0[1-9]|1[0-2])[/\-](?:\d{2}|(?:19|20)\d{2}))\b'
+      # All-uppercase label form: "EXPIRES 12/27", "VALID THRU 07/31",
+      # "VALID UNTIL 08/2030", "MM/YY 11/29", "MM-YYYY 09-2032",
+      # "EXPIRY#: 12/27", "CARD EXP-ID: 08/2030", "VALID THRU: 11-29",
+      # "VALID UNTIL#: 09/26", "CARD VALIDITY-ID: 07/31",
+      # "EMV EXP DATE#: 10/28", "BANK CARD EXPIRY: 04/2032".
+      - '(?:EXPIRES|VALID\s+THRU|VALID\s+UNTIL|VALID\s+THRU#?|VALID\s+UNTIL#?|EXPIRY#?|CARD\s+EXP[-\s]?ID|CARD\s+VALIDITY[-\s]?ID|EMV\s+EXP\s+DATE#?|BANK\s+CARD\s+EXPIRY|MM/YY|MM-YYYY|MM/YYYY|MM-YY)\s*[:#]?\s*((?:0[1-9]|1[0-2])[/\-](?:\d{2}|(?:19|20)\d{2}))\b'
+      # Bare MM/YY or MM-YY following payment-card context word ("card", "valid",
+      # "expir") on the same line — guards against tagging plain dates.
+      - '(?:card|valid|expir|expiry|expiration)\s+(?:thru|until|date|exp|expires)?\s*[:#]?\s*((?:0[1-9]|1[0-2])[/\-]\d{2})(?!\d)'
     masking:
       strategy: redact
       format: "[CARD EXP {n}]"
 
   - id: card_service_code
     display_name: Card Service Code / CVV / CVC
-    description: "Card verification value ONLY — the 3 or 4 digit security code on a payment card. Detect ONLY near explicit keywords: CVV, CVC, CVV2, CAV2, CID, Security Code. Do NOT tag amounts, dates, case numbers, or any other 3-4 digit values without these keywords."
+    description: "Card verification value or magstripe service code — the 3 or 4 digit security code on a payment card, or the 3-digit Track 1/2 service code. Detect ONLY near explicit keywords: CVV, CVC, CVV2, CAV2, CID, Security Code, Service Code, Magstripe/EMV/Track/ATM/POS Service Code, plus the compact prefixes SC, MSC, TRK, EMV, AUTH, PAY, CARDSC. Do NOT tag amounts, dates, case numbers, or any other 3-4 digit values without these keywords."
     policy: [pci_dss]
     enabled: true
     priority: 1
@@ -865,6 +1287,22 @@ entities:
       - 'CID\s*[:#]?\s*(\d{3,4})'
       - 'Security\s+Code\s*[:#]?\s*(\d{3,4})'
       - 'Card\s+Service\s+Code\s*[:#]?\s*(\d{3})'
+      # Title-case service-code labels: "Service Code: 201",
+      # "Magstripe Service Code: 221", "EMV Service Code: 999",
+      # "Card Authorization Service Code: 502", "Track 1 Service Code: 101",
+      # "Track 2 Service Code: 201", "ATM Service Code: 222",
+      # "POS Service Code: 502", "Issuer Service Code: 999",
+      # "Card Validation Service Code: 120", "Secure Payment Service Code: 221",
+      # "Transaction Service Code: 502", "Financial service code: 121",
+      # "Bank Service Code".
+      - '(?:Service\s+Code|Magstripe\s+Service\s+Code|EMV\s+Service\s+Code|Track\s*[12]\s+Service\s+Code|Card\s+Authorization\s+Service\s+Code|ATM\s+Service\s+Code|POS\s+Service\s+Code|Issuer\s+Service\s+Code|Card\s+Validation\s+Service\s+Code|Secure\s+Payment\s+Service\s+Code|Transaction\s+Service\s+Code|Financial\s+Service\s+Code|Bank\s+Service\s+Code)\s*[:#]?\s*(\d{3})\b'
+      # All-uppercase label form: "SERVICE CODE: 101", "CARD SERVICE#: 201",
+      # "EMV SERVICE-ID: 221", "TRACK2 SERVICE#: 999", "BANK SERVICE CODE: 120",
+      # "ATM SERVICE-ID: 502", "POS SERVICE#: 220", "ISSUER SERVICE-ID: 101".
+      - '(?:SERVICE\s+CODE|CARD\s+SERVICE#?|EMV\s+SERVICE[-\s]?ID|TRACK\s*[12]\s+SERVICE#?|BANK\s+SERVICE\s+CODE|ATM\s+SERVICE[-\s]?ID|POS\s+SERVICE#?|ISSUER\s+SERVICE[-\s]?ID)\s*[:#]?\s*(\d{3})\b'
+      # Compact prefix codes (industry shorthand): SC101, SC-201, EMV-221,
+      # MSC999, TRK2-120, ATM-502, POS-220, AUTH-101, PAY-201, CARDSC-999.
+      - '\b((?:SC|MSC|TRK[12]?|EMV|ATM|POS|AUTH|PAY|CARDSC)-?\d{3})\b'
     masking:
       strategy: redact
       format: "[CVV {n}]"
@@ -887,7 +1325,7 @@ entities:
 
   - id: card_pin
     display_name: Card PIN / PIN Block
-    description: "Payment card PIN or encrypted PIN block. Flag the value near keyword: PIN, PIN Block. PCI-DSS SAD."
+    description: "Payment card PIN or encrypted PIN block. Flag the value near keyword: PIN, PIN Block, MPIN, TPIN, SECURECODE, PAYCODE, AUTHCODE. PCI-DSS SAD."
     policy: [pci_dss]
     enabled: true
     priority: 1
@@ -897,6 +1335,19 @@ entities:
       - '\bPIN\s+Block\s*[:#]?\s*([A-Fa-f0-9]{16,})\b'
       - '\bPIN\s*[:#]\s*(\d{4,6})\b'
       - '\bPIN\s+(\d{4,6})\b'
+      # Conversational form: "The card PIN is 1234", "card PIN was 5678".
+      - '\b(?:card\s+)?PIN\s+(?:is|was|=)\s+(\d{4,8})\b'
+      # Title-case keyword anchors covering listed labels:
+      # "PIN Number: 5678", "Secure PIN Code: 3344", "POS PIN Number: 7171",
+      # "Account PIN Code: 4545", "Card PIN", "ATM PIN", "Bank PIN", "Auth PIN".
+      - '(?:PIN\s+(?:Number|Code|No)|(?:Secure|POS|Account|ATM|Card|Bank|Auth)\s+PIN(?:\s+(?:Code|Number|No))?)\s*[:#]?\s*(\d{4,8})\b'
+      # All-uppercase label form: "PIN NO: 5678", "CARD PIN#: 9012",
+      # "ATM PIN-ID: 4455", "SECURE PIN#: 7788", "BANK PIN NO: 1122",
+      # "AUTH PIN-ID: 3344", "POS PIN#: 9900".
+      - '(?:PIN\s+NO|CARD\s+PIN#?|ATM\s+PIN[-\s]?ID|SECURE\s+PIN#?|BANK\s+PIN\s+NO|AUTH\s+PIN[-\s]?ID|POS\s+PIN#?)\s*[:#]?\s*(\d{4,8})\b'
+      # Compact PIN aliases (industry shorthand): MPIN (Mobile PIN), TPIN
+      # (Telephone PIN), SECURECODE / PAYCODE / AUTHCODE — value is 4-8 digits.
+      - '\b(?:MPIN|TPIN|SECURECODE|PAYCODE|AUTHCODE)\s*[:#=]?\s*(\d{4,8})\b'
     masking:
       strategy: redact
       format: "[CARD PIN {n}]"
@@ -912,6 +1363,24 @@ entities:
       - '(\bARQC[-:#]?\s*[A-Za-z0-9]{2,16})\b'
       - '\b(TC-\d{2,10})\b'
       - '(?:AAC|Cryptogram|Dynamic\s+Auth(?:entication)?(?:\s+Value)?)\s*[-:#]?\s*([A-Fa-f0-9]{4,16})\b'
+      # Industry prefix codes: AC, AUTH, PAY, DCC, SEMV, CVCG, CHIP, IAC, TSC,
+      # OPC, POSC, CAC, ESV, DPC, CSC, STT, EMV-AC, AAC, ARPC, CVN, EMVTOKEN,
+      # DYNCRYPTO. Strict word boundaries and 4-12 alphanumeric value.
+      - '\b((?:AC|AUTH|PAY|DCC|SEMV|CVCG|CHIP|IAC|TSC|OPC|POSC|CAC|ESV|DPC|CSC|STT|EMV-AC|AAC|ARPC|CVN|EMVTOKEN|DYNCRYPTO)-[A-Za-z0-9]{4,12})\b'
+      # Title-case keyword + value (covers "Application Cryptogram: AC-445566",
+      # "Authorization Cryptogram: AUTH-7788", "EMV Security Value: ESV-5656" etc.)
+      - '(?:Application\s+Cryptogram|Authorization\s+Cryptogram|Payment\s+Cryptogram|Dynamic\s+Card\s+Cryptogram|Secure\s+EMV\s+Token|Card\s+Verification\s+Cryptogram|Chip\s+Card\s+Cryptogram|Issuer\s+Authentication\s+Cryptogram|Transaction\s+Security\s+Cryptogram|Online\s+Payment\s+Cryptogram|POS\s+Cryptogram\s+Number|Card\s+Authentication\s+Code|EMV\s+Security\s+Value|Digital\s+Payment\s+Cryptogram|Secure\s+Transaction\s+Token|Card\s+Cryptogram|EMV\s+Cryptogram)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-]{3,19})'
+      # All-uppercase label form: "CARD CRYPTOGRAM#: 7F9A3C21",
+      # "EMV CRYPTOGRAM-ID: 9D8E7F6A", "AUTH CRYPTOGRAM NO: AUTH-7788"
+      - '(?:CARD\s+CRYPTOGRAM#?|EMV\s+CRYPTOGRAM[-\s]?ID|ARQC#?|AUTH\s+CRYPTOGRAM\s+NO|PAYMENT\s+CRYPTOGRAM[-\s]?ID|CHIP\s+CRYPTOGRAM#?|SECURE\s+TOKEN[-\s]?ID|POS\s+CRYPTOGRAM#?|EMV\s+SECURITY\s+VALUE)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-]{3,19})'
+      # 8-hex EMV ARQC / TC / AAC value (keyword-anchored to avoid greedy
+      # matches on unrelated hex strings like MAC addresses).
+      - '(?:Cryptogram|ARQC|TC|AAC|EMV|Card\s+Cryptogram|Application\s+Cryptogram)\s*(?:is|=)?\s*[:#]?\s*\b([A-Fa-f0-9]{8})\b'
+      # Bare 8-hex match anchored on payment context — only fires when the
+      # surrounding sentence already mentions cryptogram/EMV (handled by the
+      # keyword-anchored rule above; this captures values listed in tables
+      # without inline keywords as long as the line starts with one).
+      - '^\s*\b([A-Fa-f0-9]{8})\b\s*$'
     masking:
       strategy: redact
       format: "[CRYPTOGRAM {n}]"
@@ -943,6 +1412,16 @@ entities:
       - '(?:ACC(?:OUNT)?\s*(?:NO|NUMBER|#)|A\/C#?|Bank\s+account\s+number)\s*[:#]?\s*([\d\- ]{8,22})'
       - '(?:Checking|Savings)\s+Account\s*[:#]?\s*([\d\- ]{8,22})'
       - '(?:Account\s+Number)\s*[:#]?\s*([\d\- ]{8,22})'
+      # ACC NO / ACC# / ACCOUNT# with no separator before digits — e.g. "ACC NO 123456789", "ACC# 987654321"
+      - '\bACC(?:OUNT)?\s*(?:NO|NUMBER|#|No)?\.?\s*[:#]?\s*((?:\d[\d\s\-]{6,20}\d))\b'
+      # A/C# variations with embedded space: "A/C# 456789123", "A/C #456789123", "A/C: 456789123"
+      - '\bA\s*/\s*C\s*#?\s*[:#]?\s*((?:\d[\d\s\-]{6,20}\d))\b'
+      # "Bank account number :" with surrounding whitespace and dashed/spaced groups: "1234-5678-9012", "1234 - 5678 - 9012"
+      - 'Bank\s+account\s+number\s*[:#]?\s*((?:\d{2,4}[\s\-]+){2,5}\d{2,6})'
+      # Generic 4-4-4 / 4-4-4-4 dashed account format with keyword
+      - '(?:Account|ACC|A/C)\s*\S{0,3}\s*((?:\d{4}[\s\-]+){2,3}\d{4})\b'
+      # IBAN-style account label
+      - '(?:Beneficiary\s+Account|Payee\s+Account|Customer\s+Account)\s*(?:Number|No)?\s*[:#]?\s*([\d\- ]{8,22})'
     masking:
       strategy: redact
       format: "[BANK ACCOUNT {n}]"
@@ -962,6 +1441,14 @@ entities:
       - 'Customer\s+provided\s+RTN\s+(\d{9})'
       # Bare "routing NNNNNNNNN" without Number keyword (GAP-25)
       - '(?:routing|RTN)\s+(\d{9})\b'
+      # ABA# format with hash separator: "ABA# 026009593"
+      - '\bABA\s*#\s*(\d{9})\b'
+      # Bank Transit / Wire Transit / Fedwire variants
+      - '(?:Bank\s+Transit|Wire\s+Transit|Fedwire(?:\s+Routing)?|ACH\s+Routing)\s*(?:Number|No|#)?\s*[:#]?\s*(\d{9})\b'
+      # ABA-prefixed ID code (e.g. ABA-021000021)
+      - '\b(ABA-\d{9})\b'
+      # Routing in payment context: "wire to routing 322271627"
+      - '(?:wire\s+to|deposit\s+to|transfer\s+to)\s+(?:routing|RTN|ABA)\s*[:#]?\s*(\d{9})\b'
     masking:
       strategy: redact
       format: "[ROUTING NUMBER {n}]"
@@ -1002,7 +1489,10 @@ entities:
     description: "Merchant identifier assigned by the payment processor. Detect near keyword: Merchant ID, MID. Example: MID-88234001. Capture the full token including MID- prefix."
     policy: [pci_dss]
     enabled: true
-    priority: 2
+    # Group C: 2 → 4 — weakly-structured code (only "MID-" prefix). Lower
+    # priority + NER shape gate (must contain MID-) prevents it from
+    # eating values that belong to facial_recognition, billing, etc.
+    priority: 4
     gliner_label: "merchant ID MID"
     patterns:
       - '(?:Merchant\s+ID|Merchant)\s*[:#]?\s*(MID-[A-Za-z0-9]{2,12})\b'
@@ -1016,7 +1506,9 @@ entities:
     description: "POS terminal identifier assigned by the acquirer. Detect near keyword: Terminal ID, TID. Example: TID-44120099. Capture the full token including TID- prefix."
     policy: [pci_dss]
     enabled: true
-    priority: 2
+    # Group C: 2 → 4 — same rationale as merchant_id; NER shape gate
+    # ensures only TID-prefixed values get tagged.
+    priority: 4
     gliner_label: "terminal ID TID"
     patterns:
       - '(?:Terminal\s+ID|Terminal)\s*[:#]?\s*(TID-[A-Za-z0-9]{2,12})\b'
@@ -1617,7 +2109,7 @@ entities:
 
   - id: bart_employee_id
     display_name: BART Employee ID
-    description: "BART employee identification number — 5 or 6 digit number. Detect based on keyword: Employee ID, BART Employee ID, Emp ID"
+    description: "BART (Bay Area Rapid Transit) employee or contractor identifier. Detected by keyword (BART Employee ID, BART Worker ID, BART Personnel Number, Operator ID, Badge Number, Workforce ID, Crew ID, Contractor ID, Transit Staff Identifier, etc.) or by industry prefix code (BWI, BPN, BOI, TSI, BBN, BWF, BCI, BCN, EBI, TPC, BIEC, BRC, TWI, BEI, BART, BST, BEN, BARTEMP, TEI, REI, TEN, TAE, BHR, SEI, BMS, PTE, TOS, BTM, TRE, MTS, OP, TTI, RTC)."
     policy: [transportation]
     enabled: true
     priority: 1
@@ -1625,6 +2117,33 @@ entities:
     patterns:
       - '(?:BART\s+)?Employee\s+ID\s*[:#]?\s*(\d{4,8})'
       - 'Emp(?:loyee)?\s*(?:ID|No)\s*[:#]?\s*(\d{4,8})'
+      # Industry prefix codes — full BART workforce code-set.
+      # Examples: "BART-123456", "BWI-556677", "BPN-990011", "BOI-665544",
+      # "TSI-887766", "BBN-101010", "BWF-565656", "BCI-909090", "BCN-676767",
+      # "EBI-484848", "TPC-565757", "BIEC-999111", "BRC-556611", "TWI-991144",
+      # "BEI-883322", "BST-998877", "BEN-445566", "BARTEMP-112233",
+      # "TEI-778899", "REI-223344", "TEN-787878", "TAE-334455", "BHR-121212",
+      # "SEI-343434", "BMS-454545", "PTE-232323", "TOS-787121", "BTM-334122",
+      # "TRE-441188", "MTS-121909", "OP-7788", "TTI-5544", "RTC-7878".
+      - '\b((?:BART|BWI|BPN|BOI|TSI|BBN|BWF|BCI|BCN|EBI|TPC|BIEC|BRC|TWI|BEI|BST|BEN|BARTEMP|TEI|REI|TEN|TAE|BHR|SEI|BMS|PTE|TOS|BTM|TRE|MTS|OP|TTI|RTC)-[A-Za-z0-9]{4,10})\b'
+      # Title-case keyword anchors — comprehensive label coverage:
+      # "BART Worker ID", "BART Personnel Number", "BART Operator ID",
+      # "Transit Staff Identifier", "BART Badge Number", "BART Workforce ID",
+      # "BART Crew ID", "BART Contractor ID", "Employee Badge ID",
+      # "Transit Personnel Code", "BART Internal Employee Code",
+      # "BART Rail Crew Number", "Transportation Workforce Identifier",
+      # "BART Employee Identifier", "BART Operator Badge",
+      # "Transit Technician Identifier", "Rapid Transit Crew Number".
+      - '(?:BART\s+(?:Worker\s+ID|Personnel\s+Number|Operator\s+ID|Operator\s+Badge|Badge\s+Number|Workforce\s+ID|Crew\s+ID|Contractor\s+ID|Internal\s+Employee\s+Code|Rail\s+Crew\s+Number|Employee\s+Identifier|Employee\s+ID|Staff\s+ID|Team\s+Member\s+ID)|Transit\s+(?:Staff\s+Identifier|Personnel\s+Code|Technician\s+Identifier|Workforce\s+Identifier|Ops\s+Staff|Personnel)|Rapid\s+Transit\s+Crew\s+Number|Employee\s+Badge\s+ID|Transportation\s+Workforce\s+Identifier|Maintenance\s+Staff\s+ID|Station\s+Employee\s+No|Rail\s+Employee\s+ID)\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,15})'
+      # All-uppercase label form: "BART STAFF#: BST-998877",
+      # "TRANSIT EMP-ID: TEI-778899", "BART BADGE NO: BBN-101010",
+      # "RAIL EMPLOYEE#: REI-223344", "WORKFORCE ID#: BWF-565656",
+      # "CONTRACTOR-ID: BCN-676767", "STATION EMP NO: SEI-343434",
+      # "MAINTENANCE STAFF-ID: BMS-454545", "TRANSIT PERSONNEL#: TPC-565757",
+      # "EMPLOYEE BADGE#: EBI-484848", "TEAM MEMBER-ID: BTM-334122",
+      # "INTERNAL EMP CODE: BIEC-999111", "TRANSIT OPS STAFF#: TOS-787121",
+      # "WORKFORCE IDENTIFIER: TWI-991144".
+      - '(?:BART\s+STAFF#?|TRANSIT\s+EMP[-\s]?ID|BART\s+BADGE\s+NO|RAIL\s+EMPLOYEE#?|WORKFORCE\s+ID#?|CONTRACTOR[-\s]?ID|STATION\s+EMP\s+NO|MAINTENANCE\s+STAFF[-\s]?ID|TRANSIT\s+PERSONNEL#?|EMPLOYEE\s+BADGE#?|TEAM\s+MEMBER[-\s]?ID|INTERNAL\s+EMP\s+CODE|TRANSIT\s+OPS\s+STAFF#?|WORKFORCE\s+IDENTIFIER|BART\s+EMP\s+ID#?|BART\s+OPERATOR\s+BADGE)\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,15})'
     masking:
       strategy: redact
       format: "[BART EMP ID {n}]"
@@ -1699,7 +2218,9 @@ entities:
     description: "Name of a prescribed medication, drug, or pharmaceutical treatment, typically with dosage. Example: 'Prednisone 20mg', 'Albuterol inhaler', 'Lisinopril 10mg daily', 'Metformin 500mg'."
     policy: [hipaa]
     enabled: true
-    priority: 2
+    # Group C: 2 → 3 — open-vocabulary NER entity. Should beat person_name
+    # (4) when GLiNER tags overlap, but lose to structured pattern matches.
+    priority: 3
     confidence_threshold: 0.45
     gliner_label: "prescription medication name with dosage"
     patterns:
@@ -1824,7 +2345,9 @@ entities:
     description: "Name of a hospital, medical center, health system, clinic, or other healthcare facility. Example: 'Westside Medical Center', 'Valley Diagnostics Laboratory', 'Pacific Bay Medical Center'."
     policy: [hipaa]
     enabled: true
-    priority: 1
+    # Group C: 1 → 3 — open-vocabulary NER entity. Beats person_name (4)
+    # but loses to structured patterns and physician_name (2).
+    priority: 3
     gliner_label: "hospital or medical center name"
     patterns:
       # Standard capitalized words (2-5) + medical suffix (handles "St. Mary's Hospital")

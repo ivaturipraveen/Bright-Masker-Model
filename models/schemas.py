@@ -21,6 +21,13 @@ class DetectedSpan(BaseModel):
     confidence: float
     source: Literal["pattern", "ner"]
     context: str = ""
+    # Width of the regex full match (including keyword anchor like
+    # "Insurance Policy Number: "), used by the span merger as a
+    # specificity tiebreaker so keyword-anchored patterns win over
+    # bare-format patterns that happen to capture the same value.
+    # NER spans set this to len(text) (no keyword context).
+    # When 0, the merger falls back to the value-span length.
+    match_length: int = 0
 
 
 class MaskedSpan(BaseModel):

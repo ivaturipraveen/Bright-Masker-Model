@@ -31,6 +31,22 @@ _PERSON_NAME_BLOCKLIST = frozenset({
     "blood glucose", "oxygen saturation", "metabolic panel",
 })
 
+# NER shape gates — entities whose value MUST match a structured prefix.
+# When GLiNER mislabels a generic alphanumeric value as one of these types
+# (e.g. "F12345" tagged merchant_id), the gate filters it out so a more
+# appropriate detection (or no detection) wins.
+_NER_PREFIX_REQUIRED: dict[str, re.Pattern] = {
+    "merchant_id": re.compile(r"\bMID[\s\-_]?", re.IGNORECASE),
+    "terminal_id": re.compile(r"\bTID[\s\-_]?", re.IGNORECASE),
+}
+
+# Person-name spans tagged by NER must NOT look like a structured ID
+# (e.g. "FRT-99281", "ML-CA-1234567"). When NER drifts onto a code,
+# rejecting it here lets the pattern layer or another label take over.
+_PERSON_NAME_STRUCTURED_ID_RE = re.compile(
+    r"^[A-Z]{1,6}[\s\-_/]?\d{2,}(?:[\s\-_/][A-Z0-9]+)*$"
+)
+
 
 class SpanMerger:
     def merge(
@@ -88,6 +104,21 @@ class SpanMerger:
             # License plate must not be a bare date (MM/DD/YYYY misclassified by GLiNER)
             if span.entity_id == "license_plate" and _DATE_RE.match(span.text.strip()):
                 log.debug("span_rejected_date_as_plate", text=span.text)
+                continue
+            # NER shape gates — merchant_id/terminal_id from GLiNER must contain
+            # the canonical prefix (MID-, TID-). Free-form values are rejected
+            # so they don't eat structured codes that belong to other entities.
+            if span.source == "ner":
+                gate = _NER_PREFIX_REQUIRED.get(span.entity_id)
+                if gate is not None and not gate.search(span.text):
+                    log.debug("span_rejected_missing_required_prefix",
+                              entity_id=span.entity_id, text=span.text)
+                    continue
+            # Person-name NER spans must not look like a structured ID
+            # (e.g. NER drifting onto "FRT-99281" or "ML-CA-1234567").
+            if (span.entity_id == "person_name" and span.source == "ner"
+                    and _PERSON_NAME_STRUCTURED_ID_RE.match(span.text.strip())):
+                log.debug("span_rejected_structured_id_as_person", text=span.text)
                 continue
             # Physician name: strip trailing lowercase words e.g. "supervised", "and"
             if span.entity_id == "physician_name":
@@ -171,6 +202,17 @@ class SpanMerger:
 
         if a.confidence != b.confidence:
             return a if a.confidence > b.confidence else b
+
+        # Specificity tiebreaker (Group C): when two spans share source and
+        # confidence, prefer the one whose regex match was *wider* than the
+        # captured value. A keyword-anchored pattern like
+        # "Insurance Policy Number: A12345678" has match_length ~30 while
+        # a bare-format passport pattern matching the same A12345678
+        # has match_length 9 — so insurance correctly wins.
+        ml_a = a.match_length if a.match_length else (a.end - a.start)
+        ml_b = b.match_length if b.match_length else (b.end - b.start)
+        if ml_a != ml_b:
+            return a if ml_a > ml_b else b
 
         priority_a = entity_configs.get(a.entity_id, None)
         priority_b = entity_configs.get(b.entity_id, None)
