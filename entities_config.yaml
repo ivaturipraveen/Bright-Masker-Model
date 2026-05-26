@@ -199,6 +199,10 @@ entities:
     priority: 1
     confidence_threshold: 0.72
     gliner_label: "city or town in a personal address"
+    # Presidio/spaCy LOCATION (spaCy GPE/LOC). Position-independent NER recovers
+    # bare cities GLiNER misses in "recorded Sacramento as the city" (Sacramento,
+    # Nashville, Albany, Phoenix, Reno, Orlando, Boston, Seattle, Tulsa, Fresno...).
+    presidio_type: LOCATION
     patterns:
       # Standard: "Chicago, IL 60614"  (also handles "St. Louis, MO")
       - ',\s*((?:St\.\s+)?[A-Z][a-zA-Z]+(?:[ \t][A-Z][a-zA-Z]+){0,2}),\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b'
@@ -614,6 +618,7 @@ entities:
       - '(?:PATIENT\s+RECORD[-\s]?ID|HOSPITAL\s+RECORD\s+NO|EMR#?|EHR[-\s]?ID|CLINICAL\s+RECORD#?|MEDICAL\s+RECORD#?|HEALTHCARE\s+RECORD#?|TREATMENT\s+RECORD#?|INPATIENT\s+RECORD#?|OUTPATIENT\s+RECORD#?|PATIENT\s+CHART#?|MEDICAL\s+HISTORY\s+RECORD#?)\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,20})'
       # Care management / health information / patient visit record codes
       - '\b(?:HCR|HCM|MED|MCD|HCB)-[A-Za-z0-9\-]{4,20}\b'
+      - '\b((?:HRN|CRI|EHR|EMR|MFN|PRN|HRI|DRN|CMR|CDN|HIR|PVR|HCR|TRN|IPR|OPR|PCN|MHR|PMR)-\d{4,})\b'
     masking:
       strategy: redact
       format: "[MRN {n}]"
@@ -830,6 +835,10 @@ entities:
       - '\b(CDL-[A-Z]-\d{4,10})\b'
       # Standalone state-DL alphanumeric (must contain at least 1 letter and 5 digits, anchored)
       - '(?<![A-Za-z0-9])([A-Z]\d{8,10})(?![A-Za-z0-9])'
+      # State DL: D + 2 state letters + 8 digits (DGA28783868, DVA77613553, DNY97171221)
+      - '(?<![A-Za-z0-9])(D[A-Z]{2}\d{8})(?![A-Za-z0-9])'
+      # value-after-label: "the drivers license is DGA28783868"
+      - '(?:drivers?\s+licen[sc]e)\s+(?:is\s+|number\s+|no\.?\s+|#\s*)?([A-Z]{1,3}\d{6,10})\b'
     masking:
       strategy: redact
       format: "[DRIVERS LICENSE {n}]"
@@ -883,6 +892,10 @@ entities:
       - '\b((?:TEMP|NYK|TX|CAB|FLT|PRK|DIP)-[A-Z0-9]{4,8})\b'
       # US 3-letter + 4-digit format: "ABC-1234", "XYZ 9876"
       - '(?<![A-Za-z0-9])([A-Z]{3}[\s-]\d{4})(?![A-Za-z0-9])'
+      # US 2-letter + 4-digit glued plate (XU5963, JS6023, ZY4059, TM4915, BC9673)
+      - '(?<![A-Za-z0-9])([A-Z]{2}\d{4})(?![A-Za-z0-9])'
+      # value-before-label: "XU5963 for license plate"
+      - '\b([A-Z]{2,3}[\s-]?\d{3,4})\s+(?:for\s+)?(?:license\s+plate|plate\s+number)'
     masking:
       strategy: redact
       format: "[LICENSE PLATE {n}]"
@@ -1162,7 +1175,11 @@ entities:
     # without leaking onto generic words like "company" or "organization".
     confidence_threshold: 0.55
     gliner_label: "company or organization name"
-    presidio_type: ORG
+    # Presidio/spaCy emits "ORGANIZATION" (not "ORG"); the old value never
+    # matched, leaving GLiNER as the sole org detector. This statistical NER
+    # path is position-independent, so it recovers orgs GLiNER misses in the
+    # "<value> as the company" construction (Greenfield Robotics, etc.).
+    presidio_type: ORGANIZATION
     patterns:
       - '^([A-Z][A-Z ,&.]{5,},?\s*INC\.?)$'
       - '^([A-Z][A-Z ,&.]{5,}\s+LLC\.?)$'
@@ -1478,6 +1495,10 @@ entities:
       - '\b(?:SWIFT|BIC)\b\s*(?:Code)?\s*[:#]?\s*([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b'
       # "SWIFT code is BOFAUS8RI", "BIC is CHASUS33" — keyword before code without standard separator
       - '(?:SWIFT|BIC)\s+(?:code\s+)?(?:is\s+)?([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b'
+      # value-before-label: "BOFAUS6NA for swift bic code"
+      - '\b([A-Z]{4}[A-Z]{2}[A-Z0-9]{2,5})\s+(?:for\s+)?(?:the\s+)?(?:swift|BIC)'
+      # bare SWIFT/BIC with digit in location code (BOFAUS3N, BOFAUS6NA, BOFAUS9AA, CHASUS33)
+      - '(?<![A-Za-z0-9])([A-Z]{6}\d[A-Z0-9]{1,3})(?![A-Za-z0-9])'
     masking:
       strategy: redact
       format: "[SWIFT {n}]"
@@ -1513,6 +1534,7 @@ entities:
     patterns:
       - '(?:Terminal\s+ID|Terminal)\s*[:#]?\s*(TID-[A-Za-z0-9]{2,12})\b'
       - '\b(TID-[A-Za-z0-9]{2,12})\b'
+      - '\b((?:POS|PTN|ATM|MTI|CRT|RTI|CTI|BTI|DPT|STI|STN|EMV|WTI|SST|KTN|FTI|GTI|CPT|TERM|TTN)-\d{3,})\b'
     masking:
       strategy: redact
       format: "[TERMINAL ID {n}]"
@@ -1549,6 +1571,8 @@ entities:
       # With space separator only: "password MySecretPass123"
       - '(?:password|passwd|pwd)\s+([A-Za-z0-9!@#$%^&*_\-\.]{4,128})'
       - '(?:passphrase|secret[\s_]key)\s*[:#=\s]\s*([^\s,;.]{4,128})'
+      # value-before-label: "Temp!18319#Secure for password" / "X as the password"
+      - '\b([A-Za-z0-9][A-Za-z0-9!@#$%^&*_\-\.]{3,127})\s+(?:for|as)\s+(?:the\s+)?(?:password|passphrase|pin|passcode)\b'
     masking:
       strategy: redact
       format: "[PASSWORD {n}]"
@@ -1613,6 +1637,12 @@ entities:
       - '(?:Hospital\s+WiFi\s+Session\s+ID|Telemedicine\s+Session\s+ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,20})'
       - '\bWIFI-\d{4,15}\b'
       - '(?:Telemedicine\s+Session\s+ID)\s*[:#]?\s*(TEL-\d{4,15})'
+      # 2-part (or more) JWT fallback — header.payload without signature
+      - '\b(eyJ[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{4,}(?:\.[A-Za-z0-9_\-]+)?)\b'
+      # key=value session cookies / tokens (PHPSESSID, JSESSIONID, connect.sid, auth_token, csrftoken, sid…)
+      - '((?-i:PHPSESSID|JSESSIONID|connect\.sid|csrftoken|csrf_token|access_token|auth_token|refresh_token|session_id|sessionid|sess_id|_session|sid)\s*=\s*[^\s;,&]{4,256})'
+      # single-word snake-cased session handle: sess_abc123xyz789, tok_77ab99cd
+      - '\b((?:sess|sid|tok|token|csrf|auth|sess_id|sessid)_[A-Za-z0-9]{6,})\b'
     masking:
       strategy: redact
       format: "[TOKEN {n}]"
@@ -1726,10 +1756,15 @@ entities:
     priority: 1
     gliner_label: "state government ID number"
     patterns:
-      - 'State\s+ID\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
-      - 'State\s+Identification\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - 'State\s+ID\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,30})'
+      - 'State\s+Identification\s+(?:Number|No)\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{3,30})'
       # SID-STATE-YYYYNNNNN format (GAP-09)
       - '\b(SID-[A-Z]{2}-\d{8,12})\b'
+      - '\b((?:SID|OSI|SSI|SRI|SIC|LSI|SAI|SCN|STID|GSI|RSI|PSI)-\d{4,})\b'
+      # multi-segment state ID: OH-RESIDENT-887766, CA-DRIVER-553210
+      - '\b((?-i:[A-Z]{2,}-[A-Z]{3,})-\d{4,})\b'
+      # generic structured record-id (uppercase prefix, hyphen, digits)
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[STATE ID {n}]"
@@ -1747,9 +1782,11 @@ entities:
     priority: 1
     gliner_label: "FBI identification number"
     patterns:
-      - 'FBI\s+(?:Number|No|#|ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,12})'
+      - 'FBI\s+(?:Number|No|#|ID)\s*[:#]?\s*([A-Za-z0-9\-]{4,16})'
       # Direct FBI-XXXXXX format
       - '\bFBI-([A-Za-z0-9]{4,12})\b'
+      - '\b(FBI-\d{4,15})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[FBI NUMBER {n}]"
@@ -1766,6 +1803,8 @@ entities:
       - '(?:criminal\s+history|rap\s+sheet)\s*(?:record|number|no\.?|#)?\s*[:#]?\s*([A-Z0-9\-]{3,20})'
       # "CHRI record 889900" — CHRI keyword + record + value
       - '\bCHRI\s+(?:record|#|no\.?)?\s*([A-Z0-9\-]{3,20})'
+      - '\b((?:CHRI|CHI|BCHI|CJHI|CBI|CHD|JCRI|LERI|CRRI|CHRE|CJIF|HCRI|CIA|CDRE|CHRIN|JBRI|CRGI|LECHR|OCHR|PSCH|BICH|ICHR|PCHI|JSCR)-\d{3,})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[CHRI {n}]"
@@ -1783,6 +1822,7 @@ entities:
       # With space separator: "Arrest Record AR-777"
       - 'Arrest\s+Record\s+([A-Za-z]{1,3}-\d{1,6})\b'
       - '(?:Booked|Arrested)\s+(?:on\s+)?(\d{4}-\d{2}-\d{2}[^\n]*)'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[ARREST RECORD {n}]"
@@ -1805,6 +1845,8 @@ entities:
       - '\b(\d{4}-(?:CR|CV|CF|MC|DR|JV|CJ|PC|SC|CC|DC|FC|GC|HC|IC|KC|LC|NC|OC|RC|TC|WC)-\d{1,6})\b'
       # "Board Resolution 2025-001", "Reference No. 2024-123", "Doc No 2025-0042"
       - '(?:Board\s+Resolution|Resolution|Reference\s+(?:No\.?|Number)|Doc(?:ument)?\s+(?:No\.?|Number|#)|Ref\s+No\.?)\s*[:#]?\s*(\d{4}-\d{3,8})\b'
+      - '\b((?:CID|CFN|CTN|CRD|LFN|CRG|CIN|CFI|LPN|CEN|JTN|CEV|CLI|LCN|CCN|INCN|JCN|OCN|IRN)-\d{4,})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[CASE NUMBER {n}]"
@@ -1823,6 +1865,7 @@ entities:
       - '\b(WRT-\d{4,10})\b'
       # "Tracking: W-776" — warrant/case tracking reference
       - '(?:Tracking|Case\s+Ref|Reference)\s*[:#]\s*(W-\d{3,8})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[WARRANT {n}]"
@@ -1840,6 +1883,7 @@ entities:
       - '\bINC-\d{2,8}\b'
       # INC-YYYY-NNN format (GAP-20)
       - '\b(INC-\d{4}-\d{3,8})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[INCIDENT REPORT {n}]"
@@ -1855,6 +1899,9 @@ entities:
       - 'Inmate\s+ID\s*[:#]?\s*(\d{4,10})'
       - 'Booking\s+(?:Number|No)\s*[:#]?\s*(\d{4,10})'
       - 'Jail\s+ID\s*[:#]?\s*([A-Za-z0-9\-]{4,12})'
+      - '(?:Incarceration|Custodial|Confinement|Correctional|Detention|Inmate)\s+(?:Information|Record|File|Number|Identifier)?\s*[:#]?\s*([A-Z]{2,5}-\d{4,})'
+      - '\b((?:II|III)-\d{4,})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[INCARCERATION {n}]"
@@ -1867,7 +1914,9 @@ entities:
     priority: 2
     gliner_label: "missing person report"
     patterns:
-      - '(?:missing\s+person|NCIC\s+missing)\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:missing\s+person|NCIC\s+missing)\s*(?:report|record|#|number)?\s*[:#]?\s*([A-Z]{1,4}-?\d[\dA-Z\-]{2,})'
+      - '\b(MP-\d{2,10})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[MISSING PERSON {n}]"
@@ -1883,6 +1932,7 @@ entities:
       - '(?:wanted\s+person|NCIC\s+wanted|fugitive)\s*(?:bulletin|report|#|number)?\s*[:#]?\s*(WP-\d{4,10})'
       - '(?:wanted\s+person|NCIC\s+wanted|fugitive)\s*(?:bulletin|report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(WP-\d{4,10})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[WANTED PERSON {n}]"
@@ -1895,9 +1945,9 @@ entities:
     priority: 1
     gliner_label: "sex offender registration record"
     patterns:
-      - '(?:sex\s+offender|SORA|registered\s+offender)\s*(?:registration|#|number)?\s*[:#]?\s*(SOR-\d{4,8})'
-      - '(?:sex\s+offender|SORA|registered\s+offender)\s*(?:registration|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
-      - '\b(SOR-\d{4,8})\b'
+      - '(?:sex\s+offender|SORA|registered\s+offender)\s*(?:registration|report|record|#|number)?\s*[:#]?\s*([A-Z]{1,4}-?\d[\dA-Z\-]{1,})'
+      - '\b(SOR?-\d{2,8})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[SEX OFFENDER {n}]"
@@ -1910,9 +1960,11 @@ entities:
     priority: 1
     gliner_label: "restraining order or protection order"
     patterns:
-      - '(?:restraining\s+order|protection\s+order|\bTRO\b)\s*(?:#|number|no\.?)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:restraining\s+order|protection\s+order|\bTRO\b)\s*(?:#|number|no\.?)?\s*[:#]?\s*([A-Z]{1,4}-?\d[\dA-Z\-]{1,})'
       # CPO-YYYY-NNN civil protection order format (GAP-24)
       - '\b(CPO-\d{4}-\d{3,8})\b'
+      - '\b(PO-\d{2,8})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[PROTECTION ORDER {n}]"
@@ -1925,7 +1977,9 @@ entities:
     priority: 1
     gliner_label: "foreign fugitive or Interpol record"
     patterns:
-      - '(?:foreign\s+fugitive|Interpol|extradition)\s*(?:number|#|no\.?)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:foreign\s+fugitive|Interpol|extradition)\s*(?:notice|report|record|number|#|no\.?)?\s*[:#]?\s*([A-Z]{1,4}-?\d[\dA-Z\-]{2,})'
+      - '\b(FF-\d{3,9})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[FOREIGN FUGITIVE {n}]"
@@ -1940,6 +1994,7 @@ entities:
     patterns:
       - '(?:identity\s+theft|ID\s+theft\s+victim)\s*(?:victim\s+record|report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(ITV-[\d\-]{4,12})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[ID THEFT VICTIM {n}]"
@@ -1954,6 +2009,7 @@ entities:
     patterns:
       - '(?:gang\s+member(?:ship)?|terrorist\s+watchlist|watchlist\s+(?:entry|record))\s*(?:#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(GTM-[\d\-]{4,12})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[GANG TERRORIST {n}]"
@@ -1970,6 +2026,7 @@ entities:
       - '(?:supervised\s+release|supervision\s+record|community\s+supervision)\s*(?:file|#|number|no\.?)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(SR-\d{4,10})\b'
       - '\b(CS-\d{4,8})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[SUPERVISED RELEASE {n}]"
@@ -1984,6 +2041,7 @@ entities:
     patterns:
       - '(?:probation\s+(?:number|no\.?|#|file)|probation\s+record)\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(PR-\d{4,8})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[PROBATION {n}]"
@@ -1998,6 +2056,7 @@ entities:
     patterns:
       - '(?:parole\s+(?:number|no\.?|#|file)|parole\s+record)\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(PAR-\d{4,8})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[PAROLE {n}]"
@@ -2012,6 +2071,7 @@ entities:
     patterns:
       - '(?:stolen\s+vehicle|stolen\s+car|NCIC\s+stolen)\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(SV-[\d\-]{4,14})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[STOLEN VEHICLE {n}]"
@@ -2026,6 +2086,7 @@ entities:
     patterns:
       - '(?:stolen\s+(?:gun|firearm)|NCIC\s+firearm)\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(SG-[\d\-]{4,14})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[STOLEN GUNS {n}]"
@@ -2041,6 +2102,7 @@ entities:
       - '(?:stolen\s+(?:plate|license\s+plate))\s*(?:#|number)?\s*[:#]?\s*([A-Z0-9\-]{3,10})'
       - '\b(SPL-[\d\-]{3,12})\b'
       - '\b(SLP-[\d\-]{4,12})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[STOLEN PLATE {n}]"
@@ -2055,6 +2117,7 @@ entities:
     patterns:
       - '(?:stolen\s+(?:boat|vessel|watercraft))\s*(?:reg(?:istration)?|report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(SB-[\d\-]{4,14})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[STOLEN BOAT {n}]"
@@ -2067,8 +2130,9 @@ entities:
     priority: 1
     gliner_label: "stolen financial securities report"
     patterns:
-      - '(?:stolen\s+(?:securities|bonds|stocks))\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
-      - '\b(SS-[\d\-]{4,14})\b'
+      - '(?:stolen\s+(?:securities|bonds|stocks))\s*(?:certificate|report|record|#|number)?\s*[:#]?\s*([A-Z]{1,4}-?\d[\dA-Z\-]{1,})'
+      - '\b(SS-\d{2,12})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[STOLEN SECURITIES {n}]"
@@ -2083,6 +2147,7 @@ entities:
     patterns:
       - '(?:stolen\s+(?:property|articles|goods))\s*(?:report|#|number)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
       - '\b(SA-[\d\-]{4,14})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[STOLEN ARTICLES {n}]"
@@ -2100,9 +2165,10 @@ entities:
     priority: 1
     gliner_label: "driving record or DMV record"
     patterns:
-      - '(?:driving\s+record|driver\s+history|DMV\s+record)\s*(?:#|number|no\.?)?\s*[:#]?\s*([A-Z0-9\-]{4,20})'
+      - '(?:driving\s+record|driver\s+history|DMV\s+record)\s*(?:file|report|record|#|number|no\.?)?\s*[:#]?\s*([A-Z]{1,4}-?\d[\dA-Z\-]{1,})'
       # DH-NNNNNN bare prefix format (GAP-19)
-      - '\b(DH-\d{4,10})\b'
+      - '\b(DH-\d{2,10})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[DRIVER HISTORY {n}]"
@@ -2209,6 +2275,10 @@ entities:
     patterns:
       - '\bEMP-[A-Za-z0-9\-]{3,12}\b'
       - '(?:Employee|Staff)\s+(?:ID|Number|No)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{3,15})'
+      - '\b((?:WIN|EBN|WFI|CEI|HRE|AEI|REN|OEI|PEN|DEI|OEN|GEI)-\d{3,})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
+      - '\b((?-i:[A-Z]{2,8})\d{4,})\b'
+      - '\b([a-z]{2,}(?:_[a-z]+)+_\d{3,})\b'
     masking:
       strategy: redact
       format: "[EMPLOYEE ID {n}]"
@@ -2244,6 +2314,8 @@ entities:
     gliner_label: "vehicle registration number"
     patterns:
       - '\b([A-Z]{2}-\d{2,3}-[A-Z]{2}-\d{3,4})\b'
+      # REG-STATE-NNNNNN registration format (REG-OH-609033, REG-CO-617911)
+      - '\b(REG-[A-Z]{2}-\d{4,7})\b'
       - '(?:License\s+Plate|Plate\s+No|Vehicle\s+Plate|Tag\s+No)\s*[:#]?\s*([A-Za-z0-9\-]{4,10})'
     masking:
       strategy: redact
@@ -2259,6 +2331,11 @@ entities:
     patterns:
       - '\bSTU-[A-Za-z0-9\-]{3,12}\b'
       - 'Student\s+(?:ID|Number|No)\s*[:#=]?\s*(?:is\s+)?([A-Za-z0-9\-]{3,15})'
+      - '\b((?:SN|USI|CSN|CSI|ASN|RSI|ESN|ISI|ENR|CLS|SCH|ADM|LPS|EXM|DSN)-\d{3,})\b'
+      # institution-prefixed multi-segment: NYU-STUDENT-112233, MIT-STUDENT-009912
+      - '\b((?-i:[A-Z]{2,}-[A-Z]{3,})-\d{4,})\b'
+      # generic structured record-id (uppercase prefix, hyphen, digits)
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[STUDENT ID {n}]"
@@ -2277,6 +2354,14 @@ entities:
       - '(Tax\s+(?:Identification|ID)\s+(?:Number|No)\s*[-:#=]\s*[A-Za-z0-9][A-Za-z0-9\-]{3,14})'
       - '\b(\d{2}-\d{7})\b'
       - '\b(TAX_ID_NUMBER-\d{4,10})\b'
+      # Indian GSTIN: 2-digit state + 10-char PAN + entity digit + Z + checksum
+      - '\b((?-i:\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]))\b'
+      # Indian PAN: 5 letters + 4 digits + 1 letter
+      - '\b((?-i:[A-Z]{5}\d{4}[A-Z]))\b'
+      # Indian CIN: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits
+      - '\b((?-i:[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}))\b'
+      # generic structured record-id (uppercase prefix, hyphen, digits)
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[TAX ID {n}]"
@@ -2290,6 +2375,10 @@ entities:
     gliner_label: "airline flight number"
     patterns:
       - '(?:flight|flt\.?)\s+([A-Z]{2}[-\s]?\d{2,4})'
+      # value-before-label: "AA 655 for flight number"
+      - '\b([A-Z]{2}[-\s]?\d{2,4})\s+(?:for\s+)?(?:the\s+)?flight'
+      # bare airline-coded flight (AA-123, AA 655, DL 4567)
+      - '(?<![A-Za-z0-9])((?:AA|UA|DL|SW|WN|BA|LH|EK|AI|QR|SQ|CX|AF|AC|EY|TK|VS|FX|QF)[-\s]?\d{2,4})(?![A-Za-z0-9])'
     masking:
       strategy: redact
       format: "[FLIGHT NUMBER {n}]"
@@ -2303,6 +2392,15 @@ entities:
     gliner_label: "booking or reservation reference"
     patterns:
       - '(?:BK|Booking\s+(?:Reference|Ref|ID|Number)|Reservation\s+(?:ID|Number)|PNR)\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - '\b((?:BR|RES|PNR|TBI|FBR|TBN|TKR|APC|VBI|CBR|ERN|OBR|BTN|SBR|TCC|ABN)-\d{3,})\b'
+      # BOOKING-112233 (full word prefix, beyond the {2,6} generic recognizer)
+      - '\b(BOOKING-\d{3,})\b'
+      # airline-style mixed alphanumeric PNR: LH9988XZ, AA12BC (letters-digits-letters)
+      - '\b((?-i:[A-Z]{2}\d{2,4}[A-Z]{2,3}))\b'
+      # bare 6-char PNR (ABC123) only in booking/reservation context (too generic standalone)
+      - '(?:booking|reservation|PNR|confirmation)\s+(?:reference|ref|code|number|no\.?|id)?\s*[:#]?\s*((?-i:[A-Z]{3}\d{3}|[A-Z0-9]{6}))\b'
+      # generic structured record-id (uppercase prefix, hyphen, digits)
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[BOOKING ID {n}]"
@@ -2316,6 +2414,9 @@ entities:
     gliner_label: "insurance claim number"
     patterns:
       - '(?:CLM|Claim\s+(?:Number|No|ID))\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
+      - '\b((?:CLM|ICN|MCI|HCN|BCI|PCN|ACI|TIC|DCN|HCI|CRN|SCI|GCN|AIC|CCI|WCC|FCR|SCN)-\d{4,})\b'
+      # generic structured record-id (uppercase prefix, hyphen, digits)
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
     masking:
       strategy: redact
       format: "[CLAIM ID {n}]"
@@ -2334,6 +2435,10 @@ entities:
       - '(?:Application\s+(?:Number|No|ID)|Reference\s+(?:Number|No|ID))\s*[-:#]?\s*([A-Za-z0-9\-]{4,15})'
       - '(?:Clinical\s+Trial\s+Participant\s+ID|Parking\s+Permit\s+(?:ID|Number))\s*[:#]?\s*([A-Za-z0-9\-]{4,15})'
       - '\bPP-\d{4,12}\b'
+      - '\b((?:AID|AN|RAI|OAI|JAN|UAI|LAN|IAI|MAI|GAN|HAI|DSA|PAI|UAP|SAN|BAN)-\d{3,})\b'
+      - '\b((?-i:[A-Z]{2,6})-\d{3,}(?:-\d{1,6})*)\b'
+      - '\b((?-i:[A-Z]{2,8})\d{4,})\b'
+      - '\b([a-z]{2,}(?:_[a-z]+)+_\d{3,})\b'
     masking:
       strategy: redact
       format: "[APPLICATION ID {n}]"

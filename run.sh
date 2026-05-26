@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Read a single value from .env without sourcing it (avoids () issues in values).
 _env_val() {
-  grep -E "^${1}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/^["'\'']//; s/["'\'']$//'
+  grep -E "^${1}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r' | sed 's/^["'\'']//; s/["'\'']$//'
 }
 
 VENV=".venv"

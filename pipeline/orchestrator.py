@@ -202,7 +202,7 @@ class PiiMaskingPipeline:
         t3 = time.perf_counter()
 
         merged = self.span_merger.merge_all(
-            pattern_spans + ner_spans, self._config.entities_by_id
+            pattern_spans + ner_spans, self._config.entities_by_id, preprocessed.text
         )
         merged = _trim_multiline_spans(merged, self._no_multiline_ids)
 
