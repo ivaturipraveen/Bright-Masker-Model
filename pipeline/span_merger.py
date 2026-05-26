@@ -47,6 +47,11 @@ _PERSON_NAME_STRUCTURED_ID_RE = re.compile(
     r"^[A-Z]{1,6}[\s\-_/]?\d{2,}(?:[\s\-_/][A-Z0-9]+)*$"
 )
 
+# Matches a label word ("ID", "number", "No.") right after a span, capturing the
+# token that follows it. Used to detect GLiNER tagging the word before "ID" as a
+# place ("Transaction ID TXN-…", "employee id EMP-…").
+_LABEL_AFTER_ID_RE = re.compile(r"\s+(?:id|number|no\.?)\b[:#]?\s*(\S+)?", re.IGNORECASE)
+
 
 class SpanMerger:
     def merge(
@@ -78,9 +83,44 @@ class SpanMerger:
 
         return high_conf, low_conf
 
-    def _validate_and_clean(self, spans: list[DetectedSpan]) -> list[DetectedSpan]:
+    def _validate_and_clean(
+        self, spans: list[DetectedSpan], text: str = ""
+    ) -> list[DetectedSpan]:
         result: list[DetectedSpan] = []
         for span in spans:
+            # ── Context gates (need the surrounding document text) ───────────
+            if text and span.source == "ner":
+                s, e = span.start, span.end
+                # (A) Repair NER spans that begin mid-word — a GLiNER sub-token
+                #     artifact: "Identifier"->"entifier", "reference"->"erence",
+                #     "Statement"->"ment". Advance start past the partial leading
+                #     word: this keeps a real value ("erence BK-12" -> "BK-12")
+                #     and drops pure fragments ("entifier" -> "" -> rejected).
+                if 0 < s < len(text) and text[s - 1].isalnum() and text[s].isalnum():
+                    i = s
+                    while i < e and text[i].isalnum():
+                        i += 1
+                    while i < e and not text[i].isalnum():
+                        i += 1
+                    if len(text[i:e].strip()) < 2:
+                        log.debug("span_rejected_midword_fragment", text=span.text)
+                        continue
+                    span = span.model_copy(update={"text": text[i:e], "start": i})
+                # (B) Suppress city/state spans that are really the label word
+                #     before "ID"/"number" ("Transaction ID", "employee id",
+                #     "Tax ID number"). Guard: only when the token after the
+                #     label is an identifier (dash, letter+digit mix, or the word
+                #     "number") so a real "Boise ID 83701" (city + state + zip)
+                #     is preserved.
+                if span.entity_id in ("city_name", "us_state"):
+                    m = _LABEL_AFTER_ID_RE.match(text[e:])
+                    if m:
+                        nxt = m.group(1) or ""
+                        mixed = any(c.isalpha() for c in nxt) and any(c.isdigit() for c in nxt)
+                        if "-" in nxt or mixed or nxt.lower() in ("number", "no", "no."):
+                            log.debug("span_rejected_label_before_id",
+                                      entity_id=span.entity_id, text=span.text)
+                            continue
             # Physician name from GLiNER must contain Dr./Doctor prefix — rejects hospital names
             if span.entity_id == "physician_name" and span.source == "ner":
                 if not any(p in span.text for p in ("Dr.", "Doctor", "Dr ")):
@@ -229,9 +269,10 @@ class SpanMerger:
         self,
         spans: list[DetectedSpan],
         entity_configs: dict[str, EntityConfig],
+        text: str = "",
     ) -> list[DetectedSpan]:
         """Merge all spans from all sources without threshold split."""
-        spans = self._validate_and_clean(spans)
+        spans = self._validate_and_clean(spans, text)
         deduped = self._remove_exact_duplicates(spans)
         log.debug("merger_all_dedup",
                  before=len(spans),

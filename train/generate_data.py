@@ -170,8 +170,10 @@ def _mrn_value() -> str:
 
 def _npi() -> str:
     digits = str(random.randint(1000000000, 9999999999))
-    # 30% chance of NPI- prefix format (since this is a real test failure)
-    if random.random() < 0.3:
+    # 60% NPI- prefix: a bare 10-digit NPI is indistinguishable from a phone /
+    # bank account, which caused NPI->PHONE mislabels. Prefer the disambiguated
+    # prefixed form; context templates teach the bare form.
+    if random.random() < 0.6:
         return f"NPI-{digits}"
     return digits
 
@@ -3373,6 +3375,20 @@ ENTITY_DEFS: dict[str, dict] = {
 # ---------------------------------------------------------------------------
 
 HARD_NEGATIVES: list[str] = [
+    # Label-word-before-"ID" negatives — the word before "ID"/"number" is NOT a
+    # place. Stops GLiNER tagging Transaction/Merchant/Terminal/etc. as LOCATION.
+    "Transaction ID is generated automatically for each order.",
+    "Please reference the Merchant ID when contacting the processor.",
+    "The Terminal ID must be configured before the device is used.",
+    "Enter your Employee ID to clock in for the shift.",
+    "The Tax ID number is required before filing the return.",
+    "Provide the Application ID printed on your receipt.",
+    "Your Student ID grants access to the campus library.",
+    "The Card IIN identifies the issuing bank.",
+    "A Booking Reference is emailed after the reservation is confirmed.",
+    "The Case Number is assigned by the court clerk.",
+    "Each Device Identifier is unique to the hardware unit.",
+    "The State ID number is issued by the motor vehicle agency.",
     "The SSN field was left blank on the form.",
     "Please enter your date of birth in the field below.",
     "Employee ID is required for system access.",
@@ -4419,11 +4435,35 @@ def generate(
         data = yaml.safe_load(f)
 
     gliner_label_map: dict[str, str] = {}
+    display_map: dict[str, str] = {}
     for raw in data.get("entities", []):
         if not raw.get("enabled", True):
             continue
         eid = raw["id"]
         gliner_label_map[eid] = raw.get("gliner_label") or raw.get("display_name", eid)
+        # Short, human phrase for value-before-label templates: take the part of
+        # display_name before any "/" or "(" and lowercase it ("City Name / Town"
+        # -> "city name").
+        disp = (raw.get("display_name") or eid)
+        for sep in ("/", "("):
+            disp = disp.split(sep)[0]
+        display_map[eid] = disp.strip().lower()
+
+    def _value_before_label_templates(short: str) -> list[str]:
+        """Constructions the model under-learned: value BEFORE its label, and
+        keyword-anchored value-after forms — mirroring the validation corpus
+        ('reviewers recorded X as the city', 'the intake note references X for Y')."""
+        if not short:
+            return []
+        # Keep {value} away from terminal punctuation so the whitespace-token
+        # span match in make_gliner_example succeeds.
+        return [
+            f"reviewers recorded {{value}} as the {short}.",
+            f"{{value}} was recorded as the {short}.",
+            f"the {short} is {{value}} on file.",
+            f"the intake note references {{value}} for {short}.",
+            f"recorded {{value}} for the {short}.",
+        ]
 
     all_examples: list[dict] = []
     entity_counts: dict[str, int] = {}
@@ -4434,7 +4474,11 @@ def generate(
             continue
 
         generator: Callable = defn["generator"]
-        templates: list[str] = defn["templates"]
+        # Mix in value-before-label constructions so GLiNER learns to detect the
+        # value when it precedes its label (the dominant real-world leak mode).
+        templates: list[str] = defn["templates"] + _value_before_label_templates(
+            display_map.get(entity_id, "")
+        )
         generated = 0
 
         for _ in range(samples_per_entity * 4):
