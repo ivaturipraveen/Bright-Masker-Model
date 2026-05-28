@@ -53,41 +53,175 @@ LABEL_MAP: dict[str, str] = _build_label_map()
 # ---------------------------------------------------------------------------
 
 def _phone() -> str:
-    fmt = random.choice(["parens", "dash", "dot", "intl", "ext", "bare10"])
-    if fmt == "parens":
-        return f"({random.randint(200,999)}) {random.randint(200,999)}-{random.randint(1000,9999)}"
-    elif fmt == "dash":
-        return f"{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}"
-    elif fmt == "dot":
-        return f"{random.randint(200,999)}.{random.randint(200,999)}.{random.randint(1000,9999)}"
-    elif fmt == "intl":
-        return f"+1-{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}"
-    elif fmt == "bare10":
-        # GAP-04: bare 10-digit number no separators
-        return f"{random.randint(2000000000, 9999999999)}"
-    else:
-        return f"{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}x{random.randint(100,999)}"
+    """Phone number across US/UK/India/EU/intl formats."""
+    a = f"{random.randint(200, 999):03d}"
+    b = f"{random.randint(200, 999):03d}"
+    c = f"{random.randint(1000, 9999):04d}"
+    fmt = random.choices(
+        ["us_parens", "us_dash", "us_dot", "us_intl", "us_ext",
+         "us_bare10", "us_spaced", "uk", "india", "intl_eu",
+         "with_extension_word", "e164"],
+        weights=[16, 18, 8, 12, 8, 12, 6, 6, 8, 4, 6, 6],
+        k=1,
+    )[0]
+
+    if fmt == "us_parens":
+        return f"({a}) {b}-{c}"
+    if fmt == "us_dash":
+        return f"{a}-{b}-{c}"
+    if fmt == "us_dot":
+        return f"{a}.{b}.{c}"
+    if fmt == "us_intl":
+        return f"+1-{a}-{b}-{c}"
+    if fmt == "us_ext":
+        return f"{a}-{b}-{c}x{random.randint(100, 9999)}"
+    if fmt == "us_bare10":
+        return f"{a}{b}{c}"
+    if fmt == "us_spaced":
+        return f"{a} {b} {c}"
+    if fmt == "uk":
+        return f"+44 {random.randint(20, 79)} {random.randint(1000, 9999)} {random.randint(1000, 9999)}"
+    if fmt == "india":
+        # +91 98765 43210 / 98765-43210 / 9876543210
+        mobile = random.randint(6000000000, 9999999999)
+        style = random.choice(["intl_spaced", "dashed", "bare"])
+        if style == "intl_spaced":
+            s = str(mobile)
+            return f"+91 {s[:5]} {s[5:]}"
+        if style == "dashed":
+            s = str(mobile)
+            return f"{s[:5]}-{s[5:]}"
+        return str(mobile)
+    if fmt == "intl_eu":
+        country = random.choice(["+33", "+49", "+39", "+34", "+31", "+41"])
+        return f"{country} {random.randint(1, 99)} {random.randint(100, 999)} {random.randint(1000, 9999)}"
+    if fmt == "with_extension_word":
+        return f"{a}-{b}-{c} ext. {random.randint(100, 9999)}"
+    # e164
+    return f"+1{a}{b}{c}"
 
 def _phone2() -> str:
     return f"{random.randint(200,999)}-{random.randint(200,999)}-{random.randint(1000,9999)}"
 
 def _fax() -> str:
-    return f"({random.randint(200,999)}) {random.randint(200,999)}-{random.randint(1000,9999)}"
+    a, b, c = (f"{random.randint(200, 999):03d}",
+               f"{random.randint(200, 999):03d}",
+               f"{random.randint(1000, 9999):04d}")
+    fmt = random.choices(
+        ["parens", "dashed", "dotted", "intl", "ext", "bare", "spaced"],
+        weights=[22, 22, 10, 14, 12, 10, 10],
+        k=1,
+    )[0]
+    if fmt == "parens":
+        return f"({a}) {b}-{c}"
+    if fmt == "dashed":
+        return f"{a}-{b}-{c}"
+    if fmt == "dotted":
+        return f"{a}.{b}.{c}"
+    if fmt == "intl":
+        return f"+1-{a}-{b}-{c}"
+    if fmt == "ext":
+        return f"+1-{a}-{b}-{c} ext {random.randint(100, 9999)}"
+    if fmt == "bare":
+        return f"{a}{b}{c}"
+    return f"{a} {b} {c}"
 
 def _ssn() -> str:
-    return f"{random.randint(100,799):03d}-{random.randint(10,99):02d}-{random.randint(1000,9999):04d}"
+    a = f"{random.randint(100, 799):03d}"
+    b = f"{random.randint(10, 99):02d}"
+    c = f"{random.randint(1000, 9999):04d}"
+    fmt = random.choices(
+        ["dashed", "spaced", "bare", "dotted", "trailing_only"],
+        weights=[42, 14, 28, 8, 8],
+        k=1,
+    )[0]
+    if fmt == "dashed":
+        return f"{a}-{b}-{c}"
+    if fmt == "spaced":
+        return f"{a} {b} {c}"
+    if fmt == "bare":
+        return f"{a}{b}{c}"
+    if fmt == "dotted":
+        return f"{a}.{b}.{c}"
+    # trailing_only — last 4 / masked
+    return f"XXX-XX-{c}"
 
 def _credit_card() -> str:
-    if random.random() < 0.25:
-        # GAP-03: 8+4+4 format (Discover-style)
-        return f"{random.randint(60110000,60119999)} {random.randint(1000,9999)} {random.randint(1000,9999)}"
-    return f"{random.randint(4000,4999)} {random.randint(1000,9999)} {random.randint(1000,9999)} {random.randint(1000,9999)}"
+    """Credit/debit PAN across networks and grouping styles.
+
+    Networks covered: Visa (16 / 13), Mastercard (16), Amex (15), Discover (16),
+    Diners (14), JCB (16), RuPay/UnionPay (16). Grouping styles: spaced 4-4-4-4
+    or 4-6-5 (Amex), dashed, and bare contiguous.
+    """
+    network = random.choices(
+        ["visa16", "visa13", "mc", "amex", "discover",
+         "diners", "jcb", "unionpay", "rupay"],
+        weights=[24, 4, 22, 14, 12, 6, 6, 6, 6],
+        k=1,
+    )[0]
+
+    if network == "visa16":
+        digits = f"4{random.randint(0, 9)}{random.randint(0, 99):02d}" + \
+                 "".join(random.choices("0123456789", k=12))
+    elif network == "visa13":
+        digits = "4" + "".join(random.choices("0123456789", k=12))
+    elif network == "mc":
+        prefix = random.choice(["51", "52", "53", "54", "55",
+                                 "2221", "2300", "2400", "2700"])
+        digits = prefix + "".join(random.choices("0123456789", k=16 - len(prefix)))
+    elif network == "amex":
+        prefix = random.choice(["34", "37"])
+        digits = prefix + "".join(random.choices("0123456789", k=13))
+    elif network == "discover":
+        prefix = random.choice(["6011", "65", "644", "645", "646", "647",
+                                 "648", "649"])
+        digits = prefix + "".join(random.choices("0123456789", k=16 - len(prefix)))
+    elif network == "diners":
+        prefix = random.choice(["300", "301", "302", "303", "304", "305",
+                                 "36", "38"])
+        digits = prefix + "".join(random.choices("0123456789", k=14 - len(prefix)))
+    elif network == "jcb":
+        digits = "35" + "".join(random.choices("0123456789", k=14))
+    elif network == "unionpay":
+        digits = "62" + "".join(random.choices("0123456789", k=14))
+    else:  # rupay
+        prefix = random.choice(["508", "606", "607", "608", "652", "653"])
+        digits = prefix + "".join(random.choices("0123456789", k=16 - len(prefix)))
+
+    # Grouping
+    style = random.choices(["bare", "spaced", "dashed"], weights=[28, 56, 16], k=1)[0]
+    if style == "bare":
+        return digits
+    # Amex groups 4-6-5; everything else groups 4-4-4-(4/3) or 4-4-4-4-3
+    if network == "amex":
+        groups = [digits[:4], digits[4:10], digits[10:]]
+    elif len(digits) == 13:
+        groups = [digits[:4], digits[4:8], digits[8:12], digits[12:]]
+    elif len(digits) == 14:
+        groups = [digits[:4], digits[4:8], digits[8:12], digits[12:]]
+    elif len(digits) == 15:
+        groups = [digits[:4], digits[4:10], digits[10:]]
+    elif len(digits) == 19:
+        groups = [digits[:4], digits[4:8], digits[8:12], digits[12:16], digits[16:]]
+    else:  # 16
+        groups = [digits[:4], digits[4:8], digits[8:12], digits[12:]]
+    sep = " " if style == "spaced" else "-"
+    return sep.join(groups)
+
 
 def _cvv() -> str:
-    return str(random.randint(100, 999))
+    # Most networks use 3-digit codes; Amex CID is 4 digits.
+    if random.random() < 0.2:
+        return f"{random.randint(1000, 9999):04d}"
+    return f"{random.randint(100, 999):03d}"
 
 def _card_exp() -> str:
-    return f"{random.randint(1,12):02d}/{random.randint(25,30):02d}"
+    mm = f"{random.randint(1, 12):02d}"
+    yy = f"{random.randint(25, 35):02d}"
+    yyyy = f"20{yy}"
+    sep = random.choice(["/", "-"])
+    year = random.choice([yy, yy, yyyy])
+    return f"{mm}{sep}{year}"
 
 def _date_mmddyyyy() -> str:
     d = fake.date_of_birth(minimum_age=1, maximum_age=90)
@@ -157,83 +291,563 @@ def _year_only() -> str:
     return str(random.randint(2010, 2025))
 
 def _ip() -> str:
-    return fake.ipv4_private()
+    fmt = random.choices(
+        ["private", "public", "loopback", "ipv6", "ipv6_short", "with_port", "cidr"],
+        weights=[24, 30, 8, 18, 8, 8, 4],
+        k=1,
+    )[0]
+    if fmt == "private":
+        return fake.ipv4_private()
+    if fmt == "public":
+        return ".".join(str(random.randint(1, 223)) for _ in range(4))
+    if fmt == "loopback":
+        return f"127.0.0.{random.randint(1, 255)}"
+    if fmt == "ipv6":
+        return ":".join(f"{random.randint(0, 65535):04x}" for _ in range(8))
+    if fmt == "ipv6_short":
+        return f"2001:db8::{random.randint(0, 65535):x}"
+    if fmt == "with_port":
+        ip = ".".join(str(random.randint(1, 223)) for _ in range(4))
+        return f"{ip}:{random.randint(1024, 65535)}"
+    # cidr
+    ip = ".".join(str(random.randint(1, 223)) for _ in range(4))
+    return f"{ip}/{random.choice([8, 16, 24, 32])}"
+
 
 def _mac() -> str:
-    return ":".join(f"{random.randint(0,255):02X}" for _ in range(6))
+    octets = [f"{random.randint(0, 255):02X}" for _ in range(6)]
+    fmt = random.choices(
+        ["colon_upper", "colon_lower", "dash_upper", "dash_lower",
+         "cisco_dot", "bare_upper", "bare_lower"],
+        weights=[26, 14, 18, 10, 14, 10, 8],
+        k=1,
+    )[0]
+    if fmt == "colon_upper":
+        return ":".join(octets)
+    if fmt == "colon_lower":
+        return ":".join(o.lower() for o in octets)
+    if fmt == "dash_upper":
+        return "-".join(octets)
+    if fmt == "dash_lower":
+        return "-".join(o.lower() for o in octets)
+    if fmt == "cisco_dot":
+        flat = "".join(octets)
+        return f"{flat[:4]}.{flat[4:8]}.{flat[8:]}"
+    if fmt == "bare_upper":
+        return "".join(octets)
+    return "".join(octets).lower()
 
 def _url() -> str:
-    return f"https://portal.hospital.org/patients/{random.randint(10000,99999)}"
+    """URLs that contain PII in path or query string.
+
+    Originally produced one hospital-portal format. Real failures included
+    patient portals, ride/transit IDs, booking confirmations, social profile
+    links, customer dashboards, billing portals, and signed S3 URLs.
+    """
+    pid = random.randint(10000, 9999999)
+    forms = [
+        f"https://portal.hospital.org/patients/{pid}",
+        f"https://my.healthplan.com/member/{pid}/dashboard",
+        f"https://app.clinic.io/charts/{pid}",
+        f"https://billing.medgroup.com/account/{pid}/invoice",
+        f"https://patient.kp.org/visit/{pid}",
+        f"https://account.bank.com/users/{pid}/statements",
+        f"https://booking.airline.com/itinerary/{pid}",
+        f"https://www.linkedin.com/in/{fake.user_name()}",
+        f"https://twitter.com/{fake.user_name()}",
+        f"https://facebook.com/{fake.user_name()}.{random.randint(1,9999)}",
+        f"https://github.com/{fake.user_name()}",
+        f"https://example.com/profile?user_id={pid}&token=abc{random.randint(1000,9999)}",
+        f"https://shop.com/order?email={fake.email()}",
+        f"https://accounts.google.com/o/oauth2/v2/auth?login_hint={fake.email()}",
+        f"https://amzn.to/{random.choice('abcdefghjkmnpqrstuvwxyz')}{random.randint(100,9999)}",
+        f"https://s3.amazonaws.com/private/{pid}/report.pdf?X-Amz-Signature={random.randint(10**9,10**10)}",
+    ]
+    return random.choice(forms)
 
 def _mrn_value() -> str:
-    return str(random.randint(1000000, 9999999))
+    digits = random.randint(100000, 99999999)
+    fmt = random.choices(
+        ["bare", "mrn_prefix", "mrn_hash", "alpha_prefix",
+         "epic_style", "cerner_style"],
+        weights=[28, 22, 14, 16, 10, 10],
+        k=1,
+    )[0]
+    if fmt == "bare":
+        return str(digits)
+    if fmt == "mrn_prefix":
+        return f"MRN-{digits}"
+    if fmt == "mrn_hash":
+        return f"MRN#{digits}"
+    if fmt == "alpha_prefix":
+        letter = random.choice("ABCDEFGHJKLMNPRSTUVWXYZ")
+        return f"{letter}{digits}"
+    if fmt == "epic_style":
+        return f"E{random.randint(1000000,99999999)}"
+    # cerner_style — leading zeros padded
+    return f"{digits:010d}"
 
 def _npi() -> str:
     digits = str(random.randint(1000000000, 9999999999))
-    # 60% NPI- prefix: a bare 10-digit NPI is indistinguishable from a phone /
-    # bank account, which caused NPI->PHONE mislabels. Prefer the disambiguated
-    # prefixed form; context templates teach the bare form.
-    if random.random() < 0.6:
+    fmt = random.choices(
+        ["npi_dashed", "npi_attached", "npi_hash", "npi_word",
+         "provider_id", "bare", "npi_space"],
+        weights=[28, 14, 10, 12, 12, 18, 6],
+        k=1,
+    )[0]
+    if fmt == "npi_dashed":
         return f"NPI-{digits}"
+    if fmt == "npi_attached":
+        return f"NPI{digits}"
+    if fmt == "npi_hash":
+        return f"NPI#{digits}"
+    if fmt == "npi_word":
+        return f"NPI Number: {digits}"
+    if fmt == "provider_id":
+        return f"PROVIDER-{digits}"
+    if fmt == "npi_space":
+        return f"NPI {digits}"
     return digits
+
 
 def _npi_plain() -> str:
     return str(random.randint(1000000000, 9999999999))
 
+
 def _dea() -> str:
     letters = "ABCDEFGHJKLMNPRSTUX"
-    return f"{random.choice(letters)}{random.choice(letters)}{random.randint(1000000,9999999)}"
+    body = f"{random.choice(letters)}{random.choice(letters)}{random.randint(1000000, 9999999)}"
+    fmt = random.choices(
+        ["bare", "dea_dashed", "dea_attached", "dea_hash", "dea_no",
+         "dea_word", "reg_prefix"],
+        weights=[30, 18, 14, 10, 10, 12, 6],
+        k=1,
+    )[0]
+    if fmt == "bare":
+        return body
+    if fmt == "dea_dashed":
+        return f"DEA-{body}"
+    if fmt == "dea_attached":
+        return f"DEA{body}"
+    if fmt == "dea_hash":
+        return f"DEA#{body}"
+    if fmt == "dea_no":
+        return f"DEA No: {body}"
+    if fmt == "dea_word":
+        return f"DEA Number {body}"
+    return f"REG-{body}"
 
 def _iban() -> str:
-    return f"GB{random.randint(10,99)}NWBK{random.randint(10000000,99999999)}{random.randint(10000000,99999999)}"
+    """Multi-country IBAN. Original only emitted GB-format which biased the
+    model toward UK BBANs and missed every EU/IN/AE/ME real-world example.
+    Lengths follow the actual per-country IBAN spec.
+    """
+    schemes = [
+        ("GB", 22, 4),   # GB22 NWBK 6010 1234 5678 90  — UK
+        ("DE", 22, 0),   # DE89 3704 0044 0532 0130 00  — Germany
+        ("FR", 27, 0),   # FR14 2004 1010 0505 0001 3M02 606  — France
+        ("ES", 24, 0),   # Spain
+        ("IT", 27, 1),   # IT60 X054 2811 1010 0000 0123 456  — Italy
+        ("NL", 18, 4),   # NL91 ABNA 0417 1643 00  — Netherlands
+        ("CH", 21, 0),   # Switzerland
+        ("BE", 16, 0),   # Belgium
+        ("AT", 20, 0),   # Austria
+        ("IE", 22, 4),   # Ireland
+        ("PT", 25, 0),   # Portugal
+        ("AE", 23, 0),   # UAE
+        ("SA", 24, 0),   # Saudi Arabia
+        ("TR", 26, 0),   # Turkey
+        ("PL", 28, 0),   # Poland
+    ]
+    country, length, bank_letters = random.choice(schemes)
+    check = f"{random.randint(10, 99):02d}"
+    bank = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ", k=bank_letters))
+    remaining = length - len(country) - len(check) - bank_letters
+    body = "".join(random.choices("0123456789", k=remaining))
+    iban = f"{country}{check}{bank}{body}"
+    # 25 % of the time return with conventional 4-char space groupings
+    if random.random() < 0.25:
+        return " ".join(iban[i:i+4] for i in range(0, len(iban), 4))
+    return iban
 
 def _swift() -> str:
-    banks = ["CHAS", "BNPA", "DEUT", "HSBC", "BARC", "CITI", "BOFA"]
-    countries = ["US", "FR", "DE", "GB", "JP"]
-    locs = ["33", "PP", "2X", "FF"]
-    return f"{random.choice(banks)}{random.choice(countries)}{random.choice(locs)}"
+    banks = [
+        # US / EU / UK majors
+        "CHAS", "BOFA", "CITI", "WFBI", "JPMC", "MSCO", "GOLD",
+        "DEUT", "BARC", "HSBC", "BNPA", "SCBL", "INGB", "RABO",
+        "ABNA", "UBSW", "CRES",
+        # India
+        "HDFC", "ICIC", "AXIS", "PUNB", "SBIN", "KKBK", "YESB",
+        "UTIB", "BKID", "INDB", "CNRB", "IDFB", "IBKL", "FDRL",
+        # APAC + Middle East
+        "DBSS", "OCBC", "UOVB", "ANZB", "NATA", "BKKB", "KASI",
+        "MITB", "BCHK", "BOTK", "NABA", "EBIL", "QNBA", "ENBD",
+    ]
+    countries = [
+        "US", "GB", "DE", "FR", "NL", "CH", "ES", "IT",
+        "IN", "SG", "HK", "JP", "AU", "CN", "AE", "QA",
+        "CA", "BR", "MX", "ZA", "TH",
+    ]
+    # Real-world locations span all-letter and digit/letter combos.
+    locs = [
+        # All-letter (the previous bug — these were never generated)
+        "BB", "GG", "AA", "XX", "PP", "FF", "SG", "HK", "NY",
+        # Letter + digit / digit + letter
+        "2X", "3N", "6S", "8R", "0X", "1S", "9A", "4M", "7B",
+        # All-digit
+        "33", "22", "11", "00", "44", "55",
+    ]
+    branches = [
+        "XXX", "DEL", "BOM", "MUM", "DLH", "LON", "FRA", "SYD",
+        "HKG", "TKY", "NYC", "SFO", "104", "500", "001", "002",
+    ]
+    bic8 = f"{random.choice(banks)}{random.choice(countries)}{random.choice(locs)}"
+    # 30 % of the time emit the 11-char form (8-char BIC + 3-char branch code)
+    if random.random() < 0.3:
+        return f"{bic8}{random.choice(branches)}"
+    return bic8
 
 def _routing() -> str:
-    return str(random.randint(100000000, 999999999))
+    digits = f"{random.randint(100000000, 999999999)}"
+    fmt = random.choices(
+        ["bare", "aba_prefix", "rt_prefix", "rtn_prefix", "dashed"],
+        weights=[40, 20, 14, 14, 12],
+        k=1,
+    )[0]
+    if fmt == "bare":
+        return digits
+    if fmt == "aba_prefix":
+        return f"ABA-{digits}"
+    if fmt == "rt_prefix":
+        return f"RT{digits}"
+    if fmt == "rtn_prefix":
+        return f"RTN-{digits}"
+    # dashed — XXXX-XXXX-X
+    return f"{digits[:4]}-{digits[4:8]}-{digits[8]}"
+
 
 def _bank_account() -> str:
-    return str(random.randint(10000000, 9999999999))
+    digits = random.randint(10000000, 9999999999)
+    fmt = random.choices(
+        ["bare", "acc_prefix", "acct_prefix", "ac_no", "leading_zero",
+         "spaced", "dashed", "iban_style_dom"],
+        weights=[26, 16, 14, 12, 10, 10, 8, 4],
+        k=1,
+    )[0]
+    s = str(digits)
+    if fmt == "bare":
+        return s
+    if fmt == "acc_prefix":
+        return f"ACC-{s}"
+    if fmt == "acct_prefix":
+        return f"ACCT-{s}"
+    if fmt == "ac_no":
+        return f"A/C-{s}"
+    if fmt == "leading_zero":
+        return f"{int(s):012d}"
+    if fmt == "spaced":
+        return " ".join(s[i:i+4] for i in range(0, len(s), 4))
+    if fmt == "dashed":
+        return "-".join(s[i:i+4] for i in range(0, len(s), 4))
+    # iban_style_dom
+    return f"XXBANK{s}"
 
 def _vin() -> str:
     chars = "ABCDEFGHJKLMNPRSTUVWXYZ0123456789"
-    return "".join(random.choice(chars) for _ in range(17))
+    body = "".join(random.choice(chars) for _ in range(17))
+    fmt = random.choices(
+        ["bare", "vin_dashed", "vin_attached", "vin_hash",
+         "vin_colon", "vin_no"],
+        weights=[40, 18, 14, 10, 10, 8],
+        k=1,
+    )[0]
+    if fmt == "bare":
+        return body
+    if fmt == "vin_dashed":
+        return f"VIN-{body}"
+    if fmt == "vin_attached":
+        return f"VIN{body}"
+    if fmt == "vin_hash":
+        return f"VIN#{body}"
+    if fmt == "vin_colon":
+        return f"VIN: {body}"
+    return f"VIN No. {body}"
 
 def _license_plate() -> str:
-    return f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}-{random.randint(1000,9999)}"
+    """License plate covering US, Indian, UK, and EU formats."""
+    L = "ABCDEFGHJKLMNPQRSTUVWXYZ"  # exclude I and O (commonly omitted)
+    fmt = random.choices(
+        [
+            "us_3letter_4digit",   # ABC-1234
+            "us_3letter_3digit",   # ABC-123
+            "us_2letter_4digit",   # AB-1234
+            "indian",              # TN10BK9090 / KA01AB1234
+            "indian_spaced",       # TN 10 BK 9090
+            "uk",                  # AB12 CDE
+            "eu_dash",             # B-AB 1234
+            "vanity",              # I-LOVE-NY style
+            "motorcycle",          # short 5-6 char
+        ],
+        weights=[20, 10, 8, 22, 10, 12, 6, 5, 7],
+        k=1,
+    )[0]
+
+    if fmt == "us_3letter_4digit":
+        sep = random.choice(["-", " ", ""])
+        return f"{''.join(random.choices(L, k=3))}{sep}{random.randint(1000, 9999)}"
+    if fmt == "us_3letter_3digit":
+        sep = random.choice(["-", " ", ""])
+        return f"{''.join(random.choices(L, k=3))}{sep}{random.randint(100, 999)}"
+    if fmt == "us_2letter_4digit":
+        sep = random.choice(["-", " ", ""])
+        return f"{''.join(random.choices(L, k=2))}{sep}{random.randint(1000, 9999)}"
+    if fmt == "indian":
+        state = random.choice(["TN", "KA", "MH", "DL", "AP", "TS", "KL", "GJ",
+                               "RJ", "UP", "MP", "WB", "PB", "HR", "BR"])
+        dist = f"{random.randint(1, 99):02d}"
+        series = "".join(random.choices(L, k=2))
+        num = f"{random.randint(1, 9999):04d}"
+        return f"{state}{dist}{series}{num}"
+    if fmt == "indian_spaced":
+        state = random.choice(["TN", "KA", "MH", "DL", "AP", "TS", "KL", "GJ"])
+        return (f"{state} {random.randint(1, 99):02d} "
+                f"{''.join(random.choices(L, k=2))} {random.randint(1, 9999):04d}")
+    if fmt == "uk":
+        # AB12 CDE
+        return (f"{''.join(random.choices(L, k=2))}{random.randint(10, 99)} "
+                f"{''.join(random.choices(L, k=3))}")
+    if fmt == "eu_dash":
+        # B-AB 1234 (Germany-style)
+        city = random.choice(["B", "M", "K", "F", "S", "L", "H"])
+        return f"{city}-{''.join(random.choices(L, k=2))} {random.randint(1, 9999)}"
+    if fmt == "vanity":
+        words = random.choice(["ILOVENY", "GOBLUE", "MOMSCAR", "BEST1",
+                                "DR1VER", "GR8MOM", "RUNFAST"])
+        return words
+    # motorcycle — 5-6 chars, often higher density
+    return f"{''.join(random.choices(L, k=2))}{random.randint(100, 9999)}"
 
 def _api_key() -> str:
-    return "sk-" + "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", k=32))
+    """Session tokens, API keys, JWTs and cookie-style values.
+
+    Covers the production failures: stripe/openai prefixed keys, AWS access
+    keys, GitHub PATs, JWT three-segment, OAuth bearer, PHPSESSID/JSESSIONID
+    cookie-pair values, and bare alphanumeric tokens.
+    """
+    ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    HEX = "0123456789abcdef"
+
+    def rand(charset: str, k: int) -> str:
+        return "".join(random.choices(charset, k=k))
+
+    fmt = random.choices(
+        [
+            "sk_prefix",          # sk-...
+            "openai_proj",        # sk-proj-...
+            "stripe_key",         # sk_live_..., sk_test_...
+            "stripe_object",      # pi_..., ch_..., cus_..., pm_...
+            "aws_access",         # AKIA...
+            "github_pat",         # ghp_..., gho_..., ghs_...
+            "slack",              # xoxb-..., xoxp-...
+            "jwt",                # eyJ...
+            "session_id_hex",     # 32-64 hex chars
+            "cookie_pair",        # PHPSESSID=..., JSESSIONID=..., csrftoken=...
+            "auth_tok_prefix",    # auth_tok_..., sess_..., sid_...
+            "sid_dashed",         # SID-44556677
+            "bearer",             # Bearer eyJ...
+            "uuid_hex",           # 8-4-4-4-12
+            "base64ish",          # random base64-ish
+        ],
+        weights=[6, 4, 6, 8, 5, 5, 4, 12, 10, 12, 10, 4, 4, 6, 4],
+        k=1,
+    )[0]
+
+    if fmt == "sk_prefix":
+        return f"sk-{rand(ALPHA, 32)}"
+    if fmt == "openai_proj":
+        return f"sk-proj-{rand(ALPHA, 48)}"
+    if fmt == "stripe_key":
+        return f"sk_{random.choice(['live', 'test'])}_{rand(ALPHA, 24)}"
+    if fmt == "stripe_object":
+        obj = random.choice(["pi", "ch", "cus", "pm", "src", "sub", "in", "txn"])
+        return f"{obj}_{rand(ALPHA, 24)}"
+    if fmt == "aws_access":
+        return f"AKIA{rand('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 16)}"
+    if fmt == "github_pat":
+        pfx = random.choice(["ghp", "gho", "ghs", "ghr", "github_pat"])
+        return f"{pfx}_{rand(ALPHA, 36)}"
+    if fmt == "slack":
+        kind = random.choice(["xoxb", "xoxp", "xoxa", "xoxr"])
+        return (f"{kind}-{random.randint(10**10, 10**11)}-"
+                f"{random.randint(10**10, 10**11)}-{rand(ALPHA, 24)}")
+    if fmt == "jwt":
+        header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        payload = rand(ALPHA, random.randint(30, 80))
+        sig = rand(ALPHA, random.randint(30, 60))
+        return f"{header}.{payload}.{sig}"
+    if fmt == "session_id_hex":
+        return rand(HEX, random.choice([32, 40, 48, 64]))
+    if fmt == "cookie_pair":
+        name = random.choice([
+            "PHPSESSID", "JSESSIONID", "sessionid", "connect.sid",
+            "auth_token", "refresh_token", "access_token", "csrftoken",
+            "remember_me", "_session", "XSRF-TOKEN",
+        ])
+        sep = random.choice(["=", "="])
+        val_kind = random.random()
+        if val_kind < 0.4:
+            val = rand(HEX, random.randint(16, 32))
+        elif val_kind < 0.7:
+            val = rand(ALPHA, random.randint(12, 30))
+        else:
+            val = f"s%3A{rand(ALPHA, 16)}"
+        return f"{name}{sep}{val}"
+    if fmt == "auth_tok_prefix":
+        prefix = random.choice([
+            "auth_tok", "sess", "sid", "bsess", "scid", "usi", "pst", "api",
+            "asc", "est", "tsid", "cst", "dat", "psi", "sso", "sls",
+            "login", "jwt", "access", "refresh",
+        ])
+        sep = random.choice(["_", "-"])
+        val = rand(ALPHA, random.randint(8, 20))
+        return f"{prefix}{sep}{val}"
+    if fmt == "sid_dashed":
+        return f"SID-{random.randint(10000000, 99999999)}"
+    if fmt == "bearer":
+        return f"Bearer {rand(ALPHA, random.randint(20, 60))}"
+    if fmt == "uuid_hex":
+        return (f"{rand(HEX, 8)}-{rand(HEX, 4)}-{rand(HEX, 4)}-"
+                f"{rand(HEX, 4)}-{rand(HEX, 12)}")
+    # base64ish
+    return rand(ALPHA + "+/", random.randint(40, 88))
 
 def _password() -> str:
-    special = "!@#$%^&*"
-    return (random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-            + random.choice("abcdefghijklmnopqrstuvwxyz")
-            + str(random.randint(10,99))
-            + random.choice(special)
-            + "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", k=6)))
+    SPECIAL = "!@#$%^&*-_+="
+    UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    LOWER = "abcdefghijklmnopqrstuvwxyz"
+    DIGIT = "0123456789"
+    ALL = UPPER + LOWER + DIGIT + SPECIAL
+
+    fmt = random.choices(
+        ["strong_mixed", "passphrase", "leetspeak", "with_year",
+         "double_word_num", "common_weak", "long_mixed", "hex_token"],
+        weights=[24, 14, 12, 14, 10, 6, 12, 8],
+        k=1,
+    )[0]
+
+    if fmt == "strong_mixed":
+        n = random.randint(10, 16)
+        return (random.choice(UPPER) + random.choice(LOWER)
+                + str(random.randint(10, 99)) + random.choice(SPECIAL)
+                + "".join(random.choices(ALL, k=n - 4)))
+    if fmt == "passphrase":
+        words = random.sample(
+            ["correct", "horse", "battery", "staple", "purple", "monkey",
+             "rocket", "blue", "river", "thunder", "shadow", "winter",
+             "dragon", "phoenix", "summer", "Mountain", "Castle", "Garden"],
+            k=random.choice([3, 4]),
+        )
+        sep = random.choice(["-", "_", ""])
+        return sep.join(words) + str(random.randint(10, 999))
+    if fmt == "leetspeak":
+        base = random.choice(["passw0rd", "h3ll0", "S3cur3", "Adm1n", "L0g1n"])
+        return base + str(random.randint(10, 999)) + random.choice(SPECIAL)
+    if fmt == "with_year":
+        word = random.choice(["Summer", "Winter", "Spring", "Autumn",
+                               "Mountain", "River", "Tiger", "Eagle"])
+        return f"{word}{random.randint(1990, 2025)}{random.choice(SPECIAL)}"
+    if fmt == "double_word_num":
+        return (random.choice(["Apple", "Banana", "Cherry", "Pizza", "Tiger"])
+                + random.choice(["Pie", "Pad", "Top", "Cat", "Dog"])
+                + str(random.randint(100, 9999)))
+    if fmt == "common_weak":
+        return random.choice([
+            "password123", "qwerty123", "admin123", "letmein!",
+            "welcome1", "iloveyou", "abc12345", "P@ssw0rd",
+        ])
+    if fmt == "long_mixed":
+        n = random.randint(20, 32)
+        return "".join(random.choices(ALL, k=n))
+    # hex_token
+    return "".join(random.choices("0123456789abcdef", k=random.choice([32, 40, 64])))
+
+_US_STATE_ABBR: list[str] = [
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI",
+    "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI",
+    "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC",
+    "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT",
+    "VT", "VA", "WA", "WV", "WI", "WY",
+]
+
+_US_STATE_FULL: list[str] = [
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+    "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+    "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
+    "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
+    "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
+    "New Hampshire", "New Jersey", "New Mexico", "New York",
+    "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
+    "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+    "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+    "West Virginia", "Wisconsin", "Wyoming",
+    "District of Columbia", "Puerto Rico", "Guam",
+    "US Virgin Islands", "American Samoa", "Northern Mariana Islands",
+]
+
 
 def _state_abbr() -> str:
-    return random.choice(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI",
-                          "ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI",
-                          "MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC",
-                          "ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT",
-                          "VT","VA","WA","WV","WI","WY"])
+    """US state — 60% 2-letter abbreviation, 40% full state name.
+
+    Original only emitted abbreviations, which left the NER unable to
+    recognise "California", "New York", "Texas" as us_state entities.
+    """
+    if random.random() < 0.6:
+        return random.choice(_US_STATE_ABBR)
+    return random.choice(_US_STATE_FULL)
 
 def _zipcode() -> str:
-    return str(random.randint(10000,99999))
+    z5 = random.randint(10000, 99999)
+    fmt = random.choices(["zip5", "zip_plus4", "zip_plus4_space"],
+                         weights=[70, 22, 8], k=1)[0]
+    if fmt == "zip5":
+        return str(z5)
+    plus4 = random.randint(1000, 9999)
+    if fmt == "zip_plus4":
+        return f"{z5}-{plus4}"
+    return f"{z5} {plus4}"
 
 def _gps() -> str:
-    lat = round(random.uniform(24.0, 49.0), 6)
-    lon = round(random.uniform(66.0, 124.0), 6)
-    if random.random() < 0.3:
-        # GAP-11: degree-symbol format
-        return f"{lat}°N, {lon}°W"
-    return f"{lat}, -{lon}"
+    lat = round(random.uniform(-89.0, 89.0), random.choice([4, 5, 6]))
+    lon = round(random.uniform(-179.0, 179.0), random.choice([4, 5, 6]))
+    abs_lat, abs_lon = abs(lat), abs(lon)
+    ns = "N" if lat >= 0 else "S"
+    ew = "E" if lon >= 0 else "W"
+    fmt = random.choices(
+        ["signed_pair", "degree_symbol", "labeled", "dms",
+         "lat_lon_label", "geo_uri", "google_maps"],
+        weights=[22, 18, 16, 14, 14, 8, 8],
+        k=1,
+    )[0]
+    if fmt == "signed_pair":
+        return f"{lat}, {lon}"
+    if fmt == "degree_symbol":
+        return f"{abs_lat}°{ns}, {abs_lon}°{ew}"
+    if fmt == "labeled":
+        return f"lat: {lat}, lon: {lon}"
+    if fmt == "dms":
+        deg_lat = int(abs_lat)
+        min_lat = int((abs_lat - deg_lat) * 60)
+        sec_lat = round(((abs_lat - deg_lat) * 60 - min_lat) * 60, 2)
+        deg_lon = int(abs_lon)
+        min_lon = int((abs_lon - deg_lon) * 60)
+        sec_lon = round(((abs_lon - deg_lon) * 60 - min_lon) * 60, 2)
+        return f"{deg_lat}°{min_lat}'{sec_lat}\"{ns} {deg_lon}°{min_lon}'{sec_lon}\"{ew}"
+    if fmt == "lat_lon_label":
+        return f"Latitude: {lat}, Longitude: {lon}"
+    if fmt == "geo_uri":
+        return f"geo:{lat},{lon}"
+    # google_maps
+    return f"https://maps.google.com/?q={lat},{lon}"
 
 # ---------------------------------------------------------------------------
 # Multicultural name pools — curated to teach the NER model open-vocabulary
@@ -462,11 +1076,123 @@ def _street_address_full() -> str:
     zipcode = _zipcode()
     return f"{random.randint(1,9999)} {random.choice(streets)}, {city}, {state} {zipcode}"
 
+_INTL_CITIES: list[str] = [
+    # India (top failures in user examples — Faker's en_US doesn't generate these)
+    "Mumbai", "Delhi", "Bengaluru", "Bangalore", "Hyderabad", "Chennai",
+    "Kolkata", "Pune", "Ahmedabad", "Jaipur", "Surat", "Lucknow",
+    "Kanpur", "Nagpur", "Indore", "Thane", "Bhopal", "Visakhapatnam",
+    "Patna", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik",
+    "Faridabad", "Meerut", "Rajkot", "Kalyan", "Vasai", "Varanasi",
+    "Srinagar", "Aurangabad", "Dhanbad", "Amritsar", "Allahabad",
+    "Ranchi", "Howrah", "Coimbatore", "Jabalpur", "Gwalior", "Vijayawada",
+    "Jodhpur", "Madurai", "Raipur", "Kota", "Chandigarh", "Mysuru",
+    "Mysore", "Kochi", "Thiruvananthapuram", "Guwahati", "Ernakulam",
+    # Europe
+    "London", "Paris", "Berlin", "Madrid", "Rome", "Milan", "Vienna",
+    "Amsterdam", "Brussels", "Lisbon", "Stockholm", "Copenhagen",
+    "Helsinki", "Oslo", "Warsaw", "Prague", "Budapest", "Athens",
+    "Dublin", "Edinburgh", "Manchester", "Birmingham", "Glasgow",
+    "Munich", "Frankfurt", "Hamburg", "Cologne", "Zurich", "Geneva",
+    "Barcelona", "Seville", "Valencia", "Florence", "Venice", "Naples",
+    "Lyon", "Marseille", "Nice", "Bordeaux",
+    # APAC
+    "Tokyo", "Osaka", "Kyoto", "Yokohama", "Nagoya", "Sapporo",
+    "Seoul", "Busan", "Incheon",
+    "Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Chengdu", "Xi'an",
+    "Hong Kong", "Taipei", "Kaohsiung",
+    "Singapore", "Kuala Lumpur", "Jakarta", "Bangkok", "Manila",
+    "Ho Chi Minh City", "Hanoi", "Phnom Penh", "Yangon", "Colombo",
+    "Karachi", "Lahore", "Islamabad", "Dhaka", "Kathmandu",
+    "Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Auckland",
+    "Wellington",
+    # Middle East / Africa
+    "Dubai", "Abu Dhabi", "Doha", "Riyadh", "Jeddah", "Kuwait City",
+    "Tel Aviv", "Jerusalem", "Istanbul", "Ankara", "Tehran", "Baghdad",
+    "Cairo", "Alexandria", "Lagos", "Nairobi", "Johannesburg",
+    "Cape Town", "Casablanca", "Addis Ababa", "Accra", "Dakar",
+    # Americas (non-US)
+    "Toronto", "Vancouver", "Montreal", "Ottawa", "Calgary",
+    "Mexico City", "Guadalajara", "Monterrey", "Tijuana",
+    "Buenos Aires", "Rio de Janeiro", "São Paulo", "Lima", "Santiago",
+    "Bogotá", "Caracas", "Quito", "Havana", "San Juan",
+    # US cities (small curated set in addition to Faker)
+    "New York", "Los Angeles", "Chicago", "Houston", "Phoenix",
+    "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose",
+    "Austin", "Seattle", "Boston", "Atlanta", "Miami", "Denver",
+    "Portland", "Las Vegas", "Detroit", "Minneapolis",
+]
+
+
 def _city() -> str:
-    return fake.city()
+    """City name — 50% Faker (US), 50% curated international pool."""
+    if random.random() < 0.5:
+        return fake.city()
+    return random.choice(_INTL_CITIES)
+
+
+_EMAIL_DOMAINS: list[str] = [
+    # Free / consumer
+    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com",
+    "aol.com", "protonmail.com", "proton.me", "fastmail.com", "zoho.com",
+    "yandex.com", "mail.ru", "qq.com", "163.com", "126.com",
+    "live.com", "msn.com", "me.com", "rediffmail.com",
+    # Edu (US)
+    "harvard.edu", "stanford.edu", "mit.edu", "berkeley.edu", "yale.edu",
+    "princeton.edu", "columbia.edu", "ucla.edu", "umich.edu", "nyu.edu",
+    "ucsf.edu", "ucsd.edu", "upenn.edu",
+    # Corporate
+    "company.com", "corp.com", "enterprise.com", "techcorp.io",
+    "acme.co", "example.com", "example.org", "example.net",
+    # Government / health
+    "hospital.org", "clinic.org", "medcenter.com", "health.gov",
+    "irs.gov", "state.gov", "treasury.gov",
+    # India
+    "rediffmail.com", "yahoo.in", "gmail.com", "indianoil.in", "tcs.com",
+    "infosys.com", "wipro.com", "icicibank.com", "hdfcbank.com",
+    "sbi.co.in",
+    # UK
+    "co.uk", "ac.uk", "nhs.uk", "btinternet.com", "sky.com",
+]
+
 
 def _email() -> str:
-    return fake.email()
+    """Email address across consumer/edu/corporate/intl + plus-addressing.
+
+    Original used only fake.email() which produced one Faker-style pattern.
+    Failure cases include +tag addresses, dotted local parts, edu addresses,
+    and international TLDs.
+    """
+    fn = fake.first_name().lower()
+    ln = fake.last_name().lower()
+    domain = random.choice(_EMAIL_DOMAINS)
+    fmt = random.choices(
+        ["faker", "first_dot_last", "first_initial_last", "first_last",
+         "first_underscore_last", "with_digits", "plus_tag",
+         "first_only", "initials", "ln_first"],
+        weights=[16, 18, 14, 10, 8, 12, 8, 6, 4, 4],
+        k=1,
+    )[0]
+    if fmt == "faker":
+        return fake.email()
+    if fmt == "first_dot_last":
+        return f"{fn}.{ln}@{domain}"
+    if fmt == "first_initial_last":
+        return f"{fn[0]}{ln}@{domain}"
+    if fmt == "first_last":
+        return f"{fn}{ln}@{domain}"
+    if fmt == "first_underscore_last":
+        return f"{fn}_{ln}@{domain}"
+    if fmt == "with_digits":
+        return f"{fn}{ln}{random.randint(1, 999)}@{domain}"
+    if fmt == "plus_tag":
+        tag = random.choice(["work", "promo", "newsletter", "shopping",
+                              "signup", "spam", "junk", "billing"])
+        return f"{fn}.{ln}+{tag}@{domain}"
+    if fmt == "first_only":
+        return f"{fn}@{domain}"
+    if fmt == "initials":
+        return f"{fn[0]}{ln[0]}@{domain}"
+    return f"{ln}{fn}@{domain}"
 
 # ────────────────────────────────────────────────────────────────────────────
 # Organization-name pool — Group B (second batch)
@@ -732,22 +1458,99 @@ def _hospital() -> str:
     template, adj_pool = random.choice(_HOSPITAL_SPECIALTY_TEMPLATES)
     return template.format(adj=random.choice(adj_pool), n=random.choice(adj_pool))
 
+_BANK_NAMES: list[str] = [
+    # US majors
+    "Chase", "JPMorgan Chase", "Bank of America", "Wells Fargo", "Citibank",
+    "US Bank", "PNC Bank", "TD Bank", "Capital One", "Truist", "HSBC USA",
+    "Goldman Sachs Bank", "Morgan Stanley Bank", "Charles Schwab Bank",
+    "Ally Bank", "Discover Bank", "American Express National Bank",
+    # US regional / credit unions
+    "First National Bank", "City Savings Bank", "Heritage Credit Union",
+    "Union Trust Bank", "Navy Federal Credit Union", "USAA Federal Savings Bank",
+    "Pentagon Federal Credit Union", "First Republic Bank", "Silicon Valley Bank",
+    "Signature Bank", "M&T Bank", "Regions Bank", "Fifth Third Bank",
+    "KeyBank", "Huntington Bank", "BMO Harris Bank",
+    # International
+    "Barclays", "HSBC", "Standard Chartered", "Lloyds Bank",
+    "Royal Bank of Scotland", "NatWest", "Santander", "BNP Paribas",
+    "Deutsche Bank", "Credit Suisse", "UBS", "ING", "Rabobank",
+    "Société Générale", "UniCredit", "Intesa Sanpaolo",
+    # India
+    "State Bank of India", "HDFC Bank", "ICICI Bank", "Axis Bank",
+    "Kotak Mahindra Bank", "Punjab National Bank", "Bank of Baroda",
+    "IndusInd Bank", "Yes Bank", "IDBI Bank", "Canara Bank",
+    "Union Bank of India", "Bank of India", "Federal Bank",
+    # APAC + ME
+    "DBS Bank", "OCBC Bank", "UOB", "Mizuho Bank", "Bank of Tokyo-Mitsubishi UFJ",
+    "Sumitomo Mitsui Banking", "ANZ Bank", "Commonwealth Bank of Australia",
+    "Westpac", "Bank of China", "Industrial and Commercial Bank of China",
+    "Emirates NBD", "Qatar National Bank", "Abu Dhabi Commercial Bank",
+]
+
+
 def _bank_name() -> str:
-    return random.choice(["First National Bank","City Savings Bank","Heritage Credit Union",
-                           "Chase","Wells Fargo","Bank of America","Citibank","TD Bank",
-                           "Union Trust Bank","Capital One","US Bank"])
+    return random.choice(_BANK_NAMES)
+
+
+_INSURANCE_NAMES: list[str] = [
+    # US health
+    "Blue Cross Blue Shield", "Aetna", "Cigna", "Humana", "Anthem",
+    "UnitedHealthcare", "Kaiser Permanente", "Centene", "Molina Healthcare",
+    "WellCare", "Oscar Health", "Bright Health", "Clover Health",
+    # US property/casualty
+    "State Farm", "Allstate", "Travelers Insurance", "Liberty Mutual",
+    "Progressive", "GEICO", "Nationwide", "Farmers Insurance",
+    "American Family Insurance", "USAA Insurance", "MetLife Insurance",
+    "Prudential", "New York Life", "Northwestern Mutual",
+    "Mutual of Omaha", "AIG", "Chubb", "The Hartford", "Erie Insurance",
+    # International
+    "AXA", "Allianz", "Zurich Insurance", "Generali", "Aviva",
+    "Munich Re", "Swiss Re", "Lloyd's of London", "QBE Insurance",
+    "Tokio Marine", "Ping An Insurance", "China Life Insurance",
+    "Manulife", "Sun Life Financial", "Great-West Lifeco",
+    # India
+    "LIC", "HDFC Life", "ICICI Prudential", "SBI Life Insurance",
+    "Max Life Insurance", "Bajaj Allianz", "Tata AIG", "Star Health",
+    "New India Assurance", "United India Insurance", "Reliance General Insurance",
+    # Custom/synthetic
+    "United Shield Insurance",
+]
+
 
 def _insurance_co() -> str:
-    return random.choice(["United Shield Insurance","Blue Cross Blue Shield","Aetna","Cigna",
-                           "Humana","Anthem","MetLife Insurance","State Farm","Allstate",
-                           "Travelers Insurance","Kaiser Permanente"])
+    return random.choice(_INSURANCE_NAMES)
 
 def _case_number() -> str:
-    return f"CR-{random.randint(2020,2024)}-{random.randint(1000,99999):05d}"
+    n = random.randint(1000, 99999)
+    year = random.randint(2018, 2025)
+    fmt = random.choices(
+        ["court_year", "court_attached", "case_word", "court_only",
+         "type_year", "docket", "div_year", "bare"],
+        weights=[22, 14, 14, 12, 16, 12, 6, 4],
+        k=1,
+    )[0]
+    pfx = random.choice(["CR", "CV", "CF", "DK", "CASE", "CC", "FA"])
+    if fmt == "court_year":
+        return f"{pfx}-{year}-{n:05d}"
+    if fmt == "court_attached":
+        return f"{pfx}{year}{n:05d}"
+    if fmt == "case_word":
+        return f"CASE No: {pfx}-{year}-{n:05d}"
+    if fmt == "court_only":
+        return f"{pfx}-{n:06d}"
+    if fmt == "type_year":
+        kind = random.choice(["CRIM", "CIVIL", "FAM", "PROB", "JUV"])
+        return f"{kind}-{year}-{n}"
+    if fmt == "docket":
+        return f"Docket #{year}-{n:05d}"
+    if fmt == "div_year":
+        div = random.choice(["A", "B", "C", "D", "1", "2", "3"])
+        return f"{pfx}-{year}-{div}-{n}"
+    return f"{n:08d}"
+
 
 def _case_number_alphanumeric() -> str:
-    prefixes = ["CASE", "CR", "CV", "CF", "DK"]
-    return f"{random.choice(prefixes)}-{random.randint(2020,2025)}-{random.randint(1000,99999):05d}"
+    return _case_number()
 
 def _phone_dotted() -> str:
     return f"{random.randint(200,999)}.{random.randint(200,999)}.{random.randint(1000,9999)}"
@@ -759,45 +1562,403 @@ def _npi_with_prefix() -> str:
     return f"NPI-{random.randint(1000000000, 9999999999)}"
 
 def _amount() -> str:
-    return f"${random.randint(100,99999):,}.{random.randint(0,99):02d}"
+    """Multi-currency, multi-format monetary value generator.
+
+    Covers symbols ($/€/£/¥/₹), 3-letter codes (USD/EUR/GBP/INR/JPY/CAD/AUD/CHF/AED/SGD),
+    prefix/suffix positions, abbreviations (K/M/L/Cr), per-period (/mo, /yr),
+    European decimal commas, and bare integer / no-decimal forms.
+    """
+    symbols = ["$", "€", "£", "¥", "₹"]
+    codes = ["USD", "EUR", "GBP", "INR", "JPY", "CAD", "AUD",
+             "CHF", "AED", "SGD", "HKD", "NZD", "ZAR", "BRL"]
+    form = random.choices(
+        [
+            "sym_prefix_decimal",    # $1,234.56
+            "sym_prefix_integer",    # ₹89000
+            "sym_prefix_abbr",       # ₹89K / €1.5M / ₹8.75L
+            "code_prefix",           # USD 1250.00
+            "code_suffix",           # 1,250 USD
+            "european_comma",        # €780,50
+            "per_period",            # $19.99/mo
+            "bare_decimal",          # 1234.56
+            "code_abbr",             # 2.5M JPY / EUR 50K
+            "no_decimal_large",      # JPY 250000
+        ],
+        weights=[20, 10, 14, 14, 8, 6, 6, 4, 10, 8],
+        k=1,
+    )[0]
+
+    if form == "sym_prefix_decimal":
+        sym = random.choice(symbols)
+        return f"{sym}{random.randint(1, 99999):,}.{random.randint(0, 99):02d}"
+
+    if form == "sym_prefix_integer":
+        sym = random.choice(symbols)
+        return f"{sym}{random.randint(100, 999999):,}"
+
+    if form == "sym_prefix_abbr":
+        sym = random.choice(symbols)
+        whole = random.randint(1, 999)
+        frac = random.choice(["", f".{random.randint(1, 99)}"])
+        unit = random.choice(["K", "M", "L", "Cr", "B"])
+        return f"{sym}{whole}{frac}{unit}"
+
+    if form == "code_prefix":
+        code = random.choice(codes)
+        return f"{code} {random.randint(1, 999999):,}.{random.randint(0, 99):02d}"
+
+    if form == "code_suffix":
+        code = random.choice(codes)
+        return f"{random.randint(1, 999999):,}.{random.randint(0, 99):02d} {code}"
+
+    if form == "european_comma":
+        sym = random.choice(["€", "£"])
+        return f"{sym}{random.randint(1, 9999)},{random.randint(10, 99):02d}"
+
+    if form == "per_period":
+        sym = random.choice(symbols)
+        period = random.choice(["/mo", "/yr", "/month", "/year", " per month"])
+        return f"{sym}{random.randint(1, 999)}.{random.randint(0, 99):02d}{period}"
+
+    if form == "bare_decimal":
+        return f"{random.randint(1, 999999):,}.{random.randint(0, 99):02d}"
+
+    if form == "code_abbr":
+        code = random.choice(codes)
+        whole = random.randint(1, 999)
+        frac = random.choice(["", f".{random.randint(1, 9)}"])
+        unit = random.choice(["K", "M", "L", "B"])
+        # 50% prefix, 50% suffix
+        if random.random() < 0.5:
+            return f"{code} {whole}{frac}{unit}"
+        return f"{whole}{frac}{unit} {code}"
+
+    # no_decimal_large
+    code = random.choice(codes)
+    return f"{code} {random.randint(10000, 9999999)}"
 
 def _employee_id() -> str:
-    return f"EMP-{random.randint(10000,99999)}"
+    n = random.randint(1000, 999999)
+    fmt = random.choices(
+        ["emp_dashed", "emp_underscore", "emp_bare", "e_short",
+         "id_prefix", "staff", "badge", "emp_space", "raw_digits"],
+        weights=[20, 10, 12, 10, 12, 10, 8, 8, 10],
+        k=1,
+    )[0]
+    if fmt == "emp_dashed":
+        return f"EMP-{n}"
+    if fmt == "emp_underscore":
+        return f"EMP_{n}"
+    if fmt == "emp_bare":
+        return f"EMP{n}"
+    if fmt == "e_short":
+        return f"E{n}"
+    if fmt == "id_prefix":
+        return f"ID-{n}"
+    if fmt == "staff":
+        return f"STAFF-{n}"
+    if fmt == "badge":
+        return f"BADGE-{n}"
+    if fmt == "emp_space":
+        return f"EMP {n}"
+    return str(n)
+
 
 def _student_id() -> str:
-    return f"STU-{random.randint(10000,99999)}"
+    n = random.randint(1000, 99999999)
+    fmt = random.choices(
+        ["stu_dashed", "stu_underscore", "stu_bare", "s_short",
+         "student_word", "id_prefix", "univ_prefix", "raw_digits"],
+        weights=[18, 10, 12, 12, 12, 10, 14, 12],
+        k=1,
+    )[0]
+    if fmt == "stu_dashed":
+        return f"STU-{n}"
+    if fmt == "stu_underscore":
+        return f"STU_{n}"
+    if fmt == "stu_bare":
+        return f"STU{n}"
+    if fmt == "s_short":
+        return f"S{n}"
+    if fmt == "student_word":
+        return f"Student #{n}"
+    if fmt == "id_prefix":
+        return f"ID-{n}"
+    if fmt == "univ_prefix":
+        univ = random.choice(["UNI", "MIT", "UCLA", "NYU", "UCSF", "BU", "USC"])
+        return f"{univ}-{n}"
+    return str(n)
+
 
 def _tax_id() -> str:
-    return f"{random.randint(10,99)}-{random.randint(1000000,9999999)}"
+    fmt = random.choices(
+        ["ein", "itin", "indian_pan", "vat_eu", "tin_dashed", "bare_9"],
+        weights=[24, 16, 14, 12, 20, 14],
+        k=1,
+    )[0]
+    if fmt == "ein":
+        return f"{random.randint(10, 99):02d}-{random.randint(1000000, 9999999):07d}"
+    if fmt == "itin":
+        # ITIN format: 9XX-7X-XXXX (always starts with 9)
+        return f"9{random.randint(10, 99):02d}-{random.choice([7,8])}{random.randint(0,9)}-{random.randint(1000, 9999):04d}"
+    if fmt == "indian_pan":
+        # PAN: 5 letters + 4 digits + 1 letter
+        letters = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ", k=5))
+        digits = random.randint(1000, 9999)
+        last = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        return f"{letters}{digits}{last}"
+    if fmt == "vat_eu":
+        country = random.choice(["DE", "FR", "GB", "IT", "ES", "NL", "BE", "AT"])
+        return f"{country}{random.randint(100000000, 999999999)}"
+    if fmt == "tin_dashed":
+        return f"TIN-{random.randint(100000000, 999999999)}"
+    # bare_9 — undelimited 9 digits, common in US business filings
+    return f"{random.randint(100000000, 999999999)}"
 
 def _flight_number() -> str:
-    return f"{random.choice(['AA','UA','DL','SW','BA','LH','EK'])} {random.randint(100,9999)}"
+    """IATA flight number with airline-code and separator diversity.
+
+    Covers US/EU/Asian carriers including the Indian low-cost airlines
+    that were missing from the original pool (6E, G8, UK, IX, AI, SG).
+    """
+    codes = [
+        "AA", "UA", "DL", "SW", "WN", "B6", "AS", "F9", "NK",  # US
+        "BA", "LH", "AF", "KL", "IB", "AZ", "LX", "TK",          # EU
+        "EK", "QR", "EY", "SV", "GF", "MS",                       # ME
+        "SQ", "CX", "JL", "NH", "QF", "NZ", "TG", "MH", "OZ",    # APAC
+        "6E", "G8", "UK", "IX", "AI", "SG",                       # India
+    ]
+    code = random.choice(codes)
+    num = random.randint(1, 9999)
+    sep = random.choices([" ", "", "-", "/", "_"], weights=[40, 30, 12, 10, 8], k=1)[0]
+    flight = f"{code}{sep}{num}"
+    # 15 % of the time prefix with the airline's spoken name, e.g. "IndiGo 6E345"
+    if random.random() < 0.15:
+        spoken = {
+            "6E": "IndiGo", "G8": "Go First", "UK": "Vistara", "IX": "Air India Express",
+            "AI": "Air India", "SG": "SpiceJet", "AA": "American", "UA": "United",
+            "DL": "Delta", "BA": "British Airways", "LH": "Lufthansa", "EK": "Emirates",
+            "QR": "Qatar Airways", "SQ": "Singapore Airlines", "CX": "Cathay Pacific",
+        }.get(code)
+        if spoken:
+            return f"{spoken} {code}{num}"
+    return flight
 
 def _booking_ref() -> str:
-    return "BK-" + "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=6))
+    """Airline / hotel / OTA booking reference (PNR).
+
+    Real PNRs are 6 alphanumerics with no separator (e.g. ABC123, X3F9KP).
+    OTAs like MakeMyTrip/Cleartrip/Booking.com use longer alphanumerics with
+    site-specific prefixes.
+    """
+    ALPHA = "ABCDEFGHIJKLMNPQRSTUVWXYZ"  # exclude O for readability
+    NUM = "0123456789"
+    fmt = random.choices(
+        ["pnr6", "bk_prefix", "conf_prefix", "ref_prefix", "ota_brand",
+         "hotel", "pnr_dashed", "long_alpha"],
+        weights=[28, 14, 12, 10, 16, 8, 6, 6],
+        k=1,
+    )[0]
+    if fmt == "pnr6":
+        return "".join(random.choices(ALPHA + NUM, k=6))
+    if fmt == "bk_prefix":
+        return f"BK-{''.join(random.choices(ALPHA + NUM, k=6))}"
+    if fmt == "conf_prefix":
+        return f"CONF-{''.join(random.choices(ALPHA + NUM, k=8))}"
+    if fmt == "ref_prefix":
+        return f"REF{random.randint(100000, 99999999)}"
+    if fmt == "ota_brand":
+        brand = random.choice([
+            "MAKEMYTRIP", "CLEARTRIP", "YATRA", "EASEMYTRIP",
+            "BOOKING", "EXPEDIA", "AGODA",
+        ])
+        return f"{brand}{random.randint(100000, 999999)}"
+    if fmt == "hotel":
+        return f"HTL-{random.randint(100000, 9999999)}"
+    if fmt == "pnr_dashed":
+        return (f"{''.join(random.choices(ALPHA, k=3))}-"
+                f"{''.join(random.choices(NUM, k=3))}")
+    # long_alpha — 10+ alphanumeric
+    return "".join(random.choices(ALPHA + NUM, k=random.randint(10, 12)))
+
 
 def _claim_number() -> str:
-    return f"CLM-{random.randint(100000,999999)}"
+    n = random.randint(100000, 999999999)
+    fmt = random.choices(
+        ["clm_dashed", "claim_word", "cl_short", "year_claim",
+         "ins_claim", "raw_digits"],
+        weights=[24, 18, 14, 18, 14, 12],
+        k=1,
+    )[0]
+    if fmt == "clm_dashed":
+        return f"CLM-{n}"
+    if fmt == "claim_word":
+        return f"CLAIM-{n}"
+    if fmt == "cl_short":
+        return f"CL{n}"
+    if fmt == "year_claim":
+        return f"CLM-{random.randint(2018, 2025)}-{random.randint(10000, 999999)}"
+    if fmt == "ins_claim":
+        return f"INS-CLM-{n}"
+    return str(n)
+
 
 def _policy_number() -> str:
-    return f"POL-{random.randint(10000000,99999999)}"
+    n = random.randint(1000000, 999999999)
+    fmt = random.choices(
+        ["pol_dashed", "policy_word", "p_short", "ins_pol",
+         "year_pol", "alpha_prefix", "raw_digits"],
+        weights=[20, 14, 14, 14, 14, 14, 10],
+        k=1,
+    )[0]
+    if fmt == "pol_dashed":
+        return f"POL-{n}"
+    if fmt == "policy_word":
+        return f"POLICY-{n}"
+    if fmt == "p_short":
+        return f"P{n}"
+    if fmt == "ins_pol":
+        return f"INS-POL-{n}"
+    if fmt == "year_pol":
+        return f"POL-{random.randint(2018, 2025)}-{n}"
+    if fmt == "alpha_prefix":
+        letters = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ", k=2))
+        return f"{letters}{n}"
+    return str(n)
+
 
 def _member_id() -> str:
-    return f"MBR{random.randint(100000,9999999)}"
+    n = random.randint(100000, 99999999)
+    fmt = random.choices(
+        ["mbr_attached", "mbr_dashed", "member_word", "m_short",
+         "id_prefix", "subscriber", "raw_digits"],
+        weights=[18, 16, 14, 14, 12, 14, 12],
+        k=1,
+    )[0]
+    if fmt == "mbr_attached":
+        return f"MBR{n}"
+    if fmt == "mbr_dashed":
+        return f"MBR-{n}"
+    if fmt == "member_word":
+        return f"MEMBER-{n}"
+    if fmt == "m_short":
+        return f"M{n}"
+    if fmt == "id_prefix":
+        return f"ID-{n}"
+    if fmt == "subscriber":
+        return f"SUB-{n}"
+    return str(n)
+
 
 def _transaction_id() -> str:
-    d = fake.date_between(start_date="-1y", end_date="today").strftime("%Y%m%d")
-    return f"TXN-{d}-{random.randint(10000,99999):05d}"
+    """Transaction identifier covering payment processor and bank formats."""
+    ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    n = random.randint(10000, 999999999)
+    fmt = random.choices(
+        ["stripe", "square", "paypal", "txn_dashed", "ord_prefix",
+         "specific_prefix", "year_dated", "uuid_short", "bank_ref",
+         "raw_digits"],
+        weights=[14, 10, 10, 14, 10, 16, 10, 6, 6, 4],
+        k=1,
+    )[0]
+    if fmt == "stripe":
+        obj = random.choice(["pi", "ch", "txn", "py", "pyr"])
+        return f"stripe_{obj}_{''.join(random.choices(ALPHA, k=18))}"
+    if fmt == "square":
+        return f"sq_{''.join(random.choices(ALPHA, k=22))}"
+    if fmt == "paypal":
+        return f"PAY-{''.join(random.choices('0123456789ABCDEF', k=17))}"
+    if fmt == "txn_dashed":
+        return f"TXN-{n}"
+    if fmt == "ord_prefix":
+        return f"ORD-{n}"
+    if fmt == "specific_prefix":
+        pfx = random.choice([
+            "TRX", "TTN", "CTN", "PTN", "MTN", "POS", "INV", "GTX",
+            "PMT", "REF", "AUTH",
+        ])
+        return f"{pfx}-{n}"
+    if fmt == "year_dated":
+        ymd = (f"{random.randint(2020, 2025)}"
+               f"{random.randint(1, 12):02d}{random.randint(1, 28):02d}")
+        return f"TXN-{ymd}-{n}"
+    if fmt == "uuid_short":
+        return "".join(random.choices("0123456789abcdef", k=16))
+    if fmt == "bank_ref":
+        return f"BRN-{n}"
+    return str(n)
+
 
 def _merchant_id() -> str:
-    return f"MID-{random.randint(10000000,99999999)}"
+    n = random.randint(100000, 99999999)
+    fmt = random.choices(
+        ["mid_dashed", "mid_bare", "merchant_word", "m_short",
+         "acquirer_mid", "raw_digits"],
+        weights=[26, 18, 16, 14, 14, 12],
+        k=1,
+    )[0]
+    if fmt == "mid_dashed":
+        return f"MID-{n}"
+    if fmt == "mid_bare":
+        return f"MID{n}"
+    if fmt == "merchant_word":
+        return f"MERCHANT-{n}"
+    if fmt == "m_short":
+        return f"M{n}"
+    if fmt == "acquirer_mid":
+        acq = random.choice(["FDM", "CHA", "WPS", "STR", "ADY"])
+        return f"{acq}-MID-{n}"
+    return str(n)
+
+_UNIVERSITY_NAMES: list[str] = [
+    # US Ivies + top private
+    "Harvard University", "Yale University", "Princeton University",
+    "Stanford University", "Massachusetts Institute of Technology",
+    "Columbia University", "University of Pennsylvania", "Cornell University",
+    "Brown University", "Dartmouth College", "Duke University",
+    "Northwestern University", "Johns Hopkins University", "University of Chicago",
+    "Vanderbilt University", "Rice University", "Emory University",
+    "Carnegie Mellon University", "Georgetown University", "New York University",
+    # US public majors
+    "University of California, Berkeley", "University of California, Los Angeles",
+    "University of California, San Francisco", "University of Michigan",
+    "University of Virginia", "University of North Carolina",
+    "University of Texas at Austin", "University of Wisconsin-Madison",
+    "University of Washington", "Ohio State University",
+    "Pennsylvania State University", "University of Illinois Urbana-Champaign",
+    "Purdue University", "University of Florida", "University of Georgia",
+    # Medical / specialty
+    "Mayo Clinic Alix School of Medicine", "Cleveland Clinic Lerner College",
+    "Baylor College of Medicine", "Icahn School of Medicine at Mount Sinai",
+    "UCSF School of Medicine", "Johns Hopkins School of Medicine",
+    # Community / state
+    "Northern State University", "Pacific Coast College",
+    "Riverside Institute of Technology", "Midwest University",
+    "Southern Medical School", "Eastern State College",
+    "Valley Community College", "Lakewood University",
+    "Metropolitan School of Medicine", "City College of San Francisco",
+    "Houston Community College", "Miami Dade College",
+    # International
+    "University of Oxford", "University of Cambridge", "Imperial College London",
+    "University College London", "London School of Economics",
+    "ETH Zurich", "EPFL", "Sorbonne University", "Sciences Po",
+    "Technical University of Munich", "Heidelberg University",
+    "Karolinska Institutet", "University of Toronto", "McGill University",
+    "University of British Columbia", "Australian National University",
+    "University of Melbourne", "University of Sydney",
+    "National University of Singapore", "Nanyang Technological University",
+    "University of Hong Kong", "Tsinghua University", "Peking University",
+    # India
+    "Indian Institute of Technology Bombay", "Indian Institute of Technology Delhi",
+    "Indian Institute of Technology Madras", "All India Institute of Medical Sciences",
+    "Indian Institute of Science", "Jawaharlal Nehru University",
+    "University of Delhi", "Banaras Hindu University", "Anna University",
+    "BITS Pilani", "Indian Institute of Management Ahmedabad",
+]
+
 
 def _university() -> str:
-    return random.choice(["Northern State University","Pacific Coast College",
-                           "Riverside Institute of Technology","Midwest University",
-                           "Southern Medical School","Eastern State College",
-                           "Valley Community College","Lakewood University",
-                           "Metropolitan School of Medicine"])
+    return random.choice(_UNIVERSITY_NAMES)
 
 def _law_firm() -> str:
     return random.choice([
@@ -821,55 +1982,297 @@ def _law_firm() -> str:
         "White & Case LLP",
     ])
 
+_COURT_NAMES: list[str] = [
+    # Federal
+    "US District Court", "US Court of Appeals", "United States Supreme Court",
+    "US Bankruptcy Court", "US Tax Court", "US Court of Federal Claims",
+    "US District Court for the Southern District of New York",
+    "US District Court for the Northern District of California",
+    "US District Court for the District of Columbia",
+    "US Court of Appeals for the Second Circuit",
+    "US Court of Appeals for the Ninth Circuit",
+    "US Court of Appeals for the Federal Circuit",
+    # State — supreme / appellate
+    "California Supreme Court", "New York Supreme Court",
+    "Texas Supreme Court", "Florida Supreme Court", "Illinois Supreme Court",
+    "Pennsylvania Supreme Court", "Ohio Supreme Court",
+    "California Court of Appeal", "New York Court of Appeals",
+    # State / county
+    "California Superior Court", "Los Angeles Superior Court",
+    "San Francisco Superior Court", "Cook County Circuit Court",
+    "Texas District Court", "Florida Circuit Court", "King County Superior Court",
+    "Travis County District Court", "Harris County District Court",
+    "Maricopa County Superior Court", "Miami-Dade Circuit Court",
+    # Specialty
+    "Family Court", "Probate Court", "Juvenile Court", "Drug Court",
+    "Traffic Court", "Small Claims Court", "Housing Court",
+    "Workers' Compensation Court",
+    # International
+    "Royal Courts of Justice", "High Court of Justice", "Old Bailey",
+    "European Court of Justice", "European Court of Human Rights",
+    "Federal Court of Australia", "Supreme Court of Canada",
+    # India
+    "Supreme Court of India", "Delhi High Court", "Bombay High Court",
+    "Madras High Court", "Calcutta High Court", "Karnataka High Court",
+    "Patna High Court", "Allahabad High Court",
+]
+
+
 def _court_name() -> str:
-    return random.choice(["California Superior Court","US District Court","Family Court",
-                           "Cook County Circuit Court","New York Supreme Court",
-                           "Texas District Court","Florida Circuit Court"])
+    return random.choice(_COURT_NAMES)
+
+
+_HOTEL_NAMES: list[str] = [
+    # Marriott family
+    "Marriott Downtown", "JW Marriott", "Ritz-Carlton", "St. Regis",
+    "W Hotels", "Westin Conference Center", "Le Méridien", "Renaissance Hotel",
+    "Sheraton Grand Hotel", "Courtyard by Marriott", "Residence Inn",
+    "Fairfield Inn", "Springhill Suites", "TownePlace Suites",
+    # Hilton family
+    "Hilton Garden Inn", "Conrad Hotel", "Waldorf Astoria",
+    "DoubleTree by Hilton", "Embassy Suites", "Hampton Inn",
+    "Hilton Grand Vacations", "Tru by Hilton", "Tapestry Collection",
+    # IHG / Hyatt / Accor
+    "Holiday Inn", "Holiday Inn Express", "InterContinental",
+    "Crowne Plaza", "Kimpton Hotels", "Six Senses",
+    "Hyatt Regency", "Park Hyatt", "Grand Hyatt", "Andaz",
+    "Sofitel", "Pullman Hotel", "Novotel", "Ibis Hotel", "Mercure",
+    "Fairmont Hotel", "Raffles Hotel", "Movenpick", "Swissôtel",
+    # Boutique / luxury
+    "Four Seasons Hotel", "Mandarin Oriental", "Aman Resort",
+    "Peninsula Hotel", "The Plaza", "The Savoy", "The Dorchester",
+    "Burj Al Arab", "Atlantis The Palm", "The Beverly Hills Hotel",
+    "Grand Royal Hotel",
+    # Budget / midscale
+    "Best Western", "Comfort Inn", "Quality Inn", "Days Inn", "Super 8",
+    "Motel 6", "Red Roof Inn", "La Quinta Inn", "Wyndham Garden",
+    # India
+    "Taj Mahal Palace", "The Oberoi", "ITC Maurya", "The Leela Palace",
+    "Trident Hotel", "Vivanta by Taj", "Lemon Tree Hotels", "OYO Townhouse",
+]
+
 
 def _hotel_name() -> str:
-    return random.choice(["Grand Royal Hotel","Marriott Downtown","Hilton Garden Inn",
-                           "Holiday Inn Express","Westin Conference Center","Hyatt Regency",
-                           "Sheraton Grand Hotel"])
+    return random.choice(_HOTEL_NAMES)
 
 def _inmate_id() -> str:
     return str(random.randint(10000,999999))
 
 def _warrant_num() -> str:
-    if random.random() < 0.4:
-        # GAP-15: WRT- prefix format
-        return f"WRT-{random.randint(10000,9999999)}"
-    return f"W{random.randint(2020,2024)}{random.randint(10000,99999)}"
+    n = random.randint(10000, 9999999)
+    year = random.randint(2018, 2025)
+    fmt = random.choices(
+        ["wrt_dashed", "w_year", "warrant_word", "warr_dashed",
+         "warrant_hash", "bench_warrant", "search_warrant",
+         "bare"],
+        weights=[18, 18, 14, 14, 10, 10, 10, 6],
+        k=1,
+    )[0]
+    if fmt == "wrt_dashed":
+        return f"WRT-{n}"
+    if fmt == "w_year":
+        return f"W{year}{n}"
+    if fmt == "warrant_word":
+        return f"WARRANT-{year}-{n}"
+    if fmt == "warr_dashed":
+        return f"WARR-{n}"
+    if fmt == "warrant_hash":
+        return f"WARRANT#{n}"
+    if fmt == "bench_warrant":
+        return f"BW-{year}-{n}"
+    if fmt == "search_warrant":
+        return f"SW-{year}-{n}"
+    return str(n)
+
 
 def _incident_num() -> str:
-    if random.random() < 0.4:
-        # GAP-20: INC-YYYY-NNN format
-        return f"INC-{random.randint(2020,2024)}-{random.randint(100,99999)}"
-    return f"IR#{random.randint(2020,2024)}{random.randint(10000,99999)}"
+    n = random.randint(100, 99999)
+    year = random.randint(2018, 2025)
+    fmt = random.choices(
+        ["inc_year", "ir_hash", "incident_word", "report_dashed",
+         "ir_dashed", "complaint", "case_inc", "police_report",
+         "bare"],
+        weights=[18, 14, 14, 12, 12, 10, 8, 8, 4],
+        k=1,
+    )[0]
+    if fmt == "inc_year":
+        return f"INC-{year}-{n}"
+    if fmt == "ir_hash":
+        return f"IR#{year}{n}"
+    if fmt == "incident_word":
+        return f"INCIDENT-{year}-{n}"
+    if fmt == "report_dashed":
+        return f"RPT-{year}-{n}"
+    if fmt == "ir_dashed":
+        return f"IR-{n}"
+    if fmt == "complaint":
+        return f"COMP-{year}-{n}"
+    if fmt == "case_inc":
+        return f"CASE-INC-{n}"
+    if fmt == "police_report":
+        return f"PR#{year}{n}"
+    return str(n)
 
 def _bart_emp_id() -> str:
-    return str(random.randint(10000,999999))
+    n = random.randint(1000, 999999)
+    fmt = random.choices(
+        ["bare", "bart_dashed", "bart_emp", "bartid", "transit"],
+        weights=[28, 22, 22, 16, 12],
+        k=1,
+    )[0]
+    if fmt == "bare":
+        return str(n)
+    if fmt == "bart_dashed":
+        return f"BART-{n}"
+    if fmt == "bart_emp":
+        return f"BART-EMP-{n}"
+    if fmt == "bartid":
+        return f"BARTID{n}"
+    return f"TRANSIT-{n}"
 
 def _passport_num() -> str:
-    return f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.randint(10000000,99999999)}"
+    """Passport number across major issuing countries.
+
+    Original only emitted a single uppercase letter + 8 digits (loose US format).
+    Real passports vary: US is 9 digits (rarely with a letter prefix), Indian
+    is 1 letter + 7 digits, UK is 9 digits, EU varies.
+    """
+    fmt = random.choices(
+        ["us_9digit", "us_letter9", "indian", "uk", "eu_alpha_num",
+         "letter_8digit", "passport_prefix"],
+        weights=[18, 14, 18, 14, 16, 12, 8],
+        k=1,
+    )[0]
+    if fmt == "us_9digit":
+        return f"{random.randint(100000000, 999999999)}"
+    if fmt == "us_letter9":
+        return f"{random.choice('ABCDEFGHJKLMNPRSTUVWXYZ')}{random.randint(10000000, 99999999):08d}"
+    if fmt == "indian":
+        # Indian: 1 letter + 7 digits (e.g. J1234567)
+        return f"{random.choice('ABCDEFGHJKLMNPRSTUVWXYZ')}{random.randint(1000000, 9999999):07d}"
+    if fmt == "uk":
+        return f"{random.randint(100000000, 999999999)}"
+    if fmt == "eu_alpha_num":
+        # 2-letter prefix + 6 digits (Germany / France style)
+        letters = "".join(random.choices("ABCDEFGHJKLMNPRSTUVWXYZ", k=2))
+        return f"{letters}{random.randint(100000, 999999)}"
+    if fmt == "letter_8digit":
+        return f"{random.choice('ABCDEFGHJKLMNPRSTUVWXYZ')}{random.randint(10000000, 99999999):08d}"
+    # passport_prefix — keyword-attached
+    return f"P-{random.randint(10000000, 99999999)}"
+
 
 def _drivers_license() -> str:
-    return f"D{random.randint(100,999)}-{random.randint(100,999)}-{random.randint(1000,9999)}"
+    """Driver's license across US state formats.
+
+    States vary widely: CA = 1 letter + 7 digits, NY = 9 digits, FL = 1 letter +
+    12 digits, TX = 8 digits, IL = 1 letter + 11 digits, etc.
+    """
+    state = random.choice([
+        "CA", "NY", "FL", "TX", "IL", "PA", "OH", "MI", "GA", "NC",
+        "WA", "AZ", "MA", "NJ", "VA", "CO",
+    ])
+    if state == "CA":
+        return f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.randint(1000000, 9999999):07d}"
+    if state == "NY":
+        return f"{random.randint(100000000, 999999999):09d}"
+    if state == "FL":
+        return (f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
+                f"{random.randint(100000000000, 999999999999):012d}")
+    if state == "TX":
+        return f"{random.randint(10000000, 99999999):08d}"
+    if state == "IL":
+        return (f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
+                f"{random.randint(10**10, 10**11 - 1):011d}")
+    if state == "PA":
+        return f"{random.randint(10000000, 99999999):08d}"
+    if state == "WA":
+        return (f"{''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=5))}"
+                f"{random.randint(100, 999):03d}"
+                f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
+                f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}")
+    # Generic fallback: letter + 7 digits or 8-digit numeric
+    if random.random() < 0.5:
+        return f"D{random.randint(100, 999)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
+    return f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.randint(1000000, 9999999):07d}"
 
 def _state_id_num() -> str:
-    if random.random() < 0.4:
-        # GAP-09: SID-STATE-YYYYNNN format
-        return f"SID-{_state_abbr()}-{random.randint(10000000, 999999999)}"
-    return f"ID{random.randint(100000,9999999)}"
+    """State-issued ID with diverse prefix conventions.
+
+    Covers the formats observed in production failures:
+      - SID-/LSI-/SSI-/RSI-/OSI-/GSI-/RGN- 3-letter agency prefixes
+      - State-abbr mashed prefixes (TXSTATE, NYSID, PASTATE, NVSTATE)
+      - State-abbr with dash separators (CA-ID-NNN, WA-IDCARD-NNN,
+        FL-STATE-NNN, OH-RESIDENT-NNN)
+      - Agency-tagged (DMV-NNN, IDENT-NNN)
+      - Bare ID-NNN fallback
+    """
+    state = _state_abbr()
+    digits = random.randint(100000, 999999999)
+    form = random.choices(
+        [
+            "agency_prefix",       # SID-/LSI-/SSI-/RSI-/OSI-/GSI-/RGN-
+            "state_dashed",        # CA-ID-123456, WA-IDCARD-223344
+            "state_mashed",        # TXSTATE998877, NYSID445566
+            "sid_state",           # SID-CA-123456789
+            "agency_tagged",       # DMV77889900, IDENT-556677
+            "bare_id",             # ID7654321
+        ],
+        weights=[28, 18, 18, 14, 12, 10],
+        k=1,
+    )[0]
+
+    if form == "agency_prefix":
+        pfx = random.choice(["SID", "LSI", "SSI", "RSI", "OSI", "GSI", "RGN"])
+        sep = random.choice(["-", ""])
+        return f"{pfx}{sep}{digits}"
+
+    if form == "state_dashed":
+        kind = random.choice(["ID", "STATE", "IDCARD", "RESIDENT", "ID-CARD"])
+        return f"{state}-{kind}-{digits}"
+
+    if form == "state_mashed":
+        kind = random.choice(["STATE", "SID", "ID", "IDENT"])
+        return f"{state}{kind}{digits}"
+
+    if form == "sid_state":
+        return f"SID-{state}-{digits}"
+
+    if form == "agency_tagged":
+        pfx = random.choice(["DMV", "IDENT", "AZIDENT", "DMVID"])
+        sep = random.choice(["", "-"])
+        return f"{pfx}{sep}{digits}"
+
+    # bare_id
+    return f"ID{digits}"
 
 def _med_license() -> str:
-    r = random.random()
-    if r < 0.35:
-        # GAP-07: ML-STATE-NNNNNN state-infix format
-        return f"ML-{_state_abbr()}-{random.randint(100000,9999999)}"
-    if r < 0.65:
-        # ML-NNNNNN prefix format
-        return f"ML-{random.randint(100000,9999999)}"
-    return f"ML{random.randint(100000,9999999)}"
+    n = random.randint(100000, 9999999)
+    state = random.choice(_US_STATE_ABBR)
+    fmt = random.choices(
+        ["ml_state_dashed", "ml_dashed", "ml_attached", "ml_hash",
+         "state_md", "med_lic", "license_word", "physician_id",
+         "bare"],
+        weights=[18, 16, 12, 10, 12, 10, 10, 8, 4],
+        k=1,
+    )[0]
+    if fmt == "ml_state_dashed":
+        return f"ML-{state}-{n}"
+    if fmt == "ml_dashed":
+        return f"ML-{n}"
+    if fmt == "ml_attached":
+        return f"ML{n}"
+    if fmt == "ml_hash":
+        return f"ML#{n}"
+    if fmt == "state_md":
+        return f"{state}-MD-{n}"
+    if fmt == "med_lic":
+        return f"MED-LIC-{n}"
+    if fmt == "license_word":
+        return f"LICENSE-{n}"
+    if fmt == "physician_id":
+        return f"PHYS-LIC-{state}-{n}"
+    return str(n)
 
 def _health_plan_id() -> str:
     # GAP-08: Add INS- prefix with 25% weight
@@ -885,33 +2288,226 @@ def _card_track() -> str:
     return f"%B{pan}^{name}^{exp}101?"
 
 def _pin_block() -> str:
-    return "".join(random.choices("0123456789ABCDEF", k=16))
+    """ISO-9564 PIN block (16 hex) AND human-typeable PINs (4-8 digits)."""
+    fmt = random.choices(
+        ["pin4", "pin5", "pin6", "pin8", "iso_block",
+         "pin_dashed", "pin_prefixed"],
+        weights=[28, 12, 14, 12, 18, 8, 8],
+        k=1,
+    )[0]
+    if fmt == "pin4":
+        return f"{random.randint(0, 9999):04d}"
+    if fmt == "pin5":
+        return f"{random.randint(0, 99999):05d}"
+    if fmt == "pin6":
+        return f"{random.randint(0, 999999):06d}"
+    if fmt == "pin8":
+        return f"{random.randint(0, 99999999):08d}"
+    if fmt == "iso_block":
+        return "".join(random.choices("0123456789ABCDEF", k=16))
+    if fmt == "pin_dashed":
+        return f"{random.randint(0, 999):03d}-{random.randint(0, 999):03d}"
+    # pin_prefixed
+    return f"PIN-{random.randint(0, 999999):04d}"
+
 
 def _cryptogram() -> str:
-    return "".join(random.choices("0123456789ABCDEF", k=8))
+    """EMV Application Cryptogram — typically 16 hex (8 bytes), sometimes 8."""
+    fmt = random.choices(
+        ["hex8", "hex16", "hex16_grouped", "tlv_prefix", "ac_prefix"],
+        weights=[14, 36, 16, 18, 16],
+        k=1,
+    )[0]
+    if fmt == "hex8":
+        return "".join(random.choices("0123456789ABCDEF", k=8))
+    if fmt == "hex16":
+        return "".join(random.choices("0123456789ABCDEF", k=16))
+    if fmt == "hex16_grouped":
+        s = "".join(random.choices("0123456789ABCDEF", k=16))
+        return " ".join(s[i:i+4] for i in range(0, 16, 4))
+    if fmt == "tlv_prefix":
+        return "9F26:" + "".join(random.choices("0123456789ABCDEF", k=16))
+    # ac_prefix — Application Cryptogram label
+    return "AC=" + "".join(random.choices("0123456789ABCDEF", k=16))
+
 
 def _imei() -> str:
-    return "".join(str(random.randint(0,9)) for _ in range(15))
+    fmt = random.choices(
+        ["bare15", "dashed", "spaced", "imei_prefix",
+         "imeisv16", "iccid20", "android_id_hex", "udid_ios"],
+        weights=[26, 16, 12, 14, 8, 10, 8, 6],
+        k=1,
+    )[0]
+    digits15 = "".join(str(random.randint(0, 9)) for _ in range(15))
+    if fmt == "bare15":
+        return digits15
+    if fmt == "dashed":
+        return f"{digits15[:2]}-{digits15[2:8]}-{digits15[8:14]}-{digits15[14]}"
+    if fmt == "spaced":
+        return f"{digits15[:2]} {digits15[2:8]} {digits15[8:14]} {digits15[14]}"
+    if fmt == "imei_prefix":
+        return f"IMEI: {digits15}"
+    if fmt == "imeisv16":
+        return "".join(str(random.randint(0, 9)) for _ in range(16))
+    if fmt == "iccid20":
+        return "89" + "".join(str(random.randint(0, 9)) for _ in range(18))
+    if fmt == "android_id_hex":
+        return "".join(random.choices("0123456789abcdef", k=16))
+    # udid_ios (40-hex iOS UDID)
+    return "".join(random.choices("0123456789abcdef", k=40))
 
 def _vehicle_reg() -> str:
-    return f"{_state_abbr()}-{random.randint(10,99)}-{_state_abbr()}-{random.randint(100,9999)}"
+    """Vehicle registration number across US/Indian/UK/EU schemes."""
+    L = "ABCDEFGHJKLMNPRSTUVWXYZ"
+    fmt = random.choices(
+        ["us_state_county", "indian", "indian_dashed", "uk", "eu_country",
+         "reg_prefix", "vrn_prefix"],
+        weights=[16, 22, 14, 16, 14, 10, 8],
+        k=1,
+    )[0]
+    if fmt == "us_state_county":
+        return (f"{_state_abbr()}-{random.randint(10, 99)}-"
+                f"{_state_abbr()}-{random.randint(100, 9999)}")
+    if fmt == "indian":
+        state = random.choice(["TN", "KA", "MH", "DL", "AP", "TS", "KL", "GJ",
+                                "UP", "MP", "WB", "PB", "HR", "RJ"])
+        return (f"{state}{random.randint(1, 99):02d}"
+                f"{''.join(random.choices(L, k=2))}{random.randint(1, 9999):04d}")
+    if fmt == "indian_dashed":
+        state = random.choice(["TN", "KA", "MH", "DL", "GJ", "WB"])
+        return (f"{state}-{random.randint(1, 99):02d}-"
+                f"{''.join(random.choices(L, k=2))}-{random.randint(1, 9999):04d}")
+    if fmt == "uk":
+        return (f"{''.join(random.choices(L, k=2))}{random.randint(10, 99)} "
+                f"{''.join(random.choices(L, k=3))}")
+    if fmt == "eu_country":
+        city = random.choice(["B", "M", "K", "F", "S", "L", "H", "PA", "AB"])
+        return f"{city}-{''.join(random.choices(L, k=2))} {random.randint(1, 9999)}"
+    if fmt == "reg_prefix":
+        return f"REG-{''.join(random.choices(L, k=3))}{random.randint(1000, 9999)}"
+    # vrn_prefix
+    return f"VRN-{random.randint(1000000, 99999999)}"
 
 def _billing_num() -> str:
-    return str(random.randint(1000000,99999999))
+    n = random.randint(100000, 999999999)
+    fmt = random.choices(
+        ["bare", "bill_dashed", "bill_attached", "invoice", "stmt",
+         "acct_bill", "year_bill"],
+        weights=[22, 22, 14, 16, 12, 8, 6],
+        k=1,
+    )[0]
+    if fmt == "bare":
+        return str(n)
+    if fmt == "bill_dashed":
+        return f"BILL-{n}"
+    if fmt == "bill_attached":
+        return f"BILL{n}"
+    if fmt == "invoice":
+        return f"INV-{n}"
+    if fmt == "stmt":
+        return f"STMT-{n}"
+    if fmt == "acct_bill":
+        return f"ACCT-BILL-{n}"
+    return f"BILL-{random.randint(2020, 2025)}-{n}"
+
+_RACE_ETHNICITY_POOL: list[str] = [
+    # US Census broad
+    "White", "Black", "African American", "Black or African American",
+    "Asian", "Asian American", "Hispanic", "Latino", "Latina", "Latinx",
+    "Hispanic or Latino", "Native American", "American Indian",
+    "Alaska Native", "Native Hawaiian", "Pacific Islander",
+    "Middle Eastern", "North African", "Middle Eastern or North African",
+    "Multiracial", "Two or more races", "Biracial", "Mixed race",
+    "Caucasian", "Non-Hispanic White", "Non-Hispanic Black",
+    # More specific Asian sub-groups
+    "Chinese", "Japanese", "Korean", "Vietnamese", "Filipino",
+    "Indian", "South Asian", "Pakistani", "Bangladeshi", "Sri Lankan",
+    "East Asian", "Southeast Asian",
+    # Hispanic sub-groups
+    "Mexican", "Mexican American", "Puerto Rican", "Cuban", "Dominican",
+    "Salvadoran", "Colombian", "Central American", "South American",
+    # Other
+    "Afro-Caribbean", "Afro-Latino", "Indigenous",
+    "Prefer not to say", "Other",
+]
+
 
 def _dept_color() -> str:
-    return random.choice(["Hispanic","White","Black","Asian","Native American",
-                           "Pacific Islander","Middle Eastern","Multiracial"])
+    return random.choice(_RACE_ETHNICITY_POOL)
+
+
+_RELIGION_POOL: list[str] = [
+    "Christian", "Catholic", "Roman Catholic", "Protestant",
+    "Eastern Orthodox", "Anglican", "Episcopalian", "Baptist",
+    "Methodist", "Presbyterian", "Lutheran", "Pentecostal",
+    "Evangelical", "Mormon", "Latter-day Saints", "LDS",
+    "Jehovah's Witness", "Seventh-day Adventist", "Quaker", "Amish",
+    "Muslim", "Sunni", "Shia", "Sufi", "Islamic",
+    "Jewish", "Orthodox Jewish", "Conservative Jewish", "Reform Jewish",
+    "Hasidic",
+    "Hindu", "Vaishnav", "Shaiva", "Smarta",
+    "Buddhist", "Theravada", "Mahayana", "Zen", "Tibetan Buddhist",
+    "Sikh", "Jain", "Zoroastrian", "Parsi", "Baha'i", "Rastafarian",
+    "Spiritual but not religious", "Agnostic", "Atheist",
+    "Humanist", "Pagan", "Wiccan", "Shinto", "Taoist", "Confucianist",
+    "Native American Spirituality", "Indigenous", "Animist",
+    "Prefer not to say", "None", "No religious affiliation",
+]
+
 
 def _religion_val() -> str:
-    return random.choice(["Christian","Muslim","Jewish","Hindu","Buddhist",
-                           "Catholic","Protestant","Sikh","Atheist"])
+    return random.choice(_RELIGION_POOL)
+
 
 def _physical_desc() -> str:
-    height = f"{random.randint(5,6)}'{random.randint(0,11)}\""
-    weight = f"{random.randint(110,250)} lbs"
-    hair = random.choice(["brown hair","black hair","blonde hair","red hair","gray hair"])
-    return f"{height}, {weight}, {hair}"
+    """Physical description across height/weight/hair/eyes/build/skin/tattoos."""
+    height_imp = f"{random.randint(4, 7)}'{random.randint(0, 11)}\""
+    height_cm = f"{random.randint(140, 210)} cm"
+    weight_lb = f"{random.randint(90, 320)} lbs"
+    weight_kg = f"{random.randint(40, 150)} kg"
+    hair = random.choice([
+        "brown hair", "black hair", "blonde hair", "red hair",
+        "gray hair", "white hair", "auburn hair", "bald", "shaved head",
+        "long brown hair", "short black hair", "curly hair",
+        "straight hair", "wavy hair",
+    ])
+    eyes = random.choice([
+        "brown eyes", "blue eyes", "green eyes", "hazel eyes",
+        "gray eyes", "amber eyes", "dark brown eyes",
+    ])
+    build = random.choice([
+        "slim build", "average build", "muscular build", "heavy-set",
+        "athletic build", "stocky build", "thin", "medium build",
+    ])
+    skin = random.choice([
+        "fair complexion", "light skin", "medium skin", "tan complexion",
+        "dark complexion", "olive skin", "freckled",
+    ])
+    marks = random.choice([
+        "tattoo on left arm", "scar on right cheek", "no distinguishing marks",
+        "tattoo on neck", "birthmark on chest", "scar above right eye",
+        "tattoos on both arms", "no tattoos", "pierced ears",
+    ])
+
+    fmt = random.choices(
+        ["hwt", "hwt_hair", "full", "metric_full", "build_skin",
+         "marks_focus", "height_only"],
+        weights=[14, 18, 22, 14, 14, 12, 6],
+        k=1,
+    )[0]
+    if fmt == "hwt":
+        return f"{height_imp}, {weight_lb}"
+    if fmt == "hwt_hair":
+        return f"{height_imp}, {weight_lb}, {hair}"
+    if fmt == "full":
+        return f"{height_imp}, {weight_lb}, {hair}, {eyes}, {build}"
+    if fmt == "metric_full":
+        return f"{height_cm}, {weight_kg}, {hair}, {eyes}"
+    if fmt == "build_skin":
+        return f"{build}, {skin}, {hair}"
+    if fmt == "marks_focus":
+        return f"{height_imp}, {build}, {marks}"
+    return height_imp
 
 # Generic-name medications (active ingredient) — used in clinical notes
 _GENERIC_DRUGS = [
@@ -1058,31 +2654,167 @@ def _employer() -> str:
     return fake.company()
 
 def _username() -> str:
-    return fake.user_name()
+    base = fake.user_name()
+    fmt = random.choices(
+        ["plain", "with_digits", "with_underscore", "with_dot",
+         "with_dash", "social_handle", "email_local", "leet",
+         "first_dot_last", "first_last", "user_prefix",
+         "all_lowercase", "title_case"],
+        weights=[14, 14, 10, 10, 8, 8, 8, 6, 8, 6, 4, 2, 2],
+        k=1,
+    )[0]
+    if fmt == "plain":
+        return base
+    if fmt == "with_digits":
+        return f"{base}{random.randint(10, 9999)}"
+    if fmt == "with_underscore":
+        return f"{base}_{random.randint(10, 999)}"
+    if fmt == "with_dot":
+        return f"{base}.{random.randint(10, 999)}"
+    if fmt == "with_dash":
+        return f"{base}-{random.randint(10, 999)}"
+    if fmt == "social_handle":
+        return f"@{base}"
+    if fmt == "email_local":
+        return f"{base}@example.com"
+    if fmt == "leet":
+        m = {"a": "4", "e": "3", "i": "1", "o": "0", "s": "5", "t": "7"}
+        return "".join(m.get(c, c) for c in base)
+    if fmt == "first_dot_last":
+        return f"{fake.first_name().lower()}.{fake.last_name().lower()}"
+    if fmt == "first_last":
+        return f"{fake.first_name().lower()}{fake.last_name().lower()}"
+    if fmt == "user_prefix":
+        return f"user_{base}"
+    if fmt == "all_lowercase":
+        return base.lower()
+    return base.title()
 
 def _dna_str_locus() -> str:
-    # GAP-10: CODIS STR locus-allele format
-    loci = ["D3S1358","vWA","TH01","TPOX","CSF1PO","FGA","D7S820","D13S317",
-            "D16S539","D2S1338","D21S11","D18S51","D5S818","D8S1179","PentaE","PentaD","SE33"]
-    return f"{random.choice(loci)}-{random.randint(6,30)}"
+    """DNA / genetic identifier across CODIS STR, profile IDs, and accession refs."""
+    loci = ["D3S1358", "vWA", "TH01", "TPOX", "CSF1PO", "FGA", "D7S820",
+            "D13S317", "D16S539", "D2S1338", "D21S11", "D18S51", "D5S818",
+            "D8S1179", "PentaE", "PentaD", "SE33", "Amelogenin"]
+    fmt = random.choices(
+        ["str_allele", "str_pair", "profile_id", "dna_dashed",
+         "specimen", "ncbi_acc", "rs_snp"],
+        weights=[22, 14, 18, 14, 14, 10, 8],
+        k=1,
+    )[0]
+    locus = random.choice(loci)
+    if fmt == "str_allele":
+        return f"{locus}-{random.randint(6, 30)}"
+    if fmt == "str_pair":
+        return f"{locus}: {random.randint(6, 18)},{random.randint(6, 18)}"
+    if fmt == "profile_id":
+        return f"DNA-{random.randint(100000, 9999999)}"
+    if fmt == "dna_dashed":
+        return f"PROFILE-{random.randint(2018, 2025)}-{random.randint(10000, 999999)}"
+    if fmt == "specimen":
+        return f"SPECIMEN-{random.choice('ABCDEFGHJK')}{random.randint(100000, 9999999)}"
+    if fmt == "ncbi_acc":
+        prefix = random.choice(["NC_", "NM_", "NG_", "NR_", "NW_"])
+        return f"{prefix}{random.randint(100000, 999999)}.{random.randint(1, 9)}"
+    # rs_snp — SNP accession
+    return f"rs{random.randint(100000, 99999999)}"
+
 
 def _voiceprint_vp() -> str:
-    # GAP-13: VP-NNNNNN format
-    return f"VP-{random.randint(1000,9999999)}"
+    n = random.randint(1000, 9999999)
+    fmt = random.choices(
+        ["vp_dashed", "voice_dashed", "voiceprint", "vp_attached",
+         "biometric_voice", "speaker_id"],
+        weights=[24, 18, 16, 16, 12, 14],
+        k=1,
+    )[0]
+    if fmt == "vp_dashed":
+        return f"VP-{n}"
+    if fmt == "voice_dashed":
+        return f"VOICE-{n}"
+    if fmt == "voiceprint":
+        return f"VOICEPRINT-{n}"
+    if fmt == "vp_attached":
+        return f"VP{n}"
+    if fmt == "biometric_voice":
+        return f"BIO-VOICE-{n}"
+    return f"SPK-{n}"
 
 def _ferpa_id() -> str:
-    # GAP-16: FERPA FER- and STUDENT_RECORDS_FERPA- formats
-    if random.random() < 0.5:
-        return f"FERPA FER-{random.randint(10000,9999999)}"
-    return f"STUDENT_RECORDS_FERPA-{random.randint(1000,9999999)}"
+    n = random.randint(10000, 9999999)
+    fmt = random.choices(
+        ["ferpa_fer", "ferpa_long", "fer_dashed", "ferpa_word",
+         "student_record_id", "academic_record", "transcript_id",
+         "student_file"],
+        weights=[16, 14, 14, 14, 14, 12, 10, 6],
+        k=1,
+    )[0]
+    if fmt == "ferpa_fer":
+        return f"FERPA FER-{n}"
+    if fmt == "ferpa_long":
+        return f"STUDENT_RECORDS_FERPA-{n}"
+    if fmt == "fer_dashed":
+        return f"FER-{n}"
+    if fmt == "ferpa_word":
+        return f"FERPA-{n}"
+    if fmt == "student_record_id":
+        return f"STUDENT-REC-{n}"
+    if fmt == "academic_record":
+        return f"ACAD-REC-{n}"
+    if fmt == "transcript_id":
+        return f"TRANS-{n}"
+    return f"SF-{n}"
+
 
 def _cpo_order() -> str:
-    # GAP-24: CPO-YYYY-NNN format
-    return f"CPO-{random.randint(2018,2024)}-{random.randint(100,99999)}"
+    n = random.randint(100, 99999)
+    year = random.randint(2018, 2025)
+    fmt = random.choices(
+        ["cpo_year", "po_dashed", "restraining", "order_word",
+         "protection", "tpo", "no_contact", "bare"],
+        weights=[18, 16, 14, 14, 14, 12, 8, 4],
+        k=1,
+    )[0]
+    if fmt == "cpo_year":
+        return f"CPO-{year}-{n}"
+    if fmt == "po_dashed":
+        return f"PO-{year}-{n}"
+    if fmt == "restraining":
+        return f"RO-{year}-{n}"
+    if fmt == "order_word":
+        return f"ORDER-{year}-{n}"
+    if fmt == "protection":
+        return f"PROT-{year}-{n}"
+    if fmt == "tpo":
+        return f"TPO-{n}"
+    if fmt == "no_contact":
+        return f"NCO-{year}-{n}"
+    return str(n)
+
 
 def _driver_history_dh() -> str:
-    # GAP-19: DH-NNNNNN format
-    return f"DH-{random.randint(10000,9999999)}"
+    n = random.randint(10000, 9999999)
+    state = random.choice(_US_STATE_ABBR)
+    fmt = random.choices(
+        ["dh_dashed", "dh_attached", "dr_history", "mvr",
+         "driving_record", "drv_hist", "state_dh", "bare"],
+        weights=[20, 14, 14, 14, 12, 10, 10, 6],
+        k=1,
+    )[0]
+    if fmt == "dh_dashed":
+        return f"DH-{n}"
+    if fmt == "dh_attached":
+        return f"DH{n}"
+    if fmt == "dr_history":
+        return f"DRH-{n}"
+    if fmt == "mvr":
+        return f"MVR-{n}"
+    if fmt == "driving_record":
+        return f"DRIVING-REC-{n}"
+    if fmt == "drv_hist":
+        return f"DRV-HIST-{n}"
+    if fmt == "state_dh":
+        return f"{state}-DH-{n}"
+    return str(n)
 
 def _confidential_ref() -> str:
     # GAP-12: Confidential document reference
@@ -1091,10 +2823,31 @@ def _confidential_ref() -> str:
     return f"Confidential {kind} {pfx}-{random.randint(1000,9999999)}"
 
 def _username_bare() -> str:
-    # GAP-21: user_xxx format
-    base = fake.user_name().replace("-","_").lower()[:15]
-    if not base.startswith("user_"):
-        base = "user_" + base
+    base = fake.user_name().replace("-", "_").lower()[:15]
+    fmt = random.choices(
+        ["user_prefix", "with_dot", "with_dash", "with_underscore",
+         "with_digits", "social_handle", "email_local",
+         "leet_handle", "plain"],
+        weights=[14, 14, 12, 14, 14, 10, 10, 6, 6],
+        k=1,
+    )[0]
+    if fmt == "user_prefix":
+        return base if base.startswith("user_") else f"user_{base}"
+    if fmt == "with_dot":
+        return f"{base}.{random.randint(1, 999)}"
+    if fmt == "with_dash":
+        return f"{base}-{random.randint(1, 999)}"
+    if fmt == "with_underscore":
+        return f"{base}_{random.randint(1, 999)}"
+    if fmt == "with_digits":
+        return f"{base}{random.randint(10, 9999)}"
+    if fmt == "social_handle":
+        return f"@{base}"
+    if fmt == "email_local":
+        return f"{base}@example.com"
+    if fmt == "leet_handle":
+        m = {"a": "4", "e": "3", "i": "1", "o": "0", "s": "5"}
+        return "".join(m.get(c, c) for c in base)
     return base
 
 
@@ -1153,7 +2906,419 @@ def _physician_name() -> str:
     return f"{title} {body}{suffix}"
 
 def _card_holder() -> str:
-    return f"{fake.first_name().upper()} {fake.last_name().upper()}"
+    """Cardholder name across embossing/casing conventions.
+
+    Cards in the wild use: all-uppercase (most embossed), title case,
+    initial+last, name with middle initial, and (rarely) international
+    naming conventions.
+    """
+    fmt = random.choices(
+        ["upper_basic", "upper_middle", "title_basic", "title_middle",
+         "upper_initial_last", "upper_with_suffix", "intl_upper",
+         "two_initials_last_upper", "first_initial_last_upper"],
+        weights=[28, 14, 18, 10, 8, 6, 8, 4, 4],
+        k=1,
+    )[0]
+    fn = fake.first_name()
+    ln = fake.last_name()
+    mid = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    suffix = random.choice(["JR", "SR", "II", "III"])
+
+    if fmt == "upper_basic":
+        return f"{fn.upper()} {ln.upper()}"
+    if fmt == "upper_middle":
+        return f"{fn.upper()} {mid} {ln.upper()}"
+    if fmt == "title_basic":
+        return f"{fn} {ln}"
+    if fmt == "title_middle":
+        return f"{fn} {mid}. {ln}"
+    if fmt == "upper_initial_last":
+        return f"{fn[0].upper()} {ln.upper()}"
+    if fmt == "upper_with_suffix":
+        return f"{fn.upper()} {ln.upper()} {suffix}"
+    if fmt == "intl_upper":
+        return _intl_name().upper()
+    if fmt == "two_initials_last_upper":
+        return f"{fn[0].upper()}.{mid}. {ln.upper()}"
+    # first_initial_last_upper
+    return f"{fn[0].upper()}.{ln.upper()}"
+
+
+def _card_iin_bin() -> str:
+    """6-digit Issuer Identification Number across all major networks.
+
+    Originally only emitted Visa BINs (4xxxxx) — production failures showed
+    Mastercard, Amex, Discover, JCB, Diners, RuPay etc. were misclassified
+    because the model never saw them in training.
+    """
+    network = random.choice([
+        "visa", "mastercard", "amex", "discover", "diners",
+        "jcb", "rupay", "unionpay", "maestro",
+    ])
+    if network == "visa":
+        return str(random.randint(400000, 499999))
+    if network == "mastercard":
+        first2 = random.choice([51, 52, 53, 54, 55])  # legacy 5x
+        return f"{first2}{random.randint(0, 9999):04d}"
+    if network == "amex":
+        first2 = random.choice([34, 37])
+        return f"{first2}{random.randint(0, 9999):04d}"
+    if network == "discover":
+        return f"6011{random.randint(0, 99):02d}"
+    if network == "diners":
+        first3 = random.choice([300, 301, 302, 303, 304, 305, 309, 360, 380])
+        return f"{first3}{random.randint(0, 999):03d}"
+    if network == "jcb":
+        return f"35{random.randint(0, 9999):04d}"
+    if network == "rupay":
+        first3 = random.choice([508, 606, 607, 608, 652, 653])
+        return f"{first3}{random.randint(0, 999):03d}"
+    if network == "unionpay":
+        return f"62{random.randint(0, 9999):04d}"
+    # maestro
+    first2 = random.choice([50, 56, 57, 58, 63, 67])
+    return f"{first2}{random.randint(0, 9999):04d}"
+
+
+def _card_last4() -> str:
+    """Last-four-digit values across bare and masked-prefix formats.
+
+    Production failures showed masked formats (****1234, XXXX-5678,
+    **** **** **** 9012, CARD-4455, TAIL-1122) were being misrouted to
+    state_id or employee_id labels. Generator emits them as part of the
+    value so the NER label covers the masking prefix.
+    """
+    n = f"{random.randint(0, 9999):04d}"
+    form = random.choices(
+        [
+            "bare",              # 1234
+            "stars_attached",    # ****1234
+            "stars_spaced",      # **** 1234
+            "x_uppercase",       # XXXX-1234
+            "x_lowercase",       # xxxx-1234
+            "stars_full_pan",    # **** **** **** 1234
+            "x_dash",            # x-1234
+            "card_dash",         # CARD-1234 / ENDING-1234 / TAIL-1234
+            "mask_dash",         # MASK-1234 / VISA-1234
+        ],
+        weights=[28, 14, 14, 10, 6, 10, 4, 8, 6],
+        k=1,
+    )[0]
+
+    if form == "bare":
+        return n
+    if form == "stars_attached":
+        return f"****{n}"
+    if form == "stars_spaced":
+        return f"**** {n}"
+    if form == "x_uppercase":
+        return f"XXXX-{n}"
+    if form == "x_lowercase":
+        return f"xxxx-{n}"
+    if form == "stars_full_pan":
+        return f"**** **** **** {n}"
+    if form == "x_dash":
+        return f"x-{n}"
+    if form == "card_dash":
+        pfx = random.choice(["CARD", "ENDING", "TAIL", "CCLAST4", "DEBITEND"])
+        return f"{pfx}-{n}"
+    # mask_dash
+    pfx = random.choice(["MASK", "VISA", "MC", "AMEX", "PAY", "POS"])
+    return f"{pfx}-{n}"
+
+
+# ---------------------------------------------------------------------------
+# Generic record-id builder + CJIS / stolen-X / biometric / misc generators
+# ---------------------------------------------------------------------------
+
+def _record_id(
+    prefixes: list[str],
+    digits_low: int = 10000,
+    digits_high: int = 9999999,
+    include_year: bool = True,
+    include_bare: bool = True,
+    include_attached: bool = True,
+) -> str:
+    """Generic prefix-varied record identifier.
+
+    `prefixes` is a list of label strings (e.g. ['FBI-', 'NCIC-FBI-']) — the
+    digits are appended directly. Extra forms can be enabled to add a bare
+    digits-only variant, a prefix-attached-no-separator variant, and a
+    year-segmented variant.
+    """
+    n = random.randint(digits_low, digits_high)
+    pool = list(prefixes)
+    if include_bare:
+        pool.append("__BARE__")
+    if include_attached:
+        pool.append("__ATTACHED__")
+    if include_year:
+        pool.append("__YEAR__")
+    form = random.choice(pool)
+
+    if form == "__BARE__":
+        return str(n)
+    if form == "__ATTACHED__":
+        # strip trailing separator and concatenate the digits
+        pfx = random.choice(prefixes).rstrip("-#_ ")
+        return f"{pfx}{n}"
+    if form == "__YEAR__":
+        pfx = random.choice(prefixes).rstrip("-#_ ")
+        return f"{pfx}-{random.randint(2018, 2025)}-{n}"
+    return f"{form}{n}"
+
+
+def _fbi_number() -> str:
+    return _record_id(["FBI-", "FBI#", "FBI ID ", "NCIC-FBI-", "FBI/"],
+                      digits_low=1000000, digits_high=9999999)
+
+
+def _chri() -> str:
+    return _record_id(["CHRI-", "CHRI#", "CRIM-HIST-", "NCIC-CHRI-",
+                       "CHIST-"],
+                      digits_low=100000, digits_high=99999999)
+
+
+def _arrest_record() -> str:
+    return _record_id(["AR-", "ARR-", "ARREST-", "A-", "NCIC-AR-"],
+                      digits_low=10000, digits_high=999999)
+
+
+def _incarceration_info() -> str:
+    return _record_id(["INCAR-", "INMATE-", "JAIL-", "DOC-", "BOOK-",
+                       "PRISON-", "CUSTODY-"],
+                      digits_low=10000, digits_high=99999999)
+
+
+def _missing_person_report() -> str:
+    return _record_id(["MP-", "MISSING-", "MP#", "NCIC-MP-",
+                       "MISS-PER-"], digits_low=10000, digits_high=999999)
+
+
+def _wanted_person_report() -> str:
+    return _record_id(["WP-", "WANTED-", "WP#", "NCIC-WP-",
+                       "WANT-PER-"], digits_low=10000, digits_high=999999)
+
+
+def _sex_offender_report() -> str:
+    return _record_id(["SOR-", "SO-", "SEXOFF-", "REGISTRY-",
+                       "NSOPW-", "REGSO-"],
+                      digits_low=10000, digits_high=9999999)
+
+
+def _foreign_fugitive() -> str:
+    return _record_id(["FF-", "FUGITIVE-", "FF#", "INTERPOL-FF-",
+                       "FOR-FUG-"], digits_low=10000, digits_high=999999)
+
+
+def _identity_theft_victim() -> str:
+    return _record_id(["IDT-", "ID-THEFT-", "IDV-", "IDTHEFT-",
+                       "VICTIM-"], digits_low=10000, digits_high=999999)
+
+
+def _gang_terrorist_member() -> str:
+    return _record_id(["GT-", "GANG-", "TERR-", "GTM-",
+                       "NCIC-GTM-", "TKDB-"],
+                      digits_low=10000, digits_high=999999)
+
+
+def _supervised_release() -> str:
+    return _record_id(["SR-", "SUPREL-", "SV-", "SUPREL#",
+                       "SUP-REL-", "USPO-SR-"],
+                      digits_low=10000, digits_high=999999)
+
+
+def _probation_record() -> str:
+    return _record_id(["PROB-", "PR-", "PROBATION-", "PROB#",
+                       "USPO-PR-"], digits_low=10000, digits_high=999999)
+
+
+def _parole_record() -> str:
+    return _record_id(["PAR-", "PAROLE-", "PR-", "USPC-PAR-",
+                       "PAROLE#"], digits_low=10000, digits_high=999999)
+
+
+def _stolen_vehicle() -> str:
+    return _record_id(["SV-", "STOLEN-VEH-", "STV-", "NCIC-SV-",
+                       "VEH-STL-"], digits_low=10000, digits_high=9999999)
+
+
+def _stolen_guns() -> str:
+    return _record_id(["SG-", "STOLEN-GUN-", "GUN-STL-", "NCIC-SG-",
+                       "FIREARM-STL-"], digits_low=10000, digits_high=999999)
+
+
+def _stolen_license_plate() -> str:
+    L = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+    fmt = random.choices(
+        ["plate_value", "slp_prefix", "stolen_lp", "ncic_slp"],
+        weights=[35, 25, 20, 20], k=1)[0]
+    if fmt == "plate_value":
+        return f"{''.join(random.choices(L, k=3))}-{random.randint(1000, 9999)}"
+    if fmt == "slp_prefix":
+        return f"SLP-{random.randint(10000, 999999)}"
+    if fmt == "stolen_lp":
+        return f"STOLEN-LP-{random.randint(10000, 999999)}"
+    return f"NCIC-SLP-{random.randint(10000, 999999)}"
+
+
+def _stolen_boats() -> str:
+    return _record_id(["SB-", "STOLEN-BOAT-", "BOAT-STL-", "NCIC-SB-",
+                       "VESSEL-STL-"], digits_low=10000, digits_high=999999)
+
+
+def _stolen_securities() -> str:
+    return _record_id(["SS-", "STOLEN-SEC-", "SEC-STL-", "NCIC-SS-",
+                       "BOND-STL-"], digits_low=10000, digits_high=9999999)
+
+
+def _stolen_articles() -> str:
+    return _record_id(["SA-", "STOLEN-ART-", "ART-STL-", "NCIC-SA-",
+                       "GOODS-STL-"], digits_low=10000, digits_high=999999)
+
+
+def _inmate_id() -> str:
+    return _record_id(["INMATE-", "JAIL-ID-", "DOC-", "BOOK-",
+                       "CUSTODY-", "PRISON-"],
+                      digits_low=10000, digits_high=9999999)
+
+
+def _application_id() -> str:
+    return _record_id(["APP-", "GOV-", "REF-", "FORM-", "APPL-",
+                       "APP#", "GOV#"],
+                      digits_low=10000, digits_high=99999999)
+
+
+def _terminal_id() -> str:
+    return _record_id(["TID-", "TERMINAL-", "POS-", "T-", "TID#",
+                       "POS-TID-", "TML-"],
+                      digits_low=10000, digits_high=99999999)
+
+
+_CARD_TYPE_POOL = [
+    "Visa", "VISA", "Visa Debit", "Visa Credit", "Visa Platinum",
+    "Visa Signature", "Visa Infinite", "Visa Electron",
+    "Mastercard", "MasterCard", "MASTERCARD", "Mastercard Debit",
+    "Mastercard Credit", "Mastercard World", "Mastercard Gold",
+    "Mastercard Platinum",
+    "American Express", "Amex", "AmEx", "AMEX",
+    "American Express Platinum", "American Express Gold",
+    "American Express Centurion",
+    "Discover", "Discover It", "Discover Card",
+    "Diners Club", "Diners Club International", "Diners Club Carte Blanche",
+    "JCB", "JCB Gold", "JCB Platinum",
+    "UnionPay", "China UnionPay", "UnionPay Debit",
+    "RuPay", "RuPay Select", "RuPay Platinum",
+    "Maestro", "Cirrus", "Interac", "Hipercard", "Elo",
+]
+
+
+def _card_type() -> str:
+    return random.choice(_CARD_TYPE_POOL)
+
+
+def _facial_recognition() -> str:
+    n = random.randint(1000, 9999999)
+    fmt = random.choices(
+        ["filename_bin", "filename_jpg", "filename_png", "face_dashed",
+         "fr_prefix", "faceprint", "biometric_face", "base64ish_short"],
+        weights=[14, 12, 12, 16, 14, 12, 12, 8], k=1,
+    )[0]
+    if fmt == "filename_bin":
+        return f"facial_scan_{n}.bin"
+    if fmt == "filename_jpg":
+        return f"face_{n}.jpg"
+    if fmt == "filename_png":
+        return f"faceprint_{n}.png"
+    if fmt == "face_dashed":
+        return f"FACE-{n}"
+    if fmt == "fr_prefix":
+        return f"FR-PROFILE-{n}"
+    if fmt == "faceprint":
+        return f"FACEPRINT-{n}"
+    if fmt == "biometric_face":
+        return f"BIO-FACE-{n}"
+    return "".join(random.choices(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+        k=32))
+
+
+def _iris_scan() -> str:
+    n = random.randint(1000, 9999999)
+    fmt = random.choices(
+        ["filename_dat", "filename_bin", "iris_dashed", "eye_profile",
+         "iris_id", "biometric_iris", "iris_template"],
+        weights=[14, 14, 18, 14, 14, 14, 12], k=1,
+    )[0]
+    if fmt == "filename_dat":
+        return f"iris_scan_{n}.dat"
+    if fmt == "filename_bin":
+        return f"iris_{n}.bin"
+    if fmt == "iris_dashed":
+        return f"IRIS-{n}"
+    if fmt == "eye_profile":
+        return f"EYE-PROFILE-{n}"
+    if fmt == "iris_id":
+        return f"IRISID{n}"
+    if fmt == "biometric_iris":
+        return f"BIO-IRIS-{n}"
+    return f"IRIS-TPL-{n}"
+
+
+def _fingerprint() -> str:
+    n = random.randint(100000, 9999999)
+    fmt = random.choices(
+        ["fp_under", "fp_dashed", "fpid", "afis_prefix",
+         "fbi_fp", "filename", "biometric_fp", "ten_print"],
+        weights=[14, 18, 14, 14, 12, 12, 10, 6], k=1,
+    )[0]
+    if fmt == "fp_under":
+        return f"FP_{n}"
+    if fmt == "fp_dashed":
+        return f"FP-{n}"
+    if fmt == "fpid":
+        return f"FPID-{n}"
+    if fmt == "afis_prefix":
+        return f"AFIS-{n}"
+    if fmt == "fbi_fp":
+        return f"FBI-FP-{n}"
+    if fmt == "filename":
+        ext = random.choice(["jpg", "png", "wsq", "nist", "bmp"])
+        return f"fingerprint_{n}.{ext}"
+    if fmt == "biometric_fp":
+        return f"BIO-FP-{n}"
+    return f"TENPRINT-{n}"
+
+
+def _signature() -> str:
+    n = random.randint(1000, 9999999)
+    fmt = random.choices(
+        ["sig_dashed", "sign_dashed", "signature_word", "esig",
+         "sig_img", "signature_id", "filename", "docusign_envelope"],
+        weights=[16, 14, 14, 14, 14, 12, 10, 6], k=1,
+    )[0]
+    if fmt == "sig_dashed":
+        return f"SIG-{n}"
+    if fmt == "sign_dashed":
+        return f"SIGN-{n}"
+    if fmt == "signature_word":
+        return f"SIGNATURE-{n}"
+    if fmt == "esig":
+        return f"e-SIG-{n}"
+    if fmt == "sig_img":
+        return f"SIG-IMG-{n}"
+    if fmt == "signature_id":
+        return f"SIGNID-{n}"
+    if fmt == "filename":
+        ext = random.choice(["png", "jpg", "svg", "p7s"])
+        return f"signature_{n}.{ext}"
+    # docusign_envelope (UUID)
+    HEX = "0123456789abcdef"
+    return (f"{''.join(random.choices(HEX, k=8))}-"
+            f"{''.join(random.choices(HEX, k=4))}-"
+            f"{''.join(random.choices(HEX, k=4))}-"
+            f"{''.join(random.choices(HEX, k=4))}-"
+            f"{''.join(random.choices(HEX, k=12))}")
 
 
 ENTITY_DEFS: dict[str, dict] = {
@@ -1556,7 +3721,9 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "health_plan_beneficiary_number": {
-        "generator": _health_plan_id,
+        # Mix the health-plan-specific format with the generic member-id format
+        # so the model sees both UHC-/BCBS-/INS- prefixed and MBR/SUB/M-prefixed IDs.
+        "generator": lambda: random.choice([_health_plan_id(), _member_id()]),
         "templates": [
             "Member ID: {value}",
             "Beneficiary Number: {value}",
@@ -1591,7 +3758,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "billing_number": {
-        "generator": lambda: f"BILL-{random.randint(100000,9999999)}",
+        "generator": _billing_num,
         "templates": [
             "Billing Number: {value}",
             "Bill ID: {value}",
@@ -1664,7 +3831,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "passport_number": {
-        "generator": lambda: fake.bothify(text="??#######", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
+        "generator": _passport_num,
         "templates": [
             "Passport: {value}",
             "Passport No: {value}",
@@ -1730,18 +3897,26 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "device_identifier": {
-        "generator": _mac,
+        # Mix MAC addresses (6-octet, multiple formats), IMEI / IMEISV, ICCID,
+        # Android-ID, iOS UDID. Single _mac generator was too narrow — devices
+        # have many ID schemes in the wild.
+        "generator": lambda: random.choice([_mac(), _mac(), _mac(), _imei()]),
         "templates": [
             "MAC address: {value}",
             "Device MAC: {value}",
             "Network interface {value}",
             "Hardware address: {value}",
             "IMEI: {value}",
+            "IMEISV: {value}",
             "Device ID: {value}",
             "Device identifier: {value}",
             "MAC Address: {value}",
+            "ICCID: {value}",
+            "Android ID: {value}",
+            "iOS UDID: {value}",
             "The device MAC is {value}.",
             "Physical address: {value}",
+            "Device fingerprint: {value}",
         ],
     },
 
@@ -1780,7 +3955,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "biometric_facial_recognition": {
-        "generator": lambda: f"facial_scan_{random.randint(1000,9999)}.bin",
+        "generator": _facial_recognition,
         "templates": [
             "Facial recognition data: {value}",
             "Face scan stored as {value}",
@@ -1821,7 +3996,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "biometric_iris_scan": {
-        "generator": lambda: f"iris_scan_{random.randint(1000,9999)}.dat",
+        "generator": _iris_scan,
         "templates": [
             "Iris scan record: {value}",
             "Retina scan data: {value}",
@@ -1862,7 +4037,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "fingerprint": {
-        "generator": lambda: f"FP_{random.randint(100000,999999)}",
+        "generator": _fingerprint,
         "templates": [
             "Fingerprint data: {value}",
             "Palm print record: {value}",
@@ -1956,7 +4131,9 @@ ENTITY_DEFS: dict[str, dict] = {
             _first_last(),  # 3x weight on free-form names
             f"/s/ {_first_last()}",
             f"/s/ {_first_last()}",
-            f"SIG-{random.randint(100000, 999999)}",
+            _signature(),
+            _signature(),
+            _signature(),  # 3x weight on coded signature IDs from helper
             f"BIO-SIGN-{random.randint(1000, 9999)}",
             f"DOCSIGN-{random.randint(1000, 9999)}",
             f"REGSIG-{random.randint(1000, 9999)}",
@@ -2090,7 +4267,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "card_pin": {
-        "generator": lambda: str(random.randint(1000,9999)),
+        "generator": _pin_block,
         "templates": [
             "PIN: {value}",
             "PIN Block: {value}",
@@ -2126,7 +4303,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "card_iin_bin": {
-        "generator": lambda: str(random.randint(400000,499999)),
+        "generator": _card_iin_bin,
         "templates": [
             "BIN: {value}",
             "IIN: {value}",
@@ -2236,7 +4413,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "terminal_id": {
-        "generator": lambda: f"TID-{random.randint(10000000,99999999)}",
+        "generator": _terminal_id,
         "templates": [
             "Terminal ID: {value}",
             "TID: {value}",
@@ -2272,7 +4449,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "card_type": {
-        "generator": lambda: random.choice(["Visa","Mastercard","American Express","Discover","AmEx"]),
+        "generator": _card_type,
         "templates": [
             "Card type: {value}",
             "Paid via {value}",
@@ -2290,7 +4467,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "card_last4": {
-        "generator": lambda: str(random.randint(1000,9999)),
+        "generator": _card_last4,
         "templates": [
             "card ending in {value}",
             "Account ending in {value}",
@@ -2367,8 +4544,15 @@ ENTITY_DEFS: dict[str, dict] = {
 
     "confidential": {
         "generator": lambda: random.choice([
-            "CONFIDENTIAL", "TOP SECRET", "RESTRICTED", "SENSITIVE PII",
-            _confidential_ref(),
+            "CONFIDENTIAL", "Confidential", "TOP SECRET", "Top Secret",
+            "RESTRICTED", "Restricted", "SENSITIVE", "SENSITIVE PII",
+            "SECRET", "PRIVATE", "PROPRIETARY", "INTERNAL USE ONLY",
+            "FOR OFFICIAL USE ONLY", "FOUO", "CUI", "PHI",
+            "PRIVILEGED", "ATTORNEY-CLIENT PRIVILEGED", "DRAFT",
+            "NOT FOR DISTRIBUTION", "DO NOT FORWARD", "EYES ONLY",
+            "CLASSIFIED", "TS/SCI", "NOFORN", "LIMITED DISTRIBUTION",
+            "TLP:RED", "TLP:AMBER", "TLP:GREEN",
+            _confidential_ref(), _confidential_ref(),
         ]),
         "templates": [
             "{value} — do not distribute.",
@@ -2441,8 +4625,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "race": {
-        "generator": lambda: random.choice(["White","Black","Hispanic","Asian",
-                                             "Native American","Pacific Islander","Multiracial"]),
+        "generator": _dept_color,
         "templates": [
             "Race: {value}",
             "Patient race: {value}",
@@ -2478,7 +4661,22 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "employment_history": {
-        "generator": lambda: f"{_job_title()} at {_employer()}",
+        # Mix simple "Title at Company" with date-ranged history, multi-line,
+        # career arc, and termination notes.
+        "generator": lambda: random.choice([
+            f"{_job_title()} at {_employer()}",
+            f"{_job_title()} at {_employer()}",  # 2x weight basic
+            f"{_job_title()} at {_employer()} ({random.randint(2010, 2020)}-{random.randint(2021, 2025)})",
+            f"{_job_title()} at {_employer()}, {random.randint(2015, 2024)}-Present",
+            f"Former {_job_title()} at {_employer()}",
+            f"Previously {_job_title()} at {_employer()}",
+            f"Senior {_job_title()} at {_employer()}",
+            f"Junior {_job_title()} at {_employer()}",
+            f"{_job_title()} at {_employer()}; terminated {random.randint(2018, 2024)}",
+            f"{_job_title()} at {_employer()} ({random.randint(1, 15)} years)",
+            f"{_job_title()}, {_employer()}, {random.choice(['Full-time', 'Contract', 'Part-time'])}",
+            f"{_job_title()} (Intern) at {_employer()}",
+        ]),
         "templates": [
             "Employment: {value}",
             "Previous employer: {value}",
@@ -2496,8 +4694,37 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "performance_evaluation": {
-        "generator": lambda: random.choice(["Exceeds Expectations 4.5/5","Meets Expectations 3.2/5",
-                                             "Needs Improvement 2.0/5","Outstanding 5/5"]),
+        "generator": lambda: random.choice([
+            # 5-point scale
+            "Exceeds Expectations 4.5/5", "Exceeds Expectations 4.2/5",
+            "Meets Expectations 3.2/5", "Meets Expectations 3.5/5",
+            "Needs Improvement 2.0/5", "Needs Improvement 2.5/5",
+            "Outstanding 5/5", "Outstanding 4.8/5",
+            "Below Expectations 1.8/5", "Unsatisfactory 1.0/5",
+            # Categorical
+            "Exceeds Expectations", "Meets Expectations",
+            "Needs Improvement", "Outstanding", "Below Expectations",
+            "Unsatisfactory", "Satisfactory",
+            # Letter grades
+            "Grade A", "Grade B+", "Grade B", "Grade C", "Grade D",
+            "Grade F",
+            # Numeric percent
+            f"{random.randint(60, 99)}%", f"{random.randint(2, 10) / 10 * 100:.0f}%",
+            # Numeric out-of-100
+            f"{random.randint(60, 100)}/100",
+            # 10-point scale
+            f"{random.uniform(1, 10):.1f}/10",
+            # 4-point scale (academic)
+            f"{random.uniform(0, 4):.2f}/4.0",
+            # Tiered/banded
+            "Tier 1 - Exemplary", "Tier 2 - Strong", "Tier 3 - Developing",
+            "Tier 4 - Underperforming", "Band A", "Band B", "Band C",
+            # Star rating
+            "5 stars", "4 stars", "3 stars", "2 stars",
+            # Qualitative
+            "Top performer", "High potential", "Solid contributor",
+            "Improvement plan required", "Performance Improvement Plan (PIP)",
+        ]),
         "templates": [
             "Performance rating: {value}",
             "Annual review score: {value}",
@@ -2734,7 +4961,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "application_id": {
-        "generator": lambda: f"GOV-{random.randint(100000,999999)}",
+        "generator": _application_id,
         "templates": [
             "Application Number: {value}",
             "Reference Number: {value}",
@@ -2914,7 +5141,7 @@ ENTITY_DEFS: dict[str, dict] = {
     # ── Law Enforcement / CJIS ───────────────────────────────────────────────
 
     "fbi_number": {
-        "generator": lambda: f"FBI-{random.randint(1000000,9999999)}",
+        "generator": _fbi_number,
         "templates": [
             "FBI number: {value}",
             "FBI ID: {value}",
@@ -2932,7 +5159,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "chri": {
-        "generator": lambda: f"CHRI-{random.randint(1000000,9999999)}",
+        "generator": _chri,
         "templates": [
             "Criminal history: {value}",
             "CHRI Record: {value}",
@@ -2950,7 +5177,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "arrest_record": {
-        "generator": lambda: f"AR-{random.randint(2018,2024)}-{random.randint(10000,99999)}",
+        "generator": _arrest_record,
         "templates": [
             "Arrest record: {value}",
             "Booking number: {value}",
@@ -3022,7 +5249,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "incarceration_info": {
-        "generator": lambda: f"INCAR-{random.randint(100000,999999)}",
+        "generator": lambda: random.choice([_incarceration_info(), _inmate_id()]),
         "templates": [
             "Incarceration record: {value}",
             "Booking reference: {value}",
@@ -3040,7 +5267,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "missing_person_report": {
-        "generator": lambda: f"MP-{random.randint(2020,2024)}-{random.randint(10000,99999)}",
+        "generator": _missing_person_report,
         "templates": [
             "Missing Person Report: {value}",
             "NCIC missing: {value}",
@@ -3058,7 +5285,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "wanted_person_report": {
-        "generator": lambda: f"WP-{random.randint(2020,2024)}-{random.randint(10000,99999)}",
+        "generator": _wanted_person_report,
         "templates": [
             "Wanted person report: {value}",
             "Fugitive record: {value}",
@@ -3076,7 +5303,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "sex_offender_report": {
-        "generator": lambda: f"SOR-{random.randint(10000,999999)}",
+        "generator": _sex_offender_report,
         "templates": [
             "Sex offender registration: {value}",
             "SORA record: {value}",
@@ -3112,7 +5339,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "foreign_fugitives": {
-        "generator": lambda: f"FF-{random.randint(10000,999999)}",
+        "generator": _foreign_fugitive,
         "templates": [
             "Foreign fugitive: {value}",
             "Interpol record: {value}",
@@ -3130,7 +5357,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "identity_theft_victims": {
-        "generator": lambda: f"IDT-{random.randint(10000,999999)}",
+        "generator": _identity_theft_victim,
         "templates": [
             "Identity theft report: {value}",
             "ID theft victim record: {value}",
@@ -3148,7 +5375,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "gang_terrorist_member": {
-        "generator": lambda: f"GT-{random.randint(10000,999999)}",
+        "generator": _gang_terrorist_member,
         "templates": [
             "Gang member record: {value}",
             "Terrorist watchlist entry: {value}",
@@ -3166,7 +5393,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "supervised_release": {
-        "generator": lambda: f"SR-{random.randint(10000,999999)}",
+        "generator": _supervised_release,
         "templates": [
             "Supervised release: {value}",
             "Supervision record: {value}",
@@ -3184,7 +5411,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "probation_record": {
-        "generator": lambda: f"PROB-{random.randint(10000,999999)}",
+        "generator": _probation_record,
         "templates": [
             "Probation record: {value}",
             "Probation number: {value}",
@@ -3202,7 +5429,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "parole_record": {
-        "generator": lambda: f"PR-{random.randint(10000,999999)}",
+        "generator": _parole_record,
         "templates": [
             "Parole record: {value}",
             "Parole number: {value}",
@@ -3220,7 +5447,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "stolen_vehicle": {
-        "generator": lambda: f"SV-{random.randint(10000,999999)}",
+        "generator": _stolen_vehicle,
         "templates": [
             "Stolen vehicle report: {value}",
             "NCIC stolen vehicle: {value}",
@@ -3238,7 +5465,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "stolen_guns": {
-        "generator": lambda: f"SG-{random.randint(10000,999999)}",
+        "generator": _stolen_guns,
         "templates": [
             "Stolen gun report: {value}",
             "Stolen firearm record: {value}",
@@ -3256,7 +5483,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "stolen_license_plate": {
-        "generator": lambda: f"SLP-{random.randint(1000,9999)}",
+        "generator": _stolen_license_plate,
         "templates": [
             "Stolen plate: {value}",
             "Stolen license plate: {value}",
@@ -3274,7 +5501,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "stolen_boats": {
-        "generator": lambda: f"SB-{random.randint(10000,999999)}",
+        "generator": _stolen_boats,
         "templates": [
             "Stolen boat report: {value}",
             "Stolen vessel record: {value}",
@@ -3292,7 +5519,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "stolen_securities": {
-        "generator": lambda: f"SS-{random.randint(10000,999999)}",
+        "generator": _stolen_securities,
         "templates": [
             "Stolen securities report: {value}",
             "Stolen bonds record: {value}",
@@ -3310,7 +5537,7 @@ ENTITY_DEFS: dict[str, dict] = {
     },
 
     "stolen_articles": {
-        "generator": lambda: f"SA-{random.randint(10000,999999)}",
+        "generator": _stolen_articles,
         "templates": [
             "Stolen property report: {value}",
             "Stolen articles record: {value}",
@@ -3747,6 +5974,176 @@ HARD_NEGATIVES: list[str] = [
     "The signature was illegible and rejected.",
     "Counter-signature is required by the second party.",
     "Authorized signatories are listed in the corporate registry.",
+
+    # ── Single-word hallucination kills ───────────────────────────────────────
+    # Sentences where COMMON ENGLISH WORDS that were getting tagged as entities
+    # (Bank, State, Treasury, Transaction, Domestic, Charter, Web, Transfer,
+    # Card, Session, Order, International, Secure, Corporate, etc.) appear
+    # in their everyday non-entity meaning. Teaches GLiNER that these are
+    # NOT entities by themselves.
+    "Bank holidays are listed at the bottom of the statement.",
+    "Bank fees apply for paper statements.",
+    "The bank closed at 5pm today.",
+    "We met at the bank yesterday morning.",
+    "Bank rules differ from credit union rules.",
+    "Treasury yields rose in the afternoon.",
+    "The treasury department published new guidance.",
+    "Treasury notes mature in ten years.",
+    "Treasury bonds carry lower risk than corporate bonds.",
+    "State law requires this disclosure.",
+    "The state of California passed a new law.",
+    "State officials confirmed the budget today.",
+    "Each state sets its own minimum wage.",
+    "The state and federal forms differ.",
+    "State income tax is withheld from each paycheck.",
+    "Transaction history is available in the online portal.",
+    "Transaction fees may apply to international purchases.",
+    "Transaction costs were higher than expected.",
+    "Domestic shipping is included with the purchase.",
+    "Domestic flights board 30 minutes before departure.",
+    "The domestic policy was revised in March.",
+    "Charter schools follow different rules than public schools.",
+    "The charter was renewed for another five years.",
+    "Charter flights serve smaller airports.",
+    "Web traffic increased during the campaign.",
+    "Web design is part of the curriculum.",
+    "The web team will fix the bug tomorrow.",
+    "Transfer paperwork is processed within 48 hours.",
+    "Transfer fees were waived for premium members.",
+    "Card readers must be replaced annually.",
+    "Card stock is available in multiple weights.",
+    "The card game lasted until midnight.",
+    "Session attendance was higher this quarter.",
+    "The session began at 9 AM with introductions.",
+    "Session times are listed on the website.",
+    "Order processing takes one to two business days.",
+    "Order forms are available at the front desk.",
+    "The order was placed yesterday morning.",
+    "International shipping is available to most countries.",
+    "International law governs cross-border disputes.",
+    "International students must register by Monday.",
+    "Secure storage is provided for valuable items.",
+    "Secure access requires two-factor authentication.",
+    "The secure facility is closed to visitors.",
+    "Corporate policy prohibits personal use of the equipment.",
+    "Corporate dining is available on the second floor.",
+    "Investment grew over the past five years.",
+    "Investment strategy varies by risk tolerance.",
+    "Refund policy applies to all returned items.",
+    "Refund amount depends on the original payment method.",
+    "Identifier fields are required on the application.",
+    "Statement balances reflect last night's posting.",
+    "Reference materials are available in the library.",
+    "Reference checks were completed last week.",
+    "Policy changes take effect next quarter.",
+    "Policy reviews happen every six months.",
+    "Number formatting depends on the locale.",
+    "Number ranges are defined in the schema.",
+    "Web Session ID is generated server-side.",
+    "Transaction SWIFT ID rotates daily.",
+    "Bank Identifier Code conventions follow ISO 9362.",
+    "Corporate Card Number formats vary by issuer.",
+    "Transfer SWIFT ID validation runs at submission.",
+    "Treasury SWIFT Number is reserved for sovereign transactions.",
+    "Domestic Flight Number prefixes differ from international codes.",
+    "Charter Flight Number is assigned by the operator.",
+    "Routing SWIFT records are updated weekly.",
+    "Card Last4 is shown on the receipt only.",
+    "Card Suffix display is configurable per merchant.",
+    "Last Four of Card is sufficient for verification.",
+    "POS Card Ending Number is masked in logs.",
+    "Authentication Session Cookie is set on login.",
+    "Secure Cookie ID expires when the browser closes.",
+    "Single Sign-On Token is rotated every hour.",
+    "Web Session ID format is opaque to the client.",
+    "User Session Identifier is generated per device.",
+    "Authentication tokens should not appear in URLs.",
+    "Bank Identification Number lookup takes milliseconds.",
+    "Visa BIN Number ranges are documented publicly.",
+    "Merchant BIN Number is internal to the processor.",
+    "Issuer Identification Number ranges change rarely.",
+    "Card Issuer BIN data is licensed from networks.",
+    "Network IIN is the same across all cards in a network.",
+    "State Identification Number formats differ by state.",
+    "State issued ID requirements vary by jurisdiction.",
+    "Legal state identification documents include passports.",
+    "Regional state ID requirements differ from federal ones.",
+    "Government state ID is required for boarding domestic flights.",
+
+    # Words in list/heading contexts where they should NOT be tagged
+    "Sections: Bank, Treasury, Transaction, Domestic, International.",
+    "Categories include: State, Federal, Local, and Regional.",
+    "Fields: Card, Session, Web, Order, Transfer.",
+    "Topics covered: Banking, Treasury, Investments, Refunds.",
+    "Headers: Bank Account, Routing, Statement, Transfer.",
+
+    # Verbs / common nouns that often share form with PII tags
+    "Please charge the corporate card for this purchase.",
+    "Please reference the policy when making a claim.",
+    "Please order new business cards this week.",
+    "Please transfer the file to the secure drive.",
+    "Please secure the access doors after hours.",
+    "Please web-search the topic before the meeting.",
+
+    # Address-shaped non-addresses
+    "Building 4 houses the engineering team.",
+    "Suite 12 is the conference room.",
+    "Room 301 is reserved for the meeting.",
+    "Office 5 has been reassigned to marketing.",
+
+    # Date-context non-dates (prevent random number → date hallucinations)
+    "Page 12 of 50 was missing from the binder.",
+    "Question 3 of 25 was answered incorrectly.",
+    "Item 7 of 100 is on backorder.",
+    "Section 4 of the contract covers indemnification.",
+
+    # Number-shape negatives (large bare numbers that are NOT PII)
+    "There are 50000 employees worldwide.",
+    "Revenue increased to 100000 last quarter.",
+    "The event drew 75000 attendees over three days.",
+    "The population reached 250000 in 2024.",
+    "The library catalogs 980000 volumes.",
+    "Distance to the depot is 12000 meters.",
+    "The room capacity is 1500.",
+    "Page count: 850000 documents archived this year.",
+
+    # 5-digit non-zip negatives
+    "The product weighs 12345 grams.",
+    "The drive holds 50000 files.",
+    "The error code 60110 indicates a connection failure.",
+    "Lot number 99999 was recalled last month.",
+
+    # 6-digit non-BIN negatives
+    "The serial 601100 is on the back panel.",
+    "Asset tag 411111 belongs to the IT department.",
+    "Build 305693 was released last Tuesday.",
+    "Job 555544 is in the queue for processing.",
+
+    # Common-word + ID combo (the user's biggest failure mode)
+    "Transaction was approved automatically.",
+    "Web administered the certificate renewal.",
+    "Domestic violence prevention training is mandatory.",
+    "Charter members get exclusive benefits.",
+    "Order forms must be approved by a manager.",
+    "Card processing follows PCI-DSS standards.",
+    "Session expired due to inactivity.",
+    "Transfer protocol uses TLS 1.3.",
+    "Treasury management is centralized at headquarters.",
+    "International expansion is planned for next year.",
+
+    # MM/YY and date-shaped non-dates
+    "Step 5/28 of the wizard is the final review.",
+    "Page 12/27 has the appendix.",
+    "Lesson 8/30 covers advanced topics.",
+    "Module 11/29 is required reading.",
+
+    # BIC-shaped non-BIC words (8-char uppercase clusters)
+    "FACEBOOK launched a new feature today.",
+    "INSTAGRAM is owned by Meta Platforms.",
+    "WHATSAPP is widely used in Europe.",
+    "TWITTER rebranded as X in 2023.",
+    "LINKEDIN profiles are required for our talent system.",
+
 ]
 
 

@@ -31,6 +31,54 @@ _PERSON_NAME_BLOCKLIST = frozenset({
     "blood glucose", "oxygen saturation", "metabolic panel",
 })
 
+# Common English words that GLiNER over-detects as entities when they appear
+# in field-label positions ("Bank Identifier Code", "State ID Number", etc.).
+# Any NER span whose lowercased trimmed value is in this set is rejected
+# regardless of which entity type was assigned — these are NEVER PII by
+# themselves. Sentence-level adversarial-negative training cuts most of
+# these out, but this acts as a defence-in-depth safety net.
+_NER_COMMON_WORD_BLOCKLIST = frozenset({
+    # Articles / determiners
+    "the", "a", "an", "this", "that", "these", "those",
+    # Common label heads that got mistagged in production
+    "bank", "treasury", "transaction", "transfer", "domestic",
+    "international", "charter", "web", "secure", "corporate",
+    "session", "card", "order", "policy", "policies", "number",
+    "identifier", "identification", "statement", "reference",
+    "service", "services", "investment", "refund", "purchase",
+    "merchant", "payment", "gateway", "issuer", "issued",
+    "delivery", "billing", "mailing", "shipping",
+    # Region / direction words
+    "state", "city", "country", "region", "regional", "global",
+    "national", "federal", "central", "north", "south", "east",
+    "west", "northern", "southern", "eastern", "western",
+    # Card / payment scheme words (NOT the brand names — see card_type entity)
+    "credit", "debit", "prepaid", "loyalty",
+    # Verbs commonly mistagged
+    "send", "sent", "receive", "received", "process", "processed",
+    "verify", "verified", "validate", "validated", "approve",
+    "approved", "issue", "issues", "deliver", "delivered",
+    "confirm", "confirmed", "complete", "completed",
+    # Connectors
+    "and", "or", "of", "for", "to", "from", "with", "without",
+    # Other common label heads
+    "field", "form", "record", "records", "report", "document",
+    "file", "entry", "data", "info", "information", "details",
+    "name", "type", "category", "code", "key", "token",
+})
+
+
+def _is_blocklisted_ner_span(span: DetectedSpan) -> bool:
+    """True if the span was tagged by NER and is a common English word.
+
+    Catches the failure mode where 'Bank' → [COMPANY], 'state' → [STATE],
+    'Transaction' → [LOCATION], etc.
+    """
+    if span.source != "ner":
+        return False
+    text = span.text.strip().lower()
+    return text in _NER_COMMON_WORD_BLOCKLIST
+
 # NER shape gates — entities whose value MUST match a structured prefix.
 # When GLiNER mislabels a generic alphanumeric value as one of these types
 # (e.g. "F12345" tagged merchant_id), the gate filters it out so a more
@@ -88,6 +136,14 @@ class SpanMerger:
     ) -> list[DetectedSpan]:
         result: list[DetectedSpan] = []
         for span in spans:
+            # Common-English-word kill switch — any NER span whose value is a
+            # generic English word ("Bank", "state", "Transaction", etc.) is
+            # rejected regardless of entity_id. Defence-in-depth alongside
+            # the adversarial-negative training rows.
+            if _is_blocklisted_ner_span(span):
+                log.debug("span_rejected_common_english_word",
+                          entity_id=span.entity_id, text=span.text)
+                continue
             # ── Context gates (need the surrounding document text) ───────────
             if text and span.source == "ner":
                 s, e = span.start, span.end
