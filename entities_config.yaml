@@ -264,7 +264,10 @@ entities:
     priority: 3
     gliner_label: "ZIP code or postal code"
     patterns:
-      - '(?:,?\s*[A-Z]{2}\s+)(\d{5}(?:-\d{4})?)\b'
+      # State-abbr-prefixed ZIP. `\b[A-Z]{2}\b` prevents matching the tail
+      # of currency codes ("CHF 50000" was being tagged via "HF 50000")
+      # or any 3+ letter cluster.
+      - '(?:,?\s*\b[A-Z]{2}\b\s+)(\d{5}(?:-\d{4})?)\b'
       - '(?:zip|postal)\s+(?:code|#)?\s*:?\s*(\d{5}(?:-\d{4})?)'
       # Bare US ZIP+4: "90210-1234" — anchored with no surrounding digit
       - '(?<!\d)(\d{5}-\d{4})(?!\d)'
