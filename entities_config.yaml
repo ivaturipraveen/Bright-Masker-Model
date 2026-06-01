@@ -253,7 +253,7 @@ entities:
       # "Arizona-AZ", "Nevada_NV", "Colorado: CO", "Georgia (GA)".
       - '\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New\s+Hampshire|New\s+Jersey|New\s+Mexico|New\s+York|North\s+Carolina|North\s+Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode\s+Island|South\s+Carolina|South\s+Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West\s+Virginia|Wisconsin|Wyoming|District\s+of\s+Columbia)\s*[\(\[\-_,/:]\s*[A-Z]{2}\s*[\)\]]?\b'
       # State code after separators: "(CA)", "[NY]", "- TX", "/ FL", "_NV", ": CO"
-      - '(?:[\(\[]\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\s*[\)\]]|[-_/:]\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b)'
+      - '(?:[\(\[]\s*|[-_/:]\s*)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\s*[\)\]]?\b'
     masking:
       strategy: redact
       format: "[STATE {n}]"
@@ -906,8 +906,8 @@ entities:
       - '(?:Temporary\s+Plate\s+Number|State\s+Registration\s+Plate|Motorcycle\s+Plate\s+Number|Auto\s+Registration\s+Number|Commercial\s+Plate|Transport\s+Vehicle\s+Registration|UK\s+Registration\s+Plate)\s*[:#-]?\s*([A-Z0-9]{2,4}[\s-]?[A-Z0-9]{2,8})\b'
       # Special prefix codes: TEMP-, NYK-, TX-, CAB-, FLT-, PRK-, DIP-
       - '\b((?:TEMP|NYK|TX|CAB|FLT|PRK|DIP)-[A-Z0-9]{4,8})\b'
-      # US 3-letter + 4-digit format: "ABC-1234", "XYZ 9876"
-      - '(?<![A-Za-z0-9])([A-Z]{3}[\s-]\d{4})(?![A-Za-z0-9])'
+      # US 3-letter hyphen 4-digit format: "ABC-1234" (hyphen only, not space — avoids "USD 1234" currency false positive)
+      - '(?<![A-Za-z0-9])([A-Z]{3}-\d{4})(?![A-Za-z0-9])'
       # US 2-letter + 4-digit glued plate (XU5963, JS6023, ZY4059, TM4915, BC9673)
       - '(?<![A-Za-z0-9])([A-Z]{2}\d{4})(?![A-Za-z0-9])'
       # value-before-label: "XU5963 for license plate"
