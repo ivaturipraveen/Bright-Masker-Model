@@ -1603,6 +1603,8 @@ entities:
       - '(?:passphrase|secret[\s_]key)\s*[:#=\s]\s*([^\s,;.]{4,128})'
       # value-before-label: "Temp!18319#Secure for password" / "X as the password"
       - '\b([A-Za-z0-9][A-Za-z0-9!@#$%^&*_\-\.]{3,127})\s+(?:for|as)\s+(?:the\s+)?(?:password|passphrase|pin|passcode)\b'
+      # Uppercase label formats: "LOGIN PASS#: MyPass!456", "ADMIN PASS#: Admin#2025"
+      - '(?:LOGIN\s+PASS#?|ADMIN\s+PASS#?|RESET\s+PASS#?|TEMP\s+PASSWORD[-\s]?ID|SYS\s+PASS#?)\s*[:#]?\s*([^\s,;.]{4,128})'
     masking:
       strategy: redact
       format: "[PASSWORD {n}]"
