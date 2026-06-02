@@ -28,7 +28,7 @@ VENV="$ROOT/.venv"
 LOG_FILE="$ROOT/train.log"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-SAMPLES=3000
+SAMPLES=4000
 DEVICE_ARG=""
 EPOCHS_ARG=""
 BASE_MODEL="urchade/gliner_large-v2.1"
